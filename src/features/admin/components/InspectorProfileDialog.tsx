@@ -64,7 +64,8 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const roles = useAuthStore((state) => state.roles);
-  const canApprovePartner = roles.includes('ADMIN') || roles.includes('MANAGER');
+  const canApprovePartner = roles.includes('MANAGER');
+  const canEditPartner = roles.includes('MANAGER') || roles.includes('INSPECTOR');
   const portalBase = roles.includes('ADMIN') ? '/admin' : '/manager';
   const [currentTab, setCurrentTab] = useState(0);
   const ratingProfileQuery = useInspectorRatingProfile(
@@ -923,26 +924,28 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
 
                         <Divider sx={{ my: 1.5 }} />
 
-                        <Button
-                          component="label"
-                          variant="outlined"
-                          size="small"
-                          startIcon={<CloudUploadOutlined />}
-                          disabled={uploadScanMutation.isPending}
-                          sx={{ textTransform: 'none', fontWeight: 600 }}
-                        >
-                          {uploadScanMutation.isPending
-                            ? tr('Đang tải lên MinIO…', 'Uploading…')
-                            : profile.hasLicenseScan
-                              ? tr('Tải lên bản scan mới thay thế', 'Replace license scan')
-                              : tr('Chọn tệp scan để tải lên', 'Upload license scan')}
-                          <input
-                            hidden
-                            type="file"
-                            accept="image/png,image/jpeg,image/webp,application/pdf"
-                            onChange={handleScanFileSelected}
-                          />
-                        </Button>
+                        {canEditPartner && (
+                          <Button
+                            component="label"
+                            variant="outlined"
+                            size="small"
+                            startIcon={<CloudUploadOutlined />}
+                            disabled={uploadScanMutation.isPending}
+                            sx={{ textTransform: 'none', fontWeight: 600 }}
+                          >
+                            {uploadScanMutation.isPending
+                              ? tr('Đang tải lên MinIO…', 'Uploading…')
+                              : profile.hasLicenseScan
+                                ? tr('Tải lên bản scan mới thay thế', 'Replace license scan')
+                                : tr('Chọn tệp scan để tải lên', 'Upload license scan')}
+                            <input
+                              hidden
+                              type="file"
+                              accept="image/png,image/jpeg,image/webp,application/pdf"
+                              onChange={handleScanFileSelected}
+                            />
+                          </Button>
+                        )}
                       </Paper>
                     </Box>
                   </Box>
@@ -1032,25 +1035,27 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                           </Typography>
                         </Box>
 
-                        <Button
-                          component="label"
-                          variant="outlined"
-                          startIcon={<CloudUploadOutlined />}
-                          disabled={uploadContractMutation.isPending}
-                          sx={{ textTransform: 'none', fontWeight: 650, whiteSpace: 'nowrap', bgcolor: '#ffffff' }}
-                        >
-                          {uploadContractMutation.isPending
-                            ? 'Đang băm SHA-256 & tải lên…'
-                            : profile.hasPartnerContract
-                              ? 'Tải lên bản Hợp đồng mới thay thế'
-                              : 'Chọn file Hợp đồng đã ký (PDF/Ảnh)'}
-                          <input
-                            hidden
-                            type="file"
-                            accept="application/pdf,image/png,image/jpeg,image/webp"
-                            onChange={handleContractFileSelected}
-                          />
-                        </Button>
+                        {canEditPartner && (
+                          <Button
+                            component="label"
+                            variant="outlined"
+                            startIcon={<CloudUploadOutlined />}
+                            disabled={uploadContractMutation.isPending}
+                            sx={{ textTransform: 'none', fontWeight: 650, whiteSpace: 'nowrap', bgcolor: '#ffffff' }}
+                          >
+                            {uploadContractMutation.isPending
+                              ? 'Đang băm SHA-256 & tải lên…'
+                              : profile.hasPartnerContract
+                                ? 'Tải lên bản Hợp đồng mới thay thế'
+                                : 'Chọn file Hợp đồng đã ký (PDF/Ảnh)'}
+                            <input
+                              hidden
+                              type="file"
+                              accept="application/pdf,image/png,image/jpeg,image/webp"
+                              onChange={handleContractFileSelected}
+                            />
+                          </Button>
+                        )}
                       </Box>
 
                       {profile.partnerContractSha256 && (
@@ -1391,19 +1396,21 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                     </Box>
                   </Box>
 
-                  <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
-                    <Button
-                      type="submit"
-                      variant="contained"
-                      color="primary"
-                      disabled={updateMutation.isPending}
-                      sx={{ textTransform: 'none', fontWeight: 600, px: 3, borderRadius: '8px' }}
-                    >
-                      {updateMutation.isPending
-                        ? tr('Đang lưu…', 'Saving…')
-                        : tr('Lưu thông tin kinh nghiệm', 'Save experience')}
-                    </Button>
-                  </Box>
+                  {canEditPartner && (
+                    <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+                      <Button
+                        type="submit"
+                        variant="contained"
+                        color="primary"
+                        disabled={updateMutation.isPending}
+                        sx={{ textTransform: 'none', fontWeight: 600, px: 3, borderRadius: '8px' }}
+                      >
+                        {updateMutation.isPending
+                          ? tr('Đang lưu…', 'Saving…')
+                          : tr('Lưu thông tin kinh nghiệm', 'Save experience')}
+                      </Button>
+                    </Box>
+                  )}
                 </Box>
               )}
 
@@ -1425,16 +1432,18 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                         )}
                       </Typography>
                     </Box>
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      size="small"
-                      startIcon={<AddCircleOutlineRounded />}
-                      onClick={() => setLogOpen(true)}
-                      sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
-                    >
-                      {tr('+ Ghi nhận chuyến bay mới', '+ Record Flight Mission')}
-                    </Button>
+                    {canApprovePartner && (
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        size="small"
+                        startIcon={<AddCircleOutlineRounded />}
+                        onClick={() => setLogOpen(true)}
+                        sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
+                      >
+                        {tr('+ Ghi nhận chuyến bay mới', '+ Record Flight Mission')}
+                      </Button>
+                    )}
                   </Box>
 
                   {flightLogsQuery.isLoading ? (
@@ -1531,15 +1540,17 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                                 sx={{ fontWeight: 700 }}
                               />
                             )}
-                            <IconButton
-                              size="small"
-                              color="error"
-                              aria-label={tr('Xóa nhật ký bay', 'Delete flight log')}
-                              onClick={() => deleteLogMutation.mutate(log.id)}
-                              disabled={deleteLogMutation.isPending}
-                            >
-                              <DeleteOutlineRounded fontSize="small" />
-                            </IconButton>
+                            {canApprovePartner && (
+                              <IconButton
+                                size="small"
+                                color="error"
+                                aria-label={tr('Xóa nhật ký bay', 'Delete flight log')}
+                                onClick={() => deleteLogMutation.mutate(log.id)}
+                                disabled={deleteLogMutation.isPending}
+                              >
+                                <DeleteOutlineRounded fontSize="small" />
+                              </IconButton>
+                            )}
                           </Box>
                         </Paper>
                       ))}

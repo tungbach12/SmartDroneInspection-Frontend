@@ -23,6 +23,7 @@ import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded';
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded';
 import CloseRounded from '@mui/icons-material/CloseRounded';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import { evaluateAirspace } from '@/shared/airspace/airspaceZones';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { type CreateServiceRequestInput, type ServiceRequest } from '../api/contractApi';
@@ -37,7 +38,14 @@ import { useCreateServiceRequest } from '../hooks/useContracts';
 interface CreateRequestDialogProps {
   open: boolean;
   onClose: () => void;
-  assets: { id: string; name: string; code: string; status?: string }[];
+  assets: {
+    id: string;
+    name: string;
+    code: string;
+    status?: string;
+    latitude?: number | null;
+    longitude?: number | null;
+  }[];
   existingRequests?: ServiceRequest[];
   onCreated: (requestId: string) => void;
   onError: (message: string) => void;
@@ -412,6 +420,15 @@ export function CreateRequestDialog({
   const activeAssetSelection = assetId || initialAssetId || '';
   const lockedReinspectionAsset = Boolean(sourceInspectionId && initialAssetId);
   const selectedAsset = selectableAssets.find((asset) => asset.id === activeAssetSelection);
+  const selectedAssetAirspace =
+    selectedAsset?.latitude != null && selectedAsset?.longitude != null
+      ? evaluateAirspace(selectedAsset.latitude, selectedAsset.longitude)
+      : null;
+  const selectedRestrictedZone =
+    selectedAssetAirspace?.classification === 'RESTRICTED_ZONE'
+      ? selectedAssetAirspace.matchingZones.find((z) => z.zoneType === 'RESTRICTED_ZONE') ??
+        selectedAssetAirspace.matchingZones[0]
+      : null;
 
   return (
     <Dialog
@@ -553,6 +570,14 @@ export function CreateRequestDialog({
           {!lockedReinspectionAsset && allAssetsBusy && (
             <Alert severity="info" sx={{ borderRadius: '10px' }}>
               {t('All available assets already have an active service request in progress.')}
+            </Alert>
+          )}
+
+          {selectedRestrictedZone && (
+            <Alert severity="warning" sx={{ borderRadius: '10px', fontSize: '0.8125rem' }}>
+              {locale === 'vi'
+                ? `Công trình nằm trong vùng hạn chế bay (${selectedRestrictedZone.name}). Thủ tục cấp phép bay có thể cần thêm thời gian xử lý — vui lòng chọn ngày bay dự kiến đủ rộng.`
+                : `This asset is in a restricted airspace zone (${selectedRestrictedZone.name}). Flight permit processing may take extra time — please select a sufficiently wide preferred inspection date.`}
             </Alert>
           )}
 

@@ -233,6 +233,7 @@ export default function LoginPage({ audience = 'default' }: LoginPageProps) {
       (location.state as { registrationComplete?: boolean } | null)
         ?.registrationComplete,
     );
+  const airspaceWarning = (location.state as { airspaceWarning?: string } | null)?.airspaceWarning;
   const passwordChanged = searchParams.get('passwordChanged') === '1';
 
   const onSendResetOtp = async (e: React.FormEvent) => {
@@ -736,6 +737,11 @@ export default function LoginPage({ audience = 'default' }: LoginPageProps) {
         {registrationComplete && (
           <Alert severity="success" sx={{ borderRadius: 2 }}>
             {t('Your Customer account is ready. Sign in to open your workspace.')}
+          </Alert>
+        )}
+        {airspaceWarning && (
+          <Alert severity="warning" sx={{ borderRadius: 2 }}>
+            {airspaceWarning}
           </Alert>
         )}
         {passwordChanged && (

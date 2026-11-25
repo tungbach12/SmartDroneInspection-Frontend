@@ -56,7 +56,6 @@ import {
 import { useToastStore } from '@/shared/ui/Toast';
 import {
   GlassAiFindingsIcon,
-  GlassAirspaceIcon,
   GlassAssetIcon,
   GlassBellIcon,
   GlassCatalogIcon,
@@ -120,7 +119,6 @@ const NAV_ITEMS = [
   { section: 'partner-onboarding', icon: <GlassContractIcon />, path: '/operations/partner-onboarding' },
   { section: 'onboarding-reviews', icon: <GlassUsersIcon /> },
   { section: 'drone-registrations', icon: <GlassPermitIcon /> },
-  { section: 'customer-airspace', icon: <GlassAirspaceIcon /> },
   { section: 'audit-logs', icon: <GlassSearchIcon /> },
   { section: 'platform-users', icon: <GlassUsersIcon /> },
   { section: 'platform-settings', icon: <GlassSettingsIcon /> },
@@ -155,7 +153,6 @@ const NAV_GROUPS: ReadonlyArray<{
       'flight-drone-config',
       'onboarding-reviews',
       'drone-registrations',
-      'customer-airspace',
       'platform-users',
       'platform-settings',
       'audit-logs',

@@ -139,7 +139,7 @@ interface ApiAuthFlow {
 }
 
 export interface OrganizationRegistrationResponse {
-  registrationStatus?: 'ACTIVE' | 'PENDING_AIRSPACE_REVIEW' | string;
+  registrationStatus?: 'ACTIVE' | string;
   organizationName: string;
   organizationCode: string;
   airspaceClassification?: string;
