@@ -62,6 +62,27 @@ export interface DroneRegistrationApplication {
   createdAt: string;
 }
 
+export interface DroneRegistrationApplicationPage {
+  items: DroneRegistrationApplication[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  totalAllCount: number;
+  pendingCount: number;
+  approvedCount: number;
+  rejectedCount: number;
+}
+
+export interface DroneReviewQueueFilters {
+  page?: number;
+  pageSize?: number;
+  status?: string;
+  tier?: string;
+  search?: string;
+  sort?: string;
+}
+
 export const mf1ReviewApi = {
   droneEvidence: (id: string, type: string) =>
     api.get<Blob>(`/drone-registration-applications/${id}/evidence/${type}`, { responseType: 'blob' }).then((response) => response.data),
@@ -71,6 +92,13 @@ export const mf1ReviewApi = {
     api.post<ProspectiveCustomerReview | { data: ProspectiveCustomerReview }>(`/platform/customer-airspace-reviews/${id}/approve`, { reviewNote }).then(unwrapMutation),
   rejectCustomer: (id: string, reviewNote: string) =>
     api.post<ProspectiveCustomerReview | { data: ProspectiveCustomerReview }>(`/platform/customer-airspace-reviews/${id}/reject`, { reviewNote }).then(unwrapMutation),
+  droneQueue: (filters: DroneReviewQueueFilters) =>
+    api
+      .get<DroneRegistrationApplicationPage | { data: DroneRegistrationApplicationPage }>(
+        '/drone-registration-applications',
+        { params: filters },
+      )
+      .then(unwrap),
   pendingDrones: () =>
     api.get<DroneRegistrationApplication[] | { data: DroneRegistrationApplication[] }>('/drone-registration-applications/pending').then(unwrap),
   droneHistory: () =>

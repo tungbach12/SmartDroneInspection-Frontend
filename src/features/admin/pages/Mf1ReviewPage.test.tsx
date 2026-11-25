@@ -275,4 +275,64 @@ describe('MF1 review queues', () => {
     expect(screen.getByText('Pilot Class B')).toBeTruthy();
     expect(screen.queryByText('Pilot Class A')).toBeNull();
   });
+
+  it('uses server-side paginated droneQueue endpoint when available', async () => {
+    const queueSpy = vi.fn().mockResolvedValue({
+      items: [
+        {
+          id: 'drone-app-paged-1',
+          inspectorUserId: 'pilot-1',
+          serialNumber: 'SN-PAGE-1',
+          model: 'Matrice 350 RTK',
+          manufacturer: 'DJI',
+          registrationNumber: 'REG-PAGE-1',
+          registrationFileKey: 'drone/reg',
+          registrationExpiresAt: '2027-12-31T00:00:00Z',
+          ownershipFileKey: 'drone/owner',
+          inspectionFileKey: 'drone/inspection',
+          imageFileKeys: ['drone/img-0'],
+          status: 'PENDING',
+          reviewNote: null,
+          droneId: null,
+          createdAt: '2026-10-29T00:00:00Z',
+        },
+      ],
+      page: 1,
+      pageSize: 10,
+      totalCount: 12,
+      totalPages: 2,
+      totalAllCount: 15,
+      pendingCount: 12,
+      approvedCount: 2,
+      rejectedCount: 1,
+    });
+    Object.defineProperty(mf1ReviewApi, 'droneQueue', {
+      configurable: true,
+      writable: true,
+      value: queueSpy,
+    });
+    try {
+      renderPage();
+      expect(await screen.findByText('Matrice 350 RTK')).toBeTruthy();
+      expect(screen.getByText('Showing 1–10 of 12')).toBeTruthy();
+      expect(queueSpy).toHaveBeenCalledWith({
+        page: 1,
+        pageSize: 10,
+        status: 'ALL',
+        tier: 'ALL',
+        sort: 'NEWEST',
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Go to page 2' }));
+      expect(queueSpy).toHaveBeenLastCalledWith({
+        page: 2,
+        pageSize: 10,
+        status: 'ALL',
+        tier: 'ALL',
+        sort: 'NEWEST',
+      });
+    } finally {
+      Reflect.deleteProperty(mf1ReviewApi, 'droneQueue');
+    }
+  });
 });

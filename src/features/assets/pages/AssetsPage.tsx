@@ -384,7 +384,6 @@ export function AssetsPage() {
   const navigate = useNavigate();
   const roles = useAuthStore((state) => state.roles);
   const isClient = roles.includes('CUSTOMER');
-  const { data, isLoading, error, refetch } = useAssets({ page: 1, pageSize: 100 });
   const createAsset = useCreateAsset();
   const uploadInitialPhoto = useUploadDocument('');
   const showToast = useToastStore((state) => state.showToast);
@@ -400,12 +399,22 @@ export function AssetsPage() {
   >('ACTIVE');
   const [page, setPage] = useState(1);
 
+  const trimmedQuery = searchQuery.trim();
+  const { data, isLoading, error, refetch } = useAssets({
+    page,
+    pageSize: ASSETS_PER_PAGE,
+    ...(trimmedQuery ? { search: trimmedQuery } : {}),
+    ...(statusFilter !== 'PENDING_REVIEW' ? { status: statusFilter } : {}),
+  });
+
   const items = data?.items ?? [];
-  const totalCount = data?.totalCount ?? items.length;
-  const activeCount = items.filter((a) => a.status === 'ACTIVE').length;
+  const totalCount = data?.allCount ?? data?.totalCount ?? items.length;
+  const activeCount = data?.activeCount ?? items.filter((a) => a.status === 'ACTIVE').length;
   const pendingCount = items.filter((a) => a.status === 'PENDING_REVIEW').length;
-  const checkpointsConfiguredCount = items.filter((a) => (a.inspectionItems?.length ?? 0) > 0).length;
-  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const checkpointsConfiguredCount =
+    data?.checkpointsConfiguredCount ??
+    items.filter((a) => (a.inspectionItems?.length ?? 0) > 0).length;
+  const normalizedQuery = trimmedQuery.toLowerCase();
   const filteredItems = items.filter((asset) => {
     if (asset.status !== statusFilter) return false;
     if (!normalizedQuery) return true;
@@ -415,12 +424,21 @@ export function AssetsPage() {
       formatLocation(asset.locationText).toLowerCase().includes(normalizedQuery)
     );
   });
-  const totalFilteredPages = Math.max(1, Math.ceil(filteredItems.length / ASSETS_PER_PAGE));
-  const safePage = Math.min(page, totalFilteredPages);
-  const pagedItems = filteredItems.slice(
-    (safePage - 1) * ASSETS_PER_PAGE,
-    safePage * ASSETS_PER_PAGE,
+  const totalMatchingCount =
+    filteredItems.length > ASSETS_PER_PAGE
+      ? filteredItems.length
+      : (data?.totalCount ?? filteredItems.length);
+  const totalFilteredPages = Math.max(
+    1,
+    filteredItems.length > ASSETS_PER_PAGE
+      ? Math.ceil(filteredItems.length / ASSETS_PER_PAGE)
+      : (data?.totalPages || Math.ceil(totalMatchingCount / ASSETS_PER_PAGE)),
   );
+  const safePage = Math.min(page, totalFilteredPages);
+  const pagedItems =
+    filteredItems.length > ASSETS_PER_PAGE
+      ? filteredItems.slice((safePage - 1) * ASSETS_PER_PAGE, safePage * ASSETS_PER_PAGE)
+      : filteredItems;
 
   const categoryNameById = new Map((categories.data ?? []).map((c) => [c.id, c.name]));
 
@@ -509,7 +527,12 @@ export function AssetsPage() {
         isLoading={isLoading}
         error={error}
         onRetry={() => void refetch()}
-        isEmpty={Boolean(data && data.items.length === 0)}
+        isEmpty={Boolean(
+          data &&
+            (data.allCount ?? data.totalCount ?? data.items.length) === 0 &&
+            !trimmedQuery &&
+            statusFilter === 'ACTIVE',
+        )}
         empty={
           <EmptyState
             title={t('No assets registered')}
@@ -607,7 +630,7 @@ export function AssetsPage() {
                 variant="body2"
                 sx={{ color: 'text.secondary', fontSize: '0.875rem', fontVariantNumeric: 'tabular-nums' }}
               >
-                {`${t('Showing')} ${(safePage - 1) * ASSETS_PER_PAGE + 1}–${Math.min(safePage * ASSETS_PER_PAGE, filteredItems.length)} ${t('of')} ${filteredItems.length}`}
+                {`${t('Showing')} ${(safePage - 1) * ASSETS_PER_PAGE + 1}–${Math.min(safePage * ASSETS_PER_PAGE, totalMatchingCount)} ${t('of')} ${totalMatchingCount}`}
               </Typography>
               <Pagination
                 count={totalFilteredPages}

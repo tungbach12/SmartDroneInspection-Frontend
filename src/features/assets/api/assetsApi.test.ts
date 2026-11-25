@@ -27,6 +27,11 @@ describe('assetApi', () => {
     expect(api.get).toHaveBeenCalledWith('/assets', {
       params: { page: 1, pageSize: 20 },
     });
+
+    await assetApi.list({ page: 2, pageSize: 8, status: 'ACTIVE', search: 'Bridge' });
+    expect(api.get).toHaveBeenCalledWith('/assets', {
+      params: { page: 2, pageSize: 8, status: 'ACTIVE', search: 'Bridge' },
+    });
   });
 
   it('creates an asset without sending organizationId', async () => {

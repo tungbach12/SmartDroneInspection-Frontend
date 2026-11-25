@@ -49,16 +49,35 @@ export interface UpdateDroneRegistrationInput {
   registrationExpiresAt?: string | null;
 }
 
+export interface DroneListFilters {
+  page?: number;
+  pageSize?: number;
+  search?: string | undefined;
+  serviceability?: DroneServiceability | undefined;
+}
+
+export interface DronePage {
+  items: Drone[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+}
+
 export const droneKeys = {
   all: ['drones'] as const,
   lists: () => [...droneKeys.all, 'list'] as const,
   list: () => [...droneKeys.lists()] as const,
+  pagedList: (filters: DroneListFilters) => [...droneKeys.lists(), 'paged', filters] as const,
   selection: () => [...droneKeys.all, 'selection'] as const,
   detail: (id: string) => [...droneKeys.all, 'detail', id] as const,
 };
 
 export const droneApi = {
   list: () => api.get<Drone[]>('/drones').then((r) => r.data),
+
+  listPaged: (filters: DroneListFilters) =>
+    api.get<DronePage>('/drones/paged', { params: filters }).then((r) => r.data),
 
   getById: (id: string) => api.get<Drone>(`/drones/${id}`).then((r) => r.data),
 

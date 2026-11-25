@@ -22,6 +22,7 @@ export interface AssetListFilters {
   page?: number;
   pageSize?: number;
   search?: string | undefined;
+  status?: Asset['status'] | undefined;
 }
 
 export interface CreateAssetInput {
@@ -58,6 +59,9 @@ export interface AssetPage {
   pageSize: number;
   totalCount: number;
   totalPages: number;
+  allCount?: number;
+  activeCount?: number;
+  checkpointsConfiguredCount?: number;
 }
 
 export const assetKeys = {

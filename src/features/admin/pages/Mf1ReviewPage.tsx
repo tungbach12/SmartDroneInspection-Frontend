@@ -253,10 +253,37 @@ export default function Mf1ReviewPage({
     retry: false,
   });
 
+  const usesServerDroneQueue = typeof mf1ReviewApi.droneQueue === 'function';
+
+  const droneQueueQuery = useQuery({
+    queryKey: [
+      'mf1-reviews',
+      'drones-queue',
+      page + 1,
+      rowsPerPage,
+      statusFilter,
+      droneTierFilter,
+      search.trim(),
+      sort,
+    ],
+    queryFn: () =>
+      mf1ReviewApi.droneQueue({
+        page: page + 1,
+        pageSize: rowsPerPage,
+        status: statusFilter,
+        tier: droneTierFilter,
+        ...(search.trim() ? { search: search.trim() } : {}),
+        sort,
+      }),
+    enabled: queue === 'drones' && usesServerDroneQueue,
+    retry: false,
+    refetchInterval: 5000,
+  });
+
   const drones = useQuery({
     queryKey: ['mf1-reviews', 'drones'],
     queryFn: mf1ReviewApi.pendingDrones,
-    enabled: !fixedQueue || fixedQueue === 'drones',
+    enabled: !usesServerDroneQueue && (!fixedQueue || fixedQueue === 'drones'),
     retry: false,
     refetchInterval: 5000,
   });
@@ -264,7 +291,7 @@ export default function Mf1ReviewPage({
   const droneHistory = useQuery({
     queryKey: ['mf1-reviews', 'drones-history'],
     queryFn: mf1ReviewApi.droneHistory,
-    enabled: !fixedQueue || fixedQueue === 'drones',
+    enabled: !usesServerDroneQueue && (!fixedQueue || fixedQueue === 'drones'),
     retry: false,
     refetchInterval: 8000,
   });
@@ -371,6 +398,14 @@ export default function Mf1ReviewPage({
   ]);
 
   const droneCounts = useMemo(() => {
+    if (usesServerDroneQueue && droneQueueQuery.data) {
+      return {
+        all: droneQueueQuery.data.totalAllCount,
+        pending: droneQueueQuery.data.pendingCount,
+        approved: droneQueueQuery.data.approvedCount,
+        rejected: droneQueueQuery.data.rejectedCount,
+      };
+    }
     const pending = drones.data?.length ?? 0;
     let approved = 0;
     let rejected = 0;
@@ -384,9 +419,20 @@ export default function Mf1ReviewPage({
       approved,
       rejected,
     };
-  }, [droneHistory.data, drones.data?.length]);
+  }, [droneHistory.data, droneQueueQuery.data, drones.data?.length, usesServerDroneQueue]);
 
   const droneRows = useMemo(() => {
+    if (usesServerDroneQueue) {
+      return (droneQueueQuery.data?.items ?? []).map((application) => ({
+        status:
+          application.status === 'PENDING'
+            ? ('PENDING' as const)
+            : application.status === 'APPROVED'
+              ? ('APPROVED' as const)
+              : ('REJECTED' as const),
+        application,
+      }));
+    }
     const pending = (drones.data ?? []).map((application) => ({
       status: 'PENDING' as const,
       application,
@@ -426,7 +472,17 @@ export default function Mf1ReviewPage({
         const rightDate = new Date(right.application.createdAt).getTime();
         return sort === 'NEWEST' ? rightDate - leftDate : leftDate - rightDate;
       });
-  }, [dateLocale, droneHistory.data, droneTierFilter, drones.data, search, sort, statusFilter]);
+  }, [
+    dateLocale,
+    droneHistory.data,
+    droneQueueQuery.data?.items,
+    droneTierFilter,
+    drones.data,
+    search,
+    sort,
+    statusFilter,
+    usesServerDroneQueue,
+  ]);
 
   const customerRows = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -697,17 +753,24 @@ export default function Mf1ReviewPage({
 
   const queueCounts = {
     inspectors: (pendingInspectorApps.data?.length ?? 0) + (awaitingContractApps.data?.length ?? 0),
-    drones: (drones.data?.length ?? 0) + (droneHistory.data?.length ?? 0),
+    drones: usesServerDroneQueue
+      ? (droneQueueQuery.data?.totalAllCount ?? 0)
+      : (drones.data?.length ?? 0) + (droneHistory.data?.length ?? 0),
     customers: customers.data?.length ?? 0,
   };
 
+  const droneVisibleCount = usesServerDroneQueue
+    ? (droneQueueQuery.data?.totalCount ?? droneRows.length)
+    : droneRows.length;
   const visibleCount =
-    queue === 'inspectors' ? inspectorRows.length : queue === 'drones' ? droneRows.length : customerRows.length;
+    queue === 'inspectors' ? inspectorRows.length : queue === 'drones' ? droneVisibleCount : customerRows.length;
   const totalCount = queueCounts[queue];
   const maxPage = Math.max(0, Math.ceil(visibleCount / rowsPerPage) - 1);
   const safePage = Math.min(page, maxPage);
   const pagedInspectorRows = inspectorRows.slice(safePage * rowsPerPage, (safePage + 1) * rowsPerPage);
-  const pagedDroneRows = droneRows.slice(safePage * rowsPerPage, (safePage + 1) * rowsPerPage);
+  const pagedDroneRows = usesServerDroneQueue
+    ? droneRows
+    : droneRows.slice(safePage * rowsPerPage, (safePage + 1) * rowsPerPage);
   const pagedCustomerRows = customerRows.slice(safePage * rowsPerPage, (safePage + 1) * rowsPerPage);
 
   const hasActiveFilters =
@@ -1038,11 +1101,15 @@ export default function Mf1ReviewPage({
 
       {queue === 'drones' && (
         <QueryState
-          isLoading={drones.isLoading || droneHistory.isLoading}
-          error={drones.error ?? droneHistory.error}
+          isLoading={usesServerDroneQueue ? droneQueueQuery.isLoading : drones.isLoading || droneHistory.isLoading}
+          error={usesServerDroneQueue ? droneQueueQuery.error : drones.error ?? droneHistory.error}
           onRetry={() => {
-            void drones.refetch();
-            void droneHistory.refetch();
+            if (usesServerDroneQueue) {
+              void droneQueueQuery.refetch();
+            } else {
+              void drones.refetch();
+              void droneHistory.refetch();
+            }
           }}
           isEmpty={droneRows.length === 0}
           empty={
@@ -1073,11 +1140,11 @@ export default function Mf1ReviewPage({
               '',
             ]}
             ariaLabel={tr('Đăng ký Drone', 'Drone registrations')}
-            totalCount={droneRows.length}
+            totalCount={droneVisibleCount}
             page={safePage}
             rowsPerPage={rowsPerPage}
             onPageChange={setPage}
-            summaryText={`${t('Showing')} ${safePage * rowsPerPage + 1}–${Math.min((safePage + 1) * rowsPerPage, droneRows.length)} ${t('of')} ${droneRows.length}`}
+            summaryText={`${t('Showing')} ${safePage * rowsPerPage + 1}–${Math.min((safePage + 1) * rowsPerPage, droneVisibleCount)} ${t('of')} ${droneVisibleCount}`}
           >
             {pagedDroneRows.map(({ status, application }) => {
               const cleanModel = stripLegacySpecsFromModel(application.model) || application.model;

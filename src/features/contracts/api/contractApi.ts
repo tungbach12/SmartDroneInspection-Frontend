@@ -412,6 +412,35 @@ export interface EvaluatePartnerCandidatesInput {
   requiredDroneFeatureCodes: string[];
 }
 
+export interface EvaluatePartnerCandidatesPageFilters extends EvaluatePartnerCandidatesInput {
+  page?: number;
+  pageSize?: number;
+  search?: string | undefined;
+  eligibility?: 'ELIGIBLE_ONLY' | 'ALL_EVALUATED' | 'UNAVAILABLE_ONLY';
+  altitude?: 'ALL' | 'COVERS_STRUCTURE' | 'MINIMUM_CEILING';
+  minimumCeilingMeters?: number | undefined;
+  capabilityCode?: string | undefined;
+}
+
+export interface PartnerCandidatePage {
+  items: PartnerCandidate[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  eligibleCount: number;
+  unavailableCount: number;
+  allEvaluatedCount: number;
+}
+
+export interface PartnerDronePage {
+  items: PartnerDrone[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+}
+
 export interface IssueServiceQuoteInput {
   scopeSnapshot: string;
   firstOccurrenceStartAt: string;
@@ -535,6 +564,24 @@ export const contractApi = {
     const { data } = await api.post<PartnerCandidate[]>(
       `/contracts/requests/${requestId}/partner-candidates`,
       input,
+    );
+    return data;
+  },
+
+  async evaluatePartnerCandidatesPaged(
+    requestId: string,
+    filters: EvaluatePartnerCandidatesPageFilters,
+  ): Promise<PartnerCandidatePage> {
+    const {
+      plannedStartAt,
+      plannedEndAt,
+      requiredDroneFeatureCodes,
+      ...params
+    } = filters;
+    const { data } = await api.post<PartnerCandidatePage>(
+      `/contracts/requests/${requestId}/partner-candidates/paged`,
+      { plannedStartAt, plannedEndAt, requiredDroneFeatureCodes },
+      { params },
     );
     return data;
   },
@@ -771,6 +818,17 @@ export const contractApi = {
 
   async listPartnerDrones(): Promise<PartnerDrone[]> {
     const { data } = await api.get<PartnerDrone[]>('/contracts/partners/drones');
+    return data;
+  },
+
+  async listPartnerDronesPaged(params: {
+    page?: number;
+    pageSize?: number;
+    search?: string | undefined;
+  }): Promise<PartnerDronePage> {
+    const { data } = await api.get<PartnerDronePage>('/contracts/partners/drones/paged', {
+      params,
+    });
     return data;
   },
 
