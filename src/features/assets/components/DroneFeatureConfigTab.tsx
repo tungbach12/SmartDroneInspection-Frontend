@@ -122,7 +122,9 @@ export function DroneFeatureConfigTab() {
       showToast(tr('Đã tạo tính năng Drone.', 'Drone feature config created.'), 'success');
     },
     onError: (err: unknown) => {
-      setErrorMsg(getErrorMessage(err, 'Failed to create feature config'));
+      const msg = getErrorMessage(err, 'Failed to create feature config');
+      setErrorMsg(msg);
+      showToast(msg, 'error');
     },
   });
 
@@ -138,7 +140,9 @@ export function DroneFeatureConfigTab() {
       showToast(tr('Đã cập nhật tính năng Drone.', 'Drone feature config updated.'), 'success');
     },
     onError: (err: unknown) => {
-      setErrorMsg(getErrorMessage(err, 'Failed to update feature config'));
+      const msg = getErrorMessage(err, 'Failed to update feature config');
+      setErrorMsg(msg);
+      showToast(msg, 'error');
     },
   });
 
@@ -148,6 +152,12 @@ export function DroneFeatureConfigTab() {
       await invalidate();
       showToast(tr('Đã đổi trạng thái tính năng Drone.', 'Drone feature status updated.'), 'success');
     },
+    onError: (err: unknown) => {
+      showToast(
+        getErrorMessage(err, tr('Không thể đổi trạng thái tính năng Drone.', 'Could not toggle feature config.')),
+        'error',
+      );
+    },
   });
 
   const deleteMutation = useMutation({
@@ -156,6 +166,13 @@ export function DroneFeatureConfigTab() {
       setDeletingId(null);
       await invalidate();
       showToast(tr('Đã xóa tính năng Drone.', 'Drone feature config deleted.'), 'success');
+    },
+    onError: (err: unknown) => {
+      setDeletingId(null);
+      showToast(
+        getErrorMessage(err, tr('Không thể xóa tính năng Drone.', 'Could not delete feature config.')),
+        'error',
+      );
     },
   });
 

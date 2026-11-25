@@ -38,6 +38,7 @@ import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
 import ApartmentOutlined from '@mui/icons-material/ApartmentOutlined';
 import { AdminTableToolbar } from '../components/AdminTableToolbar';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useToastStore } from '@/shared/ui/Toast';
 import {
   mf1ReviewApi,
   type DroneRegistrationApplication,
@@ -213,6 +214,7 @@ export default function Mf1ReviewPage({
 
   const [selectedQueue, setSelectedQueue] = useState<QueueId>('drones');
   const queue = fixedQueue ?? selectedQueue;
+  const showToast = useToastStore((state) => state.showToast);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [licenseClassFilter, setLicenseClassFilter] = useState<LicenseClassFilter>('ALL');
@@ -598,6 +600,16 @@ export default function Mf1ReviewPage({
         await mf1ReviewApi.rejectDrone(selected.id, reviewNote.trim());
       }
       await queryClient.invalidateQueries({ queryKey: ['mf1-reviews'] });
+      showToast(
+        reviewQueue === 'customers'
+          ? decision === 'approve'
+            ? tr('Đã phê duyệt vùng bay khách hàng.', 'Customer airspace approved.')
+            : tr('Đã từ chối hồ sơ vùng bay khách hàng.', 'Customer airspace rejected.')
+          : decision === 'approve'
+            ? tr('Đã phê duyệt hồ sơ Drone.', 'Drone registration approved.')
+            : tr('Đã từ chối hồ sơ Drone.', 'Drone registration rejected.'),
+        'success',
+      );
       clearReview();
     } catch {
       setError(tr('Không thể lưu quyết định duyệt. Vui lòng tải lại trang và thử lại.', 'Could not save review decision. Please reload and try again.'));
@@ -654,6 +666,12 @@ export default function Mf1ReviewPage({
       else await inspectorApplicationApi.reject(selectedApplication.id, appRejectReason.trim());
       await queryClient.invalidateQueries({ queryKey: ['mf1-reviews', 'inspector-applications'] });
       await queryClient.invalidateQueries({ queryKey: ['platform-users'] });
+      showToast(
+        decision === 'approve'
+          ? tr('Đã phê duyệt hồ sơ Inspector và kích hoạt tài khoản.', 'Inspector application approved.')
+          : tr('Đã từ chối đơn đăng ký Inspector và gửi email thông báo.', 'Inspector application rejected.'),
+        'success',
+      );
       closeInspectorAppDialog();
     } catch (err: unknown) {
       setAppError(err instanceof Error ? err.message : tr('Không thể xử lý đơn đăng ký Inspector. Vui lòng thử lại.', 'Could not process this inspector application. Please try again.'));
@@ -669,6 +687,7 @@ export default function Mf1ReviewPage({
     try {
       await inspectorApplicationApi.uploadSignedContract(application.id, file);
       await queryClient.invalidateQueries({ queryKey: ['mf1-reviews', 'inspector-applications'] });
+      showToast(tr('Đã tải lên bản scan hợp đồng đối tác.', 'Signed partner contract uploaded.'), 'success');
     } catch (err: unknown) {
       setAppError(err instanceof Error ? err.message : tr('Không thể tải lên bản scan hợp đồng. Vui lòng thử lại.', 'Could not upload signed contract scan. Please try again.'));
     } finally {
@@ -820,7 +839,10 @@ export default function Mf1ReviewPage({
                     { value: 'OLDEST', label: tr('Cũ nhất', 'Oldest first') },
                     { value: 'NAME_ASC', label: tr('Tên A–Z', 'Name A–Z') },
                   ],
-                  onChange: (value) => setSort(value as SortOption),
+                  onChange: (value) => {
+                    setSort(value as SortOption);
+                    setPage(0);
+                  },
                   width: 125,
                 },
               ]
@@ -863,7 +885,10 @@ export default function Mf1ReviewPage({
                       { value: 'OLDEST', label: tr('Cũ nhất', 'Oldest first') },
                       { value: 'NAME_ASC', label: tr('Model A–Z', 'Model A–Z') },
                     ],
-                    onChange: (value) => setSort(value as SortOption),
+                    onChange: (value) => {
+                      setSort(value as SortOption);
+                      setPage(0);
+                    },
                     width: 145,
                   },
                 ]
@@ -889,7 +914,10 @@ export default function Mf1ReviewPage({
                       { value: 'OLDEST', label: tr('Cũ nhất', 'Oldest first') },
                       { value: 'NAME_ASC', label: tr('Tên A–Z', 'Name A–Z') },
                     ],
-                    onChange: (value) => setSort(value as SortOption),
+                    onChange: (value) => {
+                      setSort(value as SortOption);
+                      setPage(0);
+                    },
                     width: 150,
                   },
                 ]

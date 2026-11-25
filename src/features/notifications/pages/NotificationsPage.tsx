@@ -18,7 +18,9 @@ import SearchIcon from '@mui/icons-material/Search';
 import { getSectionPath, PORTAL_IDS, type PortalId } from '@/app/permissions/accessPolicy';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import {
+  useMarkInspectionMessagesRead,
   useMarkMessagesRead,
+  useMarkPartnerMessagesRead,
   useUnreadChatSummary,
 } from '@/features/contracts/hooks/useContracts';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
@@ -27,6 +29,7 @@ import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
 import { NotificationItemCard } from '../components/NotificationItemCard';
 import {
+  useMarkAllNotificationsAsRead,
   useMarkNotificationAsRead,
   useNotifications,
   useNotificationUnreadCount,
@@ -38,7 +41,7 @@ import {
 } from '../utils/notificationFeed';
 
 export default function NotificationsPage() {
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
   const navigate = useNavigate();
   const location = useLocation();
   const portal = (location.pathname.split('/').filter(Boolean)[0] ??
@@ -58,7 +61,33 @@ export default function NotificationsPage() {
   const { data: unreadCountData } = useNotificationUnreadCount();
   const { items: unreadChatItems, totalUnread: unreadChatCount } = useUnreadChatSummary();
   const markReadMutation = useMarkNotificationAsRead();
+  const markAllReadMutation = useMarkAllNotificationsAsRead();
   const markChatReadMutation = useMarkMessagesRead();
+  const markInspectionChatReadMutation = useMarkInspectionMessagesRead('');
+  const markPartnerChatReadMutation = useMarkPartnerMessagesRead('', '');
+
+  const markChatEntryRead = (entry: UnifiedNotificationEntry) => {
+    const channel = entry.chatChannel ?? 'requests';
+    if (channel === 'inspections') {
+      const inspectionId = entry.chatInspectionId ?? entry.chatRequestId;
+      if (inspectionId) {
+        markInspectionChatReadMutation.mutate(inspectionId);
+      }
+      return;
+    }
+    if (channel === 'partners') {
+      if (entry.chatRequestId && entry.chatInspectorId) {
+        markPartnerChatReadMutation.mutate({
+          requestId: entry.chatRequestId,
+          inspectorId: entry.chatInspectorId,
+        });
+      }
+      return;
+    }
+    if (entry.chatRequestId) {
+      markChatReadMutation.mutate(entry.chatRequestId);
+    }
+  };
 
   const totalUnread = (unreadCountData?.unreadCount ?? 0) + unreadChatCount;
   const rawItems = useMemo(
@@ -74,6 +103,7 @@ export default function NotificationsPage() {
       portal,
       roles,
       unreadOnly,
+      locale,
     );
     const q = searchQuery.trim().toLowerCase();
     if (!q) return entries;
@@ -82,7 +112,7 @@ export default function NotificationsPage() {
         entry.title.toLowerCase().includes(q) ||
         entry.body.toLowerCase().includes(q),
     );
-  }, [rawItems, page, unreadChatItems, portal, roles, unreadOnly, searchQuery]);
+  }, [rawItems, page, unreadChatItems, portal, roles, unreadOnly, locale, searchQuery]);
 
   const dayGroups = useMemo(
     () => groupNotificationsByDay(filteredEntries),
@@ -92,8 +122,8 @@ export default function NotificationsPage() {
   const hasUnreadInView = filteredEntries.some((entry) => entry.isUnread);
 
   const handleEntrySelect = (entry: UnifiedNotificationEntry) => {
-    if (entry.kind === 'chat' && entry.chatRequestId) {
-      markChatReadMutation.mutate(entry.chatRequestId);
+    if (entry.kind === 'chat') {
+      markChatEntryRead(entry);
     } else if (entry.isUnread) {
       markReadMutation.mutate(entry.id);
     }
@@ -109,13 +139,12 @@ export default function NotificationsPage() {
   };
 
   const handleMarkAllInViewAsRead = () => {
+    if (filteredEntries.some((entry) => entry.kind === 'notification' && entry.isUnread)) {
+      markAllReadMutation.mutate();
+    }
     for (const entry of filteredEntries) {
-      if (!entry.isUnread) continue;
-      if (entry.kind === 'chat' && entry.chatRequestId) {
-        markChatReadMutation.mutate(entry.chatRequestId);
-      } else {
-        markReadMutation.mutate(entry.id);
-      }
+      if (!entry.isUnread || entry.kind !== 'chat') continue;
+      markChatEntryRead(entry);
     }
   };
 

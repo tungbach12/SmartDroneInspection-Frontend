@@ -7,6 +7,6 @@ describe('landing hero', () => {
     render(<DarkHero />);
 
     expect(screen.getByRole('link', { name: /start free inspection/i }).getAttribute('href')).toBe('/register');
-    expect(screen.getByRole('link', { name: /sign in for field operations/i }).getAttribute('href')).toBe('/login');
+    expect(screen.getByRole('link', { name: /sign in for field operations/i }).getAttribute('href')).toBe('/inspector/login');
   });
 });

@@ -389,7 +389,7 @@ export default function InspectorRegisterPage() {
             </Button>
             <Button
               component={RouterLink}
-              to="/login"
+              to="/inspector/login"
               variant="contained"
               sx={{
                 minHeight: 42,
@@ -410,13 +410,14 @@ export default function InspectorRegisterPage() {
 
   return (
     <AuthPageLayout
+      eyebrow="Đối tác Phi công · Inspector Portal"
       title="Đăng ký Đối tác Phi công"
-      subtitleText="Bạn là Khách hàng Doanh nghiệp?"
-      subtitleLinkText="Đăng ký tài khoản Customer"
-      subtitleLinkTo="/register"
+      subtitleText="Đã có tài khoản đối tác?"
+      subtitleLinkText="Đăng nhập Inspector"
+      subtitleLinkTo="/inspector/login"
       backLabel="Quay lại trang chủ"
       backTo="/"
-      socialPrompt="Hoặc đăng nhập nếu đã có tài khoản"
+      showSocial={false}
       heroTagline={{
         line1: 'Partner UAV Network,',
         line2: 'Verified & Certified',
@@ -904,7 +905,7 @@ export default function InspectorRegisterPage() {
           <Typography variant="caption" sx={{ color: '#5F7872' }}>
             Đã có tài khoản đối tác?{' '}
             <RouterLink
-              to="/login"
+              to="/inspector/login"
               style={{ color: '#087E8B', fontWeight: 700, textDecoration: 'none' }}
             >
               Đăng nhập ngay

@@ -156,4 +156,24 @@ describe('resolveSafeNotificationRoute', () => {
       ]),
     ).toBeNull();
   });
+
+  it('preserves validated dashboard tab and multi-channel messages params', () => {
+    expect(
+      resolveSafeNotificationRoute('/operations/dashboard?tab=ratings', 'operations', ['INSPECTOR']),
+    ).toBe('/operations/dashboard?tab=ratings');
+    expect(
+      resolveSafeNotificationRoute(
+        '/operations/messages?inspectionId=insp-1',
+        'operations',
+        ['INSPECTOR'],
+      ),
+    ).toBe('/operations/messages?inspectionId=insp-1');
+    expect(
+      resolveSafeNotificationRoute(
+        '/manager/messages?partnerRequestId=req-1&inspectorId=insp-9',
+        'manager',
+        ['MANAGER'],
+      ),
+    ).toBe('/manager/messages?partnerRequestId=req-1&inspectorId=insp-9');
+  });
 });

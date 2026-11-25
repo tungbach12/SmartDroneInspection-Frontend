@@ -113,4 +113,15 @@ describe('notificationApi', () => {
       expect(result).toEqual(mockUpdated);
     });
   });
+
+  describe('markAllAsRead', () => {
+    it('patches /notifications/read-all and returns updatedCount', async () => {
+      vi.mocked(api.patch).mockResolvedValueOnce({ data: { updatedCount: 4 } });
+
+      const result = await notificationApi.markAllAsRead();
+
+      expect(api.patch).toHaveBeenCalledWith('/notifications/read-all');
+      expect(result).toEqual({ updatedCount: 4 });
+    });
+  });
 });

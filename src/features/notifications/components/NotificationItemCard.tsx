@@ -25,6 +25,7 @@ import {
 import type { NotificationItem } from '../api/notificationApi';
 import {
   formatRelativeNotificationTime,
+  resolveLocalizedNotificationText,
   resolveNotificationCategory,
   type NotificationCategory,
   type UnifiedNotificationEntry,
@@ -87,8 +88,8 @@ export function NotificationItemCard({
         kind: 'notification' as const,
         eventType: n.eventType,
         category: resolveNotificationCategory(n.eventType),
-        title: n.title,
-        body: n.body,
+        title: resolveLocalizedNotificationText(n.title, locale),
+        body: resolveLocalizedNotificationText(n.body, locale),
         createdAt: n.createdAt,
         isUnread: !n.read && n.status !== 'READ',
         safeRoute: resolveSafeNotificationRoute(n.targetPath, portal, roles),

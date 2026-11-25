@@ -32,6 +32,9 @@ export default function AccessDeniedPage() {
           : roles.join(', ') || 'Chưa xác định';
 
   const handleSignOut = async () => {
+    const isInspectorOnly =
+      roles.includes('INSPECTOR') &&
+      !roles.some((r) => ['CUSTOMER', 'ADMIN', 'MANAGER'].includes(r));
     setLoggingOut(true);
     try {
       await logoutCurrentSession();
@@ -40,7 +43,7 @@ export default function AccessDeniedPage() {
     } finally {
       clearSession();
       setLoggingOut(false);
-      navigate('/login', { replace: true });
+      navigate(isInspectorOnly ? '/inspector/login' : '/login', { replace: true });
     }
   };
 

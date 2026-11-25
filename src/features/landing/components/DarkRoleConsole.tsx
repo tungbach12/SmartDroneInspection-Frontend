@@ -32,7 +32,7 @@ const roles = [
     status: 'pass' as const,
     statusLabel: 'FIELD OPERATIONS',
     actionText: 'Operations Sign In',
-    href: '/login',
+    href: '/inspector/login',
   },
 ];
 

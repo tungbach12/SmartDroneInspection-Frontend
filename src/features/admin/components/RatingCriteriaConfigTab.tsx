@@ -33,6 +33,7 @@ import AddCircleOutlineRounded from '@mui/icons-material/AddCircleOutlineRounded
 import CloseRounded from '@mui/icons-material/CloseRounded';
 import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
 import EditOutlined from '@mui/icons-material/EditOutlined';
+import { useToastStore } from '@/shared/ui/Toast';
 import ToggleOffOutlined from '@mui/icons-material/ToggleOffOutlined';
 import ToggleOnRounded from '@mui/icons-material/ToggleOnRounded';
 import { AdminTableToolbar } from '@/features/admin/components/AdminTableToolbar';
@@ -74,6 +75,7 @@ export function RatingCriteriaConfigTab() {
   const { locale, t } = useLocale();
   const tr = (vi: string, en: string) => (locale === 'vi' ? vi : en);
   const queryClient = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
 
   const [openDialog, setOpenDialog] = useState(false);
   const [editing, setEditing] = useState<RatingCriterionConfig | null>(null);
@@ -102,6 +104,7 @@ export function RatingCriteriaConfigTab() {
       setForm(initialForm);
       setErrorMsg(null);
       await invalidate();
+      showToast(tr('Đã tạo tiêu chí đánh giá.', 'Rating criterion created.'), 'success');
     },
     onError: (err: unknown) => {
       setErrorMsg(getErrorMessage(err, tr('Không thể tạo tiêu chí.', 'Could not create criterion.')));
@@ -117,6 +120,7 @@ export function RatingCriteriaConfigTab() {
       setForm(initialForm);
       setErrorMsg(null);
       await invalidate();
+      showToast(tr('Đã cập nhật tiêu chí đánh giá.', 'Rating criterion updated.'), 'success');
     },
     onError: (err: unknown) => {
       setErrorMsg(getErrorMessage(err, tr('Không thể cập nhật tiêu chí.', 'Could not update criterion.')));
@@ -128,6 +132,7 @@ export function RatingCriteriaConfigTab() {
     onSuccess: async () => {
       setErrorMsg(null);
       await invalidate();
+      showToast(tr('Đã cập nhật trạng thái tiêu chí.', 'Criterion status updated.'), 'success');
     },
     onError: (err: unknown) => {
       setErrorMsg(getErrorMessage(err, tr('Không thể đổi trạng thái tiêu chí.', 'Could not toggle criterion.')));
@@ -140,6 +145,7 @@ export function RatingCriteriaConfigTab() {
       setDeletingId(null);
       setErrorMsg(null);
       await invalidate();
+      showToast(tr('Đã xóa tiêu chí đánh giá.', 'Rating criterion deleted.'), 'success');
     },
     onError: (err: unknown) => {
       setDeletingId(null);

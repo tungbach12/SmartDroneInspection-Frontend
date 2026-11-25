@@ -105,6 +105,7 @@ export function DroneDocumentConfigTab() {
     onError: (err: unknown) => {
       const msg = err instanceof Error ? err.message : 'Failed to create document config';
       setErrorMsg(msg);
+      showToast(msg, 'error');
     },
   });
 
@@ -122,6 +123,7 @@ export function DroneDocumentConfigTab() {
     onError: (err: unknown) => {
       const msg = err instanceof Error ? err.message : 'Failed to update document config';
       setErrorMsg(msg);
+      showToast(msg, 'error');
     },
   });
 
@@ -131,6 +133,12 @@ export function DroneDocumentConfigTab() {
       await invalidate();
       showToast(tr('Đã đổi trạng thái tài liệu Drone.', 'Drone document status updated.'), 'success');
     },
+    onError: (err: unknown) => {
+      showToast(
+        err instanceof Error ? err.message : tr('Không thể đổi trạng thái tài liệu Drone.', 'Could not toggle document config.'),
+        'error',
+      );
+    },
   });
 
   const deleteMutation = useMutation({
@@ -139,6 +147,13 @@ export function DroneDocumentConfigTab() {
       setDeletingId(null);
       await invalidate();
       showToast(tr('Đã xóa cấu hình tài liệu Drone.', 'Drone document config deleted.'), 'success');
+    },
+    onError: (err: unknown) => {
+      setDeletingId(null);
+      showToast(
+        err instanceof Error ? err.message : tr('Không thể xóa cấu hình tài liệu Drone.', 'Could not delete document config.'),
+        'error',
+      );
     },
   });
 

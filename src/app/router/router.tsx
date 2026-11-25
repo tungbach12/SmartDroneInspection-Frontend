@@ -385,8 +385,11 @@ export const router = createBrowserRouter([
         element: <LandingPage />,
         loader: () => {
           const host = window.location.hostname;
-          if (host.startsWith('smartdroneinspection-admin') || host.startsWith('smartdroneinspection-operations')) {
+          if (host.startsWith('smartdroneinspection-admin')) {
             return new Response(null, { status: 302, headers: { Location: '/login' } });
+          }
+          if (host.startsWith('smartdroneinspection-operations')) {
+            return new Response(null, { status: 302, headers: { Location: '/inspector/login' } });
           }
           return null;
         },
@@ -408,6 +411,14 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: 'inspector/login',
+        element: (
+          <PublicOnly>
+            <LoginPage audience="inspector" />
+          </PublicOnly>
+        ),
+      },
+      {
         path: 'auth/callback',
         element: <OAuthCallbackPage />,
       },
@@ -420,12 +431,16 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'register-inspector',
+        path: 'inspector/register',
         element: (
           <PublicOnly>
             <InspectorRegisterPage />
           </PublicOnly>
         ),
+      },
+      {
+        path: 'register-inspector',
+        element: <Navigate to="/inspector/register" replace />,
       },
       { path: 'forbidden', element: <AccessDeniedPage /> },
       {
