@@ -17,7 +17,7 @@ export const paletteTokens = {
   textTertiary: '#71717A',
   amber: '#CA8A04',
   darkCanvas: '#09090B',
-  darkInset: '#111827',
+  darkInset: '#111114',
   darkSurface: '#18181B',
   darkRaised: '#27272A',
   darkText: '#F4F4F5',

@@ -22,6 +22,8 @@ import {
 } from '@mui/material';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { PageHeader } from '@/shared/ui/PageHeader';
+import { PaginationFooter } from '@/shared/ui/PaginationFooter';
+import { paginateItems } from '@/shared/ui/pagination';
 import { QueryState } from '@/shared/ui/QueryState';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { AdminTableToolbar } from '@/features/admin/components/AdminTableToolbar';
@@ -48,6 +50,7 @@ export default function AssetCatalogPage() {
   const [search, setSearch] = useState('');
   const [checkpointFilter, setCheckpointFilter] = useState<CheckpointFilter>('ALL');
   const [sort, setSort] = useState<SortOption>('NAME_ASC');
+  const [page, setPage] = useState(1);
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -103,6 +106,8 @@ export default function AssetCatalogPage() {
       return left.category.name.localeCompare(right.category.name);
     });
   }, [categoryList, checkpointCounts, checkpointFilter, search, sort]);
+
+  const paginatedRows = useMemo(() => paginateItems(rows, page, 10), [rows, page]);
 
   const selectedCategory = categoryList.find((category) => category.id === selectedCategoryId) ?? null;
 
@@ -191,7 +196,10 @@ export default function AssetCatalogPage() {
 
       <AdminTableToolbar
         searchValue={search}
-        onSearchChange={setSearch}
+        onSearchChange={(value) => {
+          setSearch(value);
+          setPage(1);
+        }}
         searchPlaceholder={t('Search name, code, or description')}
         searchLabel={t('Search categories')}
         visibleCount={rows.length}
@@ -206,7 +214,10 @@ export default function AssetCatalogPage() {
               { value: 'HAS_ITEMS', label: t('Has items') },
               { value: 'EMPTY', label: t('Empty') },
             ],
-            onChange: (value) => setCheckpointFilter(value as CheckpointFilter),
+            onChange: (value) => {
+              setCheckpointFilter(value as CheckpointFilter);
+              setPage(1);
+            },
           },
           {
             key: 'sort',
@@ -217,7 +228,10 @@ export default function AssetCatalogPage() {
               { value: 'MOST_ITEMS', label: t('Most items') },
               { value: 'CODE_ASC', label: t('Code A–Z') },
             ],
-            onChange: (value) => setSort(value as SortOption),
+            onChange: (value) => {
+              setSort(value as SortOption);
+              setPage(1);
+            },
           },
         ]}
       />
@@ -238,7 +252,7 @@ export default function AssetCatalogPage() {
           sx={{ borderRadius: '10px', overflow: 'hidden', borderColor: 'divider' }}
         >
           <TableContainer>
-            <Table aria-label={t('Asset catalog')}>
+            <Table aria-label={t('Asset catalog')} sx={{ tableLayout: { md: 'fixed' } }}>
               <TableHead>
                 <TableRow>
                   {[t('Category'), t('Code'), t('Checkpoints'), ''].map((label, index) => (
@@ -246,7 +260,7 @@ export default function AssetCatalogPage() {
                       key={label || 'manage'}
                       align={index === 3 ? 'right' : 'left'}
                       sx={{
-                        width: index === 1 ? 220 : index === 2 ? 150 : index === 3 ? 130 : undefined,
+                        width: index === 1 ? 190 : index === 2 ? 120 : index === 3 ? 120 : undefined,
                         bgcolor: (muiTheme) =>
                           muiTheme.palette.mode === 'dark'
                             ? 'rgba(255, 255, 255, 0.03)'
@@ -274,7 +288,7 @@ export default function AssetCatalogPage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  rows.map(({ category, count }) => (
+                  paginatedRows.items.map(({ category, count }) => (
                     <TableRow
                       key={category.id}
                       hover
@@ -291,7 +305,7 @@ export default function AssetCatalogPage() {
                         },
                       }}
                     >
-                      <TableCell sx={{ py: 1.5, px: 2 }}>
+                      <TableCell sx={{ py: 1.5, px: 2, minWidth: 0 }}>
                         <Typography sx={{ fontWeight: 650, fontSize: '0.875rem' }}>
                           {category.name}
                         </Typography>
@@ -301,7 +315,7 @@ export default function AssetCatalogPage() {
                           sx={{
                             display: 'block',
                             mt: 0.25,
-                            maxWidth: 560,
+                            maxWidth: '100%',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
                             whiteSpace: 'nowrap',
@@ -356,6 +370,13 @@ export default function AssetCatalogPage() {
               </TableBody>
             </Table>
           </TableContainer>
+          <PaginationFooter
+            page={paginatedRows.page}
+            pageSize={paginatedRows.pageSize}
+            totalCount={paginatedRows.totalCount}
+            onPageChange={setPage}
+            ariaLabel={t('Asset catalog pagination')}
+          />
         </Paper>
       </QueryState>
 

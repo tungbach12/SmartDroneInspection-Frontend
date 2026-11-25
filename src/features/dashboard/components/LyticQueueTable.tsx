@@ -11,6 +11,7 @@ import {
   Button,
 } from '@mui/material';
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
+import { useIsDarkMode } from '@/app/layouts/ColorModeContext';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { Link as RouterLink } from 'react-router-dom';
 
@@ -40,29 +41,26 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
   viewAllText,
 }) => {
   const { t } = useLocale();
+  const isDark = useIsDarkMode();
   const getBadgeStyle = (status: 'positive' | 'warning' | 'negative' | 'neutral') => {
     switch (status) {
       case 'positive':
-        return {
-          bg: '#F0FDF4',
-          text: '#15803D',
-        };
+        return isDark
+          ? { bg: 'rgba(16, 185, 129, 0.16)', text: '#6EE7B7' }
+          : { bg: '#F0FDF4', text: '#15803D' };
       case 'warning':
-        return {
-          bg: '#FFFBEB',
-          text: '#92400E',
-        };
+        return isDark
+          ? { bg: 'rgba(245, 158, 11, 0.16)', text: '#FCD34D' }
+          : { bg: '#FFFBEB', text: '#92400E' };
       case 'negative':
-        return {
-          bg: '#FEF2F2',
-          text: '#B91C1C',
-        };
+        return isDark
+          ? { bg: 'rgba(239, 68, 68, 0.16)', text: '#FCA5A5' }
+          : { bg: '#FEF2F2', text: '#B91C1C' };
       case 'neutral':
       default:
-        return {
-          bg: '#F4F4F5',
-          text: '#374151',
-        };
+        return isDark
+          ? { bg: 'rgba(148, 163, 184, 0.16)', text: '#CBD5E1' }
+          : { bg: '#F4F4F5', text: '#374151' };
     }
   };
 
@@ -113,7 +111,7 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
         </Box>
         <Box
           sx={{
-            color: '#9CA3AF',
+            color: 'text.secondary',
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -148,7 +146,7 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
                     letterSpacing: '0.02em',
                     borderBottom: 1,
                     borderColor: 'divider',
-                    bgcolor: 'rgba(244, 244, 245, 0.5)',
+                    bgcolor: isDark ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB',
                   }}
                 >
                   {t(h)}

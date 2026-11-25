@@ -98,7 +98,7 @@ export const THEME_PRESETS: readonly ThemePresetDefinition[] = [
     lightSurface: '#FFFFFF',
     darkCanvas: '#09090B',
     darkSurface: '#18181B',
-    darkInset: '#111827',
+    darkInset: '#111114',
   },
   {
     id: 'aero-teal',

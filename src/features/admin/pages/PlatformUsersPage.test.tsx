@@ -212,4 +212,26 @@ describe('PlatformUsersPage', () => {
       }),
     );
   });
+
+  it('paginates accounts across pages when more than ten exist', async () => {
+    const manyUsers = Array.from({ length: 12 }, (_, index) => ({
+      id: `user-${index + 1}`,
+      email: `user${index + 1}@example.test`,
+      fullName: `Account ${String(index + 1).padStart(2, '0')}`,
+      roles: ['CUSTOMER'],
+    }));
+    mocks.list.mockResolvedValue(manyUsers);
+
+    renderWithClient();
+
+    expect(await screen.findByText('Showing 1–10 of 12')).toBeTruthy();
+    expect(screen.getByText('user1@example.test')).toBeTruthy();
+    expect(screen.queryByText('user11@example.test')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Go to page 2' }));
+
+    expect(screen.getByText('Showing 11–12 of 12')).toBeTruthy();
+    expect(screen.getByText('user11@example.test')).toBeTruthy();
+    expect(screen.queryByText('user1@example.test')).toBeNull();
+  });
 });

@@ -33,6 +33,7 @@ import AddCircleOutlineRounded from '@mui/icons-material/AddCircleOutlineRounded
 import EditOutlined from '@mui/icons-material/EditOutlined';
 import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
 import ToggleOnRounded from '@mui/icons-material/ToggleOnRounded';
+import { useToastStore } from '@/shared/ui/Toast';
 import ToggleOffOutlined from '@mui/icons-material/ToggleOffOutlined';
 import CloseRounded from '@mui/icons-material/CloseRounded';
 import {
@@ -45,7 +46,9 @@ import {
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
-import { useToastStore } from '@/shared/ui/Toast';
+import { PaginationFooter } from '@/shared/ui/PaginationFooter';
+import { paginateItems } from '@/shared/ui/pagination';
+import { StatusChip } from '@/shared/ui/StatusChip';
 import { AdminTableToolbar } from '@/features/admin/components/AdminTableToolbar';
 
 function generateFeatureCode(raw: string): string {
@@ -97,6 +100,7 @@ export function DroneFeatureConfigTab() {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | DroneFeatureCategory>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
+  const [page, setPage] = useState(1);
 
   const configsQuery = useQuery({
     queryKey: ['drone-feature-configs-admin'],
@@ -256,6 +260,11 @@ export function DroneFeatureConfigTab() {
     });
   }, [categoryFilter, configs, search, statusFilter]);
 
+  const paginatedConfigs = useMemo(
+    () => paginateItems(filteredConfigs, page, 10),
+    [filteredConfigs, page],
+  );
+
   return (
     <Card variant="outlined" sx={{ borderRadius: '12px' }}>
       <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
@@ -281,7 +290,10 @@ export function DroneFeatureConfigTab() {
 
         <AdminTableToolbar
           searchValue={search}
-          onSearchChange={setSearch}
+          onSearchChange={(value) => {
+            setSearch(value);
+            setPage(1);
+          }}
           searchPlaceholder={tr('Tìm theo mã hoặc tên tính năng', 'Search code or feature name')}
           visibleCount={filteredConfigs.length}
           totalCount={configs.length}
@@ -295,7 +307,10 @@ export function DroneFeatureConfigTab() {
                 { value: 'SAFETY', label: tr('An toàn', 'Safety') },
                 { value: 'CAPABILITY', label: tr('Năng lực', 'Capability') },
               ],
-              onChange: (value) => setCategoryFilter(value as 'ALL' | DroneFeatureCategory),
+              onChange: (value) => {
+                setCategoryFilter(value as 'ALL' | DroneFeatureCategory);
+                setPage(1);
+              },
             },
             {
               key: 'status',
@@ -306,8 +321,10 @@ export function DroneFeatureConfigTab() {
                 { value: 'ACTIVE', label: tr('Đang áp dụng', 'Active') },
                 { value: 'INACTIVE', label: tr('Tạm ẩn', 'Inactive') },
               ],
-              onChange: (value) =>
-                setStatusFilter(value as 'ALL' | 'ACTIVE' | 'INACTIVE'),
+              onChange: (value) => {
+                setStatusFilter(value as 'ALL' | 'ACTIVE' | 'INACTIVE');
+                setPage(1);
+              },
             },
           ]}
         />
@@ -335,32 +352,66 @@ export function DroneFeatureConfigTab() {
               : tr('Không có tính năng nào khớp bộ lọc.', 'No features match the current filters.')}
           </Alert>
         ) : (
-          <TableContainer>
-            <Table size="small">
+          <Box
+            sx={{
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: '10px',
+              overflow: 'hidden',
+            }}
+          >
+            <TableContainer>
+            <Table
+              size="small"
+              sx={{
+                '& .MuiTableCell-root': { px: 1.25, py: 1.25 },
+              }}
+            >
               <TableHead>
-                <TableRow sx={{ bgcolor: 'action.hover' }}>
-                  <TableCell sx={{ fontWeight: 700 }}>{tr('Thứ tự', 'Order')}</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>{tr('Mã (Code)', 'Code')}</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>{tr('Tên tính năng', 'Feature Name')}</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>{tr('Nhóm', 'Category')}</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>{tr('Trạng thái', 'Status')}</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700 }}>{tr('Thao tác', 'Actions')}</TableCell>
+                <TableRow
+                  sx={{
+                    bgcolor: (muiTheme) =>
+                      muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB',
+                  }}
+                >
+                  <TableCell sx={{ width: 44, fontWeight: 600, fontSize: '0.75rem', color: 'text.secondary' }}>#</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: 'text.secondary' }}>{tr('Tính năng', 'Feature')}</TableCell>
+                  <TableCell sx={{ width: 100, fontWeight: 600, fontSize: '0.75rem', color: 'text.secondary' }}>{tr('Nhóm', 'Category')}</TableCell>
+                  <TableCell sx={{ width: 96, fontWeight: 600, fontSize: '0.75rem', color: 'text.secondary' }}>{tr('Trạng thái', 'Status')}</TableCell>
+                  <TableCell align="right" sx={{ width: 104, fontWeight: 600, fontSize: '0.75rem', color: 'text.secondary' }}>{tr('Thao tác', 'Actions')}</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredConfigs.map((cfg) => (
+                {paginatedConfigs.items.map((cfg) => (
                   <TableRow key={cfg.id} hover>
-                    <TableCell sx={{ fontWeight: 600 }}>{cfg.displayOrder}</TableCell>
-                    <TableCell>
-                      <Chip size="small" label={cfg.code} sx={{ fontFamily: 'monospace', fontWeight: 700 }} />
-                    </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ fontWeight: 600, color: 'text.secondary' }}>{cfg.displayOrder}</TableCell>
+                    <TableCell sx={{ minWidth: 0 }}>
                       <Typography variant="body2" sx={{ fontWeight: 650 }}>
                         {locale === 'vi' ? cfg.nameVi : cfg.nameEn}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
                         {locale === 'vi' ? cfg.descriptionVi || '—' : cfg.descriptionEn || '—'}
                       </Typography>
+                      <Box
+                        component="span"
+                        sx={{
+                          display: 'inline-block',
+                          mt: 0.75,
+                          px: 0.75,
+                          py: 0.125,
+                          borderRadius: '6px',
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          bgcolor: 'background.default',
+                          fontFamily: 'monospace',
+                          fontSize: '0.7rem',
+                          fontWeight: 600,
+                          color: 'text.secondary',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {cfg.code}
+                      </Box>
                     </TableCell>
                     <TableCell>
                       <Chip
@@ -372,11 +423,9 @@ export function DroneFeatureConfigTab() {
                       />
                     </TableCell>
                     <TableCell>
-                      <Chip
-                        size="small"
+                      <StatusChip
+                        status={cfg.isActive ? 'ACTIVE' : 'INACTIVE'}
                         label={cfg.isActive ? tr('Đang áp dụng', 'Active') : tr('Tạm ẩn', 'Inactive')}
-                        color={cfg.isActive ? 'success' : 'default'}
-                        sx={{ fontWeight: 600 }}
                       />
                     </TableCell>
                     <TableCell align="right">
@@ -412,6 +461,14 @@ export function DroneFeatureConfigTab() {
               </TableBody>
             </Table>
           </TableContainer>
+            <PaginationFooter
+              page={paginatedConfigs.page}
+              pageSize={paginatedConfigs.pageSize}
+              totalCount={paginatedConfigs.totalCount}
+              onPageChange={setPage}
+              ariaLabel={tr('Phân trang cấu hình tính năng Drone', 'Drone feature configs pagination')}
+            />
+          </Box>
         )}
 
         {/* DIALOG THÊM / SỬA */}
