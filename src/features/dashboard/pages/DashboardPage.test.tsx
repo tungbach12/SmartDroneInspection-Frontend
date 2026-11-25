@@ -17,7 +17,7 @@ vi.mock('@/features/assets/hooks/useAssets', () => ({
   useAssets: (...args: unknown[]) => mocks.useAssets(...args),
 }));
 vi.mock('../hooks/useDashboardAnalytics', () => ({
-  useDashboardAnalytics: () => mocks.useDashboardAnalytics(),
+  useDashboardAnalytics: (...args: unknown[]) => mocks.useDashboardAnalytics(...args),
 }));
 vi.mock('@/features/inspections/hooks/useInspections', () => ({
   useInspections: (...args: unknown[]) => mocks.useInspections(...args),
@@ -36,7 +36,9 @@ function renderDashboard(roles: Role[], path = '/client/dashboard') {
   return render(
     <QueryClientProvider client={queryClient}>
       <ThemeProvider theme={theme}>
-        <MemoryRouter initialEntries={[path]}><DashboardPage /></MemoryRouter>
+        <MemoryRouter initialEntries={[path]}>
+          <DashboardPage />
+        </MemoryRouter>
       </ThemeProvider>
     </QueryClientProvider>,
   );
@@ -45,14 +47,30 @@ function renderDashboard(roles: Role[], path = '/client/dashboard') {
 describe('dashboard', () => {
   afterEach(cleanup);
   beforeEach(() => {
-    mocks.useAssets.mockReset().mockReturnValue({ data: { items: assetRows, totalCount: 12 }, isLoading: false, error: null, refetch: vi.fn() });
-    mocks.useDashboardAnalytics.mockReset().mockReturnValue({ data: null, isLoading: false, error: null, refetch: vi.fn() });
-    mocks.useInspections.mockReset().mockReturnValue({ data: { items: [], totalCount: 0, totalPages: 0 }, isLoading: false, error: null, refetch: vi.fn() });
+    mocks.useAssets.mockReset().mockReturnValue({
+      data: { items: assetRows, totalCount: 12 },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    mocks.useDashboardAnalytics.mockReset().mockReturnValue({
+      data: null,
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    mocks.useInspections.mockReset().mockReturnValue({
+      data: { items: [], totalCount: 0, totalPages: 0 },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
   });
 
-  it('shows organization-scoped asset metrics and the asset register', () => {
+  it('shows organization-scoped asset metrics, defect health donut, and asset register for Customer', () => {
     renderDashboard(['CUSTOMER']);
     expect(screen.getByRole('heading', { name: 'Asset overview' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /Mức độ khuyết tật công trình|Asset Defect Health/i })).toBeTruthy();
     expect(screen.getByRole('group', { name: /registered assets: 12/i })).toBeTruthy();
     expect(screen.getByText('North Bridge')).toBeTruthy();
     expect(document.querySelector('a[href="/client/assets"]')).toBeTruthy();
@@ -60,30 +78,35 @@ describe('dashboard', () => {
     expect(mocks.useAssets).toHaveBeenCalledWith({ page: 1, pageSize: 50 }, true);
   });
 
-  it('shows inspection-specific shortcuts without requesting out-of-scope asset data', () => {
+  it('shows upcoming missions card and revenue dashboard for Inspector', () => {
     renderDashboard(['INSPECTOR'], '/operations/dashboard');
     expect(screen.getByRole('heading', { name: 'Inspector Dashboard' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /Nhiệm vụ sắp tới|Upcoming Missions/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /All Inspections/i })).toBeTruthy();
+    expect(mocks.useAssets).not.toHaveBeenCalled();
   });
 
-  it('shows shared Lytic-style metrics with platform-only shortcuts for administrators', () => {
+  it('shows dedicated AI, MF1 review queue, and Audit dashboard for ADMIN', () => {
     renderDashboard(['ADMIN'], '/admin/dashboard');
     expect(screen.getByRole('heading', { name: 'Platform overview' })).toBeTruthy();
-    expect(screen.getByRole('group', { name: /organizations: —/i })).toBeTruthy();
-    expect(document.querySelector('a[href="/admin/asset-catalog"]')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /Hàng đợi thẩm định MF1|Pending MF1 Reviews/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /Hoạt động gần đây|Recent Activities/i })).toBeTruthy();
+    expect(document.querySelector('a[href="/admin/onboarding-reviews"]')).toBeTruthy();
+    expect(document.querySelector('a[href="/admin/audit-logs"]')).toBeTruthy();
     expect(document.querySelector('a[href="/client/assets"]')).toBeNull();
     expect(mocks.useAssets).toHaveBeenCalledWith({ page: 1, pageSize: 50 }, false);
-    expect(screen.getByRole('button', { name: 'Admin' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Customer' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Inspector' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Maintenance' })).toBeNull();
+    expect(mocks.useDashboardAnalytics).toHaveBeenCalledWith('ADMIN');
   });
 
-  it('supports MANAGER in /manager/dashboard', () => {
+  it('shows dedicated commercial funnel, action queue, and schedule dashboard for MANAGER', () => {
     renderDashboard(['MANAGER'], '/manager/dashboard');
-    expect(screen.getByRole('heading', { name: 'Platform overview' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Manager' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /Điều phối & Thương mại|Operations & Commercial Overview/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /Phễu tiến độ dịch vụ|Service Pipeline/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /Việc cần xử lý ngay|Action Queue/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /Lịch bay sắp tới|Upcoming Flight Schedule/i })).toBeTruthy();
+    expect(document.querySelector('a[href="/manager/contracts"]')).toBeTruthy();
     expect(mocks.useAssets).toHaveBeenCalledWith({ page: 1, pageSize: 50 }, false);
+    expect(mocks.useDashboardAnalytics).toHaveBeenCalledWith('MANAGER');
   });
 
   it('keeps cross-portal roles in their selected client workspace', () => {
@@ -91,11 +114,5 @@ describe('dashboard', () => {
     expect(screen.getByRole('heading', { name: 'Asset overview' })).toBeTruthy();
     expect(document.querySelector('a[href="/client/assets"]')).toBeTruthy();
     expect(document.querySelector('a[href="/operations/inspections"]')).toBeNull();
-  });
-
-  it('shows inspection navigation in the operations portal without maintenance workspaces', () => {
-    renderDashboard(['INSPECTOR'], '/operations/dashboard');
-    expect(screen.getByRole('button', { name: /All Inspections/i })).toBeTruthy();
-    expect(mocks.useAssets).not.toHaveBeenCalled();
   });
 });

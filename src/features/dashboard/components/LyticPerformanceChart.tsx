@@ -16,6 +16,7 @@ export interface LyticPerformanceChartProps {
   months: string[];
   yTicks: string[];
   maxVal?: number;
+  headerAction?: React.ReactNode;
 }
 
 export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
@@ -29,6 +30,7 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
   months,
   yTicks,
   maxVal = 100000,
+  headerAction,
 }) => {
   const { formatNumber, t } = useLocale();
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
@@ -168,7 +170,7 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
               <Typography
                 component="span"
                 sx={{
-                  fontSize: '0.875rem',
+                  fontSize: '0.78rem',
                   color: 'text.secondary',
                 }}
               >
@@ -215,37 +217,39 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
           </Box>
         </Box>
 
-        {/* Right: NextAdmin "Monthly ⌄" selector pill */}
-        <Box
-          sx={{
-            height: 34,
-            px: 1.5,
-            borderRadius: '8px',
-            border: '1px solid',
-            borderColor: 'divider',
-            bgcolor: 'background.paper',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 1,
-            fontSize: '0.875rem',
-            fontWeight: 500,
-            color: 'text.primary',
-            boxShadow: '0 1px 2px 0 rgba(16,24,40,0.05)',
-            flexShrink: 0,
-            userSelect: 'none',
-          }}
-        >
-          <span>{t('Monthly')}</span>
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path
-              d="M4 6L8 10L12 6"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </Box>
+        {/* Right: Custom toggle or NextAdmin "Monthly" pill */}
+        {headerAction ?? (
+          <Box
+            sx={{
+              height: 34,
+              px: 1.5,
+              borderRadius: '8px',
+              border: '1px solid',
+              borderColor: 'divider',
+              bgcolor: 'background.paper',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 1,
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              color: 'text.primary',
+              boxShadow: '0 1px 2px 0 rgba(16,24,40,0.05)',
+              flexShrink: 0,
+              userSelect: 'none',
+            }}
+          >
+            <span>{t('Monthly')}</span>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path
+                d="M4 6L8 10L12 6"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </Box>
+        )}
       </Box>
 
       {/* SVG Responsive Chart */}

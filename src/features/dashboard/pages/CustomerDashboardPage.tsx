@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   Box,
   Button,
   Divider,
@@ -28,6 +29,8 @@ import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { MetricCard } from '@/shared/ui/MetricCard';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import { DashboardHeaderActions } from '../components/LyticHeaderActions';
+import { DefectSeverityDonutCard } from '../components/NextAdminWidgets';
+import { useDashboardAnalytics } from '../hooks/useDashboardAnalytics';
 
 /**
  * Customer Dashboard (`/client/dashboard`).
@@ -39,11 +42,13 @@ import { DashboardHeaderActions } from '../components/LyticHeaderActions';
  *    - Right: Asset Overview register
  */
 export function CustomerDashboardPage() {
-  const { formatNumber, t } = useLocale();
+  const { formatNumber, locale, t } = useLocale();
+  const tr = (vi: string, en: string) => (locale === 'vi' ? vi : en);
   const navigate = useNavigate();
   const accessToken = useAuthStore((state) => state.accessToken);
 
   const assets = useAssets({ page: 1, pageSize: 50 }, true);
+  const analytics = useDashboardAnalytics('CUSTOMER');
 
   const [inspectionsList, setInspectionsList] = useState<InspectionListItem[]>([]);
   const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([]);
@@ -137,6 +142,27 @@ export function CustomerDashboardPage() {
   const totalPaidVnd = enrichedInspections
     .filter((item) => item.resolvedPaymentStatus === 'PAID')
     .reduce((sum, item) => sum + (item.resolvedAmount ?? 0), 0);
+
+  const quotedRequestsCount = serviceRequests.filter((r) => r.status === 'QUOTED').length;
+  const pendingAcceptReport = enrichedInspections.find(
+    (item) => item.reportStatus === 'PUBLISHED' && !item.resolvedReportAccepted,
+  );
+  const paymentDueCount = enrichedInspections.filter(
+    (item) => item.resolvedPaymentStatus === 'PAYMENT_DUE',
+  ).length;
+  const hasActionNeeded =
+    quotedRequestsCount > 0 || Boolean(pendingAcceptReport) || paymentDueCount > 0;
+
+  const severityTotals = useMemo(() => {
+    const channels = analytics.data?.stackedBarChart?.channels ?? [];
+    const sumChannel = (idx: number) =>
+      (channels[idx]?.data ?? []).reduce((acc, v) => acc + v, 0);
+    return {
+      criticalHigh: sumChannel(0),
+      medium: sumChannel(1),
+      low: sumChannel(2),
+    };
+  }, [analytics.data?.stackedBarChart]);
 
   const inspectionCountByAssetId = useMemo(() => {
     const counts = new Map<string, { total: number; published: number }>();
@@ -304,11 +330,60 @@ export function CustomerDashboardPage() {
             value={st.value}
             change={st.change}
             positive={st.positive}
-            subtext={st.subtext}
             iconType={st.iconType}
           />
         ))}
       </Box>
+
+      {/* Action Needed Strip (shown only when customer confirmation/payment is pending) */}
+      {hasActionNeeded && (
+        <Alert
+          severity="info"
+          sx={{
+            mb: 3,
+            borderRadius: '10px',
+            alignItems: { xs: 'flex-start', sm: 'center' },
+          }}
+          action={
+            <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 0.75 }}>
+              {quotedRequestsCount > 0 && (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => navigate('/client/contracts')}
+                  sx={{ textTransform: 'none', fontWeight: 600 }}
+                >
+                  {tr(`Duyệt báo giá (${quotedRequestsCount})`, `Review quotes (${quotedRequestsCount})`)}
+                </Button>
+              )}
+              {pendingAcceptReport && (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => navigate(`/client/inspections/${pendingAcceptReport.id}/report`)}
+                  sx={{ textTransform: 'none', fontWeight: 600 }}
+                >
+                  {tr('Nghiệm thu báo cáo', 'Accept report')}
+                </Button>
+              )}
+              {paymentDueCount > 0 && (
+                <Button
+                  size="small"
+                  variant="contained"
+                  onClick={() => navigate('/client/contracts')}
+                  sx={{ textTransform: 'none', fontWeight: 600, boxShadow: 'none' }}
+                >
+                  {tr(`Thanh toán (${paymentDueCount})`, `Pay fees (${paymentDueCount})`)}
+                </Button>
+              )}
+            </Stack>
+          }
+        >
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            {tr('Cần bạn xác nhận:', 'Action needed:')}
+          </Typography>
+        </Alert>
+      )}
 
       {/* Row 2: 2-Column Responsive Split — Inspections & Deliverables (Left) + Asset Overview (Right) */}
       <Box
@@ -385,11 +460,11 @@ export function CustomerDashboardPage() {
                     <TableRow>
                       <TableCell
                         sx={{
-                          bgcolor: 'rgba(244, 244, 245, 0.5)',
-                          color: '#71717A',
+                          bgcolor: 'action.hover',
+                          color: 'text.secondary',
                           fontSize: '0.75rem',
-                          fontWeight: 500,
-                          py: 1.5,
+                          fontWeight: 600,
+                          py: 1.35,
                           px: 2.5,
                         }}
                       >
@@ -397,11 +472,11 @@ export function CustomerDashboardPage() {
                       </TableCell>
                       <TableCell
                         sx={{
-                          bgcolor: 'rgba(244, 244, 245, 0.5)',
-                          color: '#71717A',
+                          bgcolor: 'action.hover',
+                          color: 'text.secondary',
                           fontSize: '0.75rem',
-                          fontWeight: 500,
-                          py: 1.5,
+                          fontWeight: 600,
+                          py: 1.35,
                           px: 1.5,
                         }}
                       >
@@ -409,11 +484,11 @@ export function CustomerDashboardPage() {
                       </TableCell>
                       <TableCell
                         sx={{
-                          bgcolor: 'rgba(244, 244, 245, 0.5)',
-                          color: '#71717A',
+                          bgcolor: 'action.hover',
+                          color: 'text.secondary',
                           fontSize: '0.75rem',
-                          fontWeight: 500,
-                          py: 1.5,
+                          fontWeight: 600,
+                          py: 1.35,
                           px: 1.5,
                         }}
                       >
@@ -422,11 +497,11 @@ export function CustomerDashboardPage() {
                       <TableCell
                         align="right"
                         sx={{
-                          bgcolor: 'rgba(244, 244, 245, 0.5)',
-                          color: '#71717A',
+                          bgcolor: 'action.hover',
+                          color: 'text.secondary',
                           fontSize: '0.75rem',
-                          fontWeight: 500,
-                          py: 1.5,
+                          fontWeight: 600,
+                          py: 1.35,
                           px: 2.5,
                         }}
                       >
@@ -435,7 +510,7 @@ export function CustomerDashboardPage() {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {enrichedInspections.slice(0, 5).map((item) => {
+                    {enrichedInspections.slice(0, 6).map((item) => {
                       const isPublished = item.reportStatus === 'PUBLISHED';
                       return (
                         <TableRow
@@ -448,22 +523,18 @@ export function CustomerDashboardPage() {
                           }
                           sx={{ cursor: 'pointer' }}
                         >
-                          <TableCell sx={{ py: 1.5, px: 2.5 }}>
-                            <Stack
-                              direction="row"
-                              spacing={0.75}
-                              sx={{ alignItems: 'center', flexWrap: 'wrap' }}
+                          <TableCell sx={{ py: 1.5, px: 2.5, maxWidth: 280 }}>
+                            <Typography
+                              variant="body2"
+                              sx={{ fontWeight: 650, color: 'text.primary' }}
+                              noWrap
                             >
-                              <Typography
-                                variant="body2"
-                                sx={{ fontWeight: 650, color: 'text.primary' }}
-                              >
-                                {item.resolvedAssetName}
-                              </Typography>
-                            </Stack>
+                              {item.resolvedAssetName}
+                            </Typography>
                             <Typography
                               variant="caption"
                               sx={{ color: 'text.secondary', display: 'block' }}
+                              noWrap
                             >
                               {item.resolvedObjective}
                             </Typography>
@@ -680,7 +751,14 @@ export function CustomerDashboardPage() {
           )}
         </Paper>
 
-        {/* Right: Asset Overview Register */}
+        {/* Right: Defect Severity Donut + Asset Overview Register */}
+        <Stack spacing={2.5}>
+          <DefectSeverityDonutCard
+            criticalHigh={severityTotals.criticalHigh}
+            medium={severityTotals.medium}
+            low={severityTotals.low}
+          />
+
         <Paper
           variant="outlined"
           sx={{
@@ -753,11 +831,11 @@ export function CustomerDashboardPage() {
                   <TableRow>
                     <TableCell
                       sx={{
-                        bgcolor: 'rgba(244, 244, 245, 0.5)',
-                        color: '#71717A',
+                        bgcolor: 'action.hover',
+                        color: 'text.secondary',
                         fontSize: '0.75rem',
-                        fontWeight: 500,
-                        py: 1.5,
+                        fontWeight: 600,
+                        py: 1.35,
                         px: 2.5,
                       }}
                     >
@@ -765,11 +843,11 @@ export function CustomerDashboardPage() {
                     </TableCell>
                     <TableCell
                       sx={{
-                        bgcolor: 'rgba(244, 244, 245, 0.5)',
-                        color: '#71717A',
+                        bgcolor: 'action.hover',
+                        color: 'text.secondary',
                         fontSize: '0.75rem',
-                        fontWeight: 500,
-                        py: 1.5,
+                        fontWeight: 600,
+                        py: 1.35,
                         px: 1.5,
                       }}
                     >
@@ -778,11 +856,11 @@ export function CustomerDashboardPage() {
                     <TableCell
                       align="right"
                       sx={{
-                        bgcolor: 'rgba(244, 244, 245, 0.5)',
-                        color: '#71717A',
+                        bgcolor: 'action.hover',
+                        color: 'text.secondary',
                         fontSize: '0.75rem',
-                        fontWeight: 500,
-                        py: 1.5,
+                        fontWeight: 600,
+                        py: 1.35,
                         px: 2.5,
                       }}
                     >
@@ -793,7 +871,7 @@ export function CustomerDashboardPage() {
                 <TableBody>
                   {assetList
                     .filter((asset) => asset.status !== 'RETIRED')
-                    .slice(0, 6)
+                    .slice(0, 4)
                     .map((asset) => {
                     const counts = inspectionCountByAssetId.get(asset.id);
                     return (
@@ -844,6 +922,7 @@ export function CustomerDashboardPage() {
             </TableContainer>
           )}
         </Paper>
+        </Stack>
       </Box>
     </Box>
   );
