@@ -49,6 +49,8 @@ describe('getAuthRedirectTarget', () => {
     expect(getAuthRedirectTarget('/register', ['ADMIN'])).toBe(
       '/admin/dashboard',
     );
+    expect(getAuthRedirectTarget('/inspector/login', ['INSPECTOR'])).toBe('/operations/dashboard');
+    expect(getAuthRedirectTarget('/inspector/register', ['INSPECTOR'])).toBe('/operations/dashboard');
   });
 
   it('normalizes an authorized legacy feature URL through the portal policy', () => {

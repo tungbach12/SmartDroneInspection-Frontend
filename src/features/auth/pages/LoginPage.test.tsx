@@ -31,15 +31,18 @@ const roleCases: { role: Role; path: string }[] = [
   { role: 'ADMIN', path: '/admin/dashboard' },
   { role: 'MANAGER', path: '/manager/dashboard' },
   { role: 'CUSTOMER', path: '/client/dashboard' },
-  { role: 'INSPECTOR', path: '/operations/dashboard' },
 ];
 
-function renderLogin(initialEntry = '/login') {
+function renderLogin(
+  initialEntry = '/login',
+  audience: 'default' | 'inspector' = 'default',
+) {
   return render(
     <ThemeProvider theme={theme}>
       <MemoryRouter initialEntries={[initialEntry]}>
         <Routes>
-          <Route path="/login" element={<LoginPage />} />
+          <Route path="/login" element={<LoginPage audience={audience} />} />
+          <Route path="/inspector/login" element={<LoginPage audience="inspector" />} />
           <Route path="/admin/dashboard" element={<div>Admin dashboard</div>} />
           <Route path="/manager/dashboard" element={<div>Manager dashboard</div>} />
           <Route path="/client/dashboard" element={<div>Client dashboard</div>} />
@@ -89,12 +92,59 @@ describe('role-aware sign-in flow', () => {
         ? 'Admin dashboard'
         : role === 'MANAGER'
           ? 'Manager dashboard'
-          : role === 'CUSTOMER'
-            ? 'Client dashboard'
-            : 'Operations dashboard',
+          : 'Client dashboard',
     );
     expect(screen.getByLabelText('Current location').textContent).toBe(path);
     expect(useAuthStore.getState()).toMatchObject({ status: 'authenticated', accessToken: 'memory-access-token', roles: [role] });
+  });
+
+  it('blocks Inspector accounts on Customer /login and routes Inspector login via /inspector/login', async () => {
+    authMocks.login.mockResolvedValue({
+      step: 'AUTHENTICATED',
+      accessToken: 'memory-access-token',
+      accessTokenExpiresInSeconds: 900,
+      user: { id: 'field-user', email: 'field@example.test', fullName: 'Field User', roles: ['INSPECTOR'] },
+    });
+
+    renderLogin('/login', 'default');
+    expect(screen.getByRole('link', { name: 'Sign up' }).getAttribute('href')).toBe('/register');
+    expect(screen.queryByRole('link', { name: /inspector/i })).toBeNull();
+
+    fireEvent.change(screen.getByRole('textbox', { name: /email address/i }), { target: { value: 'field@example.test' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'valid-password' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+
+    expect((await screen.findByRole('alert')).textContent).toContain('/inspector/login');
+    expect(useAuthStore.getState().status).toBe('anonymous');
+
+    cleanup();
+    renderLogin('/inspector/login', 'inspector');
+    expect(screen.getByRole('link', { name: 'Register as Inspector' }).getAttribute('href')).toBe('/inspector/register');
+    expect(screen.queryByText(/Continue with Google/i)).toBeNull();
+
+    fireEvent.change(screen.getByRole('textbox', { name: /email address/i }), { target: { value: 'field@example.test' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'valid-password' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+
+    await screen.findByText('Operations dashboard');
+    expect(screen.getByLabelText('Current location').textContent).toBe('/operations/dashboard');
+  });
+
+  it('blocks Customer accounts from signing in on /inspector/login', async () => {
+    authMocks.login.mockResolvedValue({
+      step: 'AUTHENTICATED',
+      accessToken: 'memory-access-token',
+      accessTokenExpiresInSeconds: 900,
+      user: { id: 'cust-user', email: 'cust@example.test', fullName: 'Cust User', roles: ['CUSTOMER'] },
+    });
+
+    renderLogin('/inspector/login', 'inspector');
+    fireEvent.change(screen.getByRole('textbox', { name: /email address/i }), { target: { value: 'cust@example.test' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'valid-password' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+
+    expect((await screen.findByRole('alert')).textContent).toContain('/login');
+    expect(useAuthStore.getState().status).toBe('anonymous');
   });
 
   it('completes mandatory first-password setup before routing the role', async () => {
@@ -111,7 +161,7 @@ describe('role-aware sign-in flow', () => {
       user: { id: 'field-user', email: 'field@example.test', fullName: 'Field User', roles: ['INSPECTOR'] },
     });
 
-    renderLogin();
+    renderLogin('/inspector/login', 'inspector');
     fireEvent.change(screen.getByRole('textbox', { name: /email address/i }), { target: { value: 'field@example.test' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'temporary-password' } });
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
@@ -132,7 +182,7 @@ describe('role-aware sign-in flow', () => {
       step: 'AUTHENTICATED', accessToken: 'memory-access-token', accessTokenExpiresInSeconds: 900,
       user: { id: 'field-user', email: 'field@example.test', fullName: 'Field User', roles: ['INSPECTOR'] },
     });
-    renderLogin('/login?returnTo=%2Foperations%2Finspections');
+    renderLogin('/inspector/login?returnTo=%2Foperations%2Finspections', 'inspector');
     fireEvent.change(screen.getByRole('textbox', { name: /email address/i }), { target: { value: 'field@example.test' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'valid-password' } });
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
@@ -162,7 +212,7 @@ describe('role-aware sign-in flow', () => {
       },
     });
 
-    renderLogin();
+    renderLogin('/inspector/login', 'inspector');
     fireEvent.change(screen.getByRole('textbox', { name: /email address/i }), {
       target: { value: 'field@example.test' },
     });

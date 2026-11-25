@@ -63,6 +63,7 @@ describe('customer organization registration', () => {
 
   it('requires account details and valid password as part of registration', async () => {
     renderRegister();
+    expect(screen.queryByRole('link', { name: /inspector/i })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
     expect(await screen.findByText('Enter your full name.')).toBeTruthy();
     expect(mocks.sendRegistrationOtp).not.toHaveBeenCalled();

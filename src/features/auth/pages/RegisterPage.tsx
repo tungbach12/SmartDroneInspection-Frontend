@@ -19,8 +19,6 @@ import {
 import {
   Visibility,
   VisibilityOff,
-  FlightTakeoffRounded,
-  ArrowForwardRounded,
 } from '@mui/icons-material';
 import { Link as RouterLink, Navigate, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -265,47 +263,6 @@ export default function RegisterPage() {
         noValidate
         onSubmit={form.handleSubmit(onSubmit)}
       >
-        {/* DEDICATED LINK BANNER TO MULTI-STEP PARTNER INSPECTOR REGISTRATION PAGE */}
-        <Box
-          sx={{
-            p: 1.5,
-            borderRadius: '10px',
-            bgcolor: '#EEF5F3',
-            border: '1px solid #D6E4E0',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 1.5,
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <FlightTakeoffRounded sx={{ color: '#087E8B', fontSize: 20 }} />
-            <Typography sx={{ fontSize: '13px', color: '#173B36', fontWeight: 600 }}>
-              Bạn là Phi công Drone đối tác?
-            </Typography>
-          </Box>
-          <Button
-            component={RouterLink}
-            to="/register-inspector"
-            size="small"
-            endIcon={<ArrowForwardRounded sx={{ fontSize: 15 }} />}
-            sx={{
-              textTransform: 'none',
-              fontWeight: 700,
-              fontSize: '12.5px',
-              color: '#087E8B',
-              bgcolor: '#FFFFFF',
-              border: '1px solid #B8D5CE',
-              borderRadius: '6px',
-              px: 1.5,
-              whiteSpace: 'nowrap',
-              '&:hover': { bgcolor: '#E4F1EE' },
-            }}
-          >
-            Đăng ký Inspector (4 bước)
-          </Button>
-        </Box>
-
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
           <TextField
             {...form.register('fullName')}

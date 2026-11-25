@@ -43,6 +43,15 @@ export default function OAuthCallbackPage() {
           setErrorMessage(t('This account does not belong to this workspace.'));
           return;
         }
+        if (
+          user.roles.includes('INSPECTOR') &&
+          !user.roles.some((r) => ['CUSTOMER', 'ADMIN', 'MANAGER'].includes(r))
+        ) {
+          setErrorMessage(
+            t('Partner Inspector accounts must sign in at the dedicated Inspector portal (/inspector/login).'),
+          );
+          return;
+        }
 
         setSession({ accessToken, user });
         const target = getAuthRedirectTarget('/', user.roles);

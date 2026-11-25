@@ -34,7 +34,14 @@ export function getAuthRedirectTarget(
   }
 
   const path = destination.pathname;
-  if (path === '/login' || path === '/register' || path === '/forbidden') {
+  if (
+    path === '/login' ||
+    path === '/register' ||
+    path === '/inspector/login' ||
+    path === '/inspector/register' ||
+    path === '/register-inspector' ||
+    path === '/forbidden'
+  ) {
     return defaultPath;
   }
 

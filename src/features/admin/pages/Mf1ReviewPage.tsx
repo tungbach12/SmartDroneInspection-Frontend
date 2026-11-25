@@ -839,7 +839,10 @@ export default function Mf1ReviewPage({
                     { value: 'OLDEST', label: tr('Cũ nhất', 'Oldest first') },
                     { value: 'NAME_ASC', label: tr('Tên A–Z', 'Name A–Z') },
                   ],
-                  onChange: (value) => setSort(value as SortOption),
+                  onChange: (value) => {
+                    setSort(value as SortOption);
+                    setPage(0);
+                  },
                   width: 125,
                 },
               ]
@@ -882,7 +885,10 @@ export default function Mf1ReviewPage({
                       { value: 'OLDEST', label: tr('Cũ nhất', 'Oldest first') },
                       { value: 'NAME_ASC', label: tr('Model A–Z', 'Model A–Z') },
                     ],
-                    onChange: (value) => setSort(value as SortOption),
+                    onChange: (value) => {
+                      setSort(value as SortOption);
+                      setPage(0);
+                    },
                     width: 145,
                   },
                 ]
@@ -908,7 +914,10 @@ export default function Mf1ReviewPage({
                       { value: 'OLDEST', label: tr('Cũ nhất', 'Oldest first') },
                       { value: 'NAME_ASC', label: tr('Tên A–Z', 'Name A–Z') },
                     ],
-                    onChange: (value) => setSort(value as SortOption),
+                    onChange: (value) => {
+                      setSort(value as SortOption);
+                      setPage(0);
+                    },
                     width: 150,
                   },
                 ]

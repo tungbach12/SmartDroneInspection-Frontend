@@ -177,7 +177,7 @@ export function DarkHero() {
 
             <Box
               component="a"
-              href="/login"
+              href="/inspector/login"
               sx={{
                 display: 'inline-flex',
                 alignItems: 'center',

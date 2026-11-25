@@ -481,4 +481,41 @@ describe('PartnerCandidateResults', () => {
     expect(screen.getByText('No-shows: 1')).toBeTruthy();
     expect(screen.getByText('Aborts: 1')).toBeTruthy();
   });
+
+  it('paginates partner drone candidates across pages and resets to page 1 on filter change', () => {
+    const eightCandidates: PartnerCandidate[] = Array.from({ length: 8 }, (_, index) => ({
+      ...passingCandidate,
+      inspectorId: `insp-${index + 1}`,
+      droneId: `drone-${index + 1}`,
+      inspectorName: `Inspector ${index + 1}`,
+      droneModel: `Matrice Model ${index + 1}`,
+      droneSerialNumber: `SDI-${100 + index + 1}`,
+    }));
+
+    renderWithQuery(
+      <PartnerCandidateResults
+        candidates={eightCandidates}
+        selectedInspectorId=""
+        selectedDroneId=""
+        onSelectPair={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Showing 1–6 of 8')).toBeTruthy();
+    expect(screen.getByText('Matrice Model 1')).toBeTruthy();
+    expect(screen.queryByText('Matrice Model 7')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Go to page 2' }));
+
+    expect(screen.getByText('Showing 7–8 of 8')).toBeTruthy();
+    expect(screen.getByText('Matrice Model 7')).toBeTruthy();
+    expect(screen.getByText('Matrice Model 8')).toBeTruthy();
+    expect(screen.queryByText('Matrice Model 1')).toBeNull();
+
+    fireEvent.change(screen.getByPlaceholderText(/Search Inspector, drone model/i), {
+      target: { value: 'Matrice Model 1' },
+    });
+    expect(screen.getByText('Showing 1–1 of 1')).toBeTruthy();
+    expect(screen.getByText('Matrice Model 1')).toBeTruthy();
+  });
 });

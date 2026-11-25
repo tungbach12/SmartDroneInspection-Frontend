@@ -37,8 +37,14 @@ import { useAuthStore } from '../../store/authStore';
 export function ProfileSecurityTab() {
   const { locale, t } = useLocale();
   const clearSession = useAuthStore((state) => state.clearSession);
+  const roles = useAuthStore((state) => state.roles);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const loginPath =
+    roles.includes('INSPECTOR') &&
+    !roles.some((r) => ['CUSTOMER', 'ADMIN', 'MANAGER'].includes(r))
+      ? '/inspector/login'
+      : '/login';
 
   const [passwordFormOpen, setPasswordFormOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -59,7 +65,7 @@ export function ProfileSecurityTab() {
     try {
       await changePassword(values.currentPassword, values.newPassword);
       clearSession();
-      navigate('/login?passwordChanged=1', { replace: true });
+      navigate(`${loginPath}?passwordChanged=1`, { replace: true });
     } catch (error) {
       setErrorMessage(getAuthErrorMessage(error));
     }
@@ -72,7 +78,7 @@ export function ProfileSecurityTab() {
       await logoutCurrentSession();
       clearNotificationCache(queryClient);
       clearSession();
-      navigate('/login', { replace: true });
+      navigate(loginPath, { replace: true });
     } catch (error) {
       setErrorMessage(getAuthErrorMessage(error));
     } finally {
@@ -86,7 +92,7 @@ export function ProfileSecurityTab() {
       await logoutAllSessions();
       clearNotificationCache(queryClient);
       clearSession();
-      navigate('/login', { replace: true });
+      navigate(loginPath, { replace: true });
     } catch (error) {
       setErrorMessage(getAuthErrorMessage(error));
     } finally {
