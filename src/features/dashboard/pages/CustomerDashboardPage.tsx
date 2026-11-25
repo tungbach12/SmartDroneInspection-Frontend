@@ -534,13 +534,12 @@ export function CustomerDashboardPage() {
                             {isPublished ? (
                               <Chip
                                 size="small"
-                                label={`v${item.reportVersionNo ?? 1} · ${item.resolvedReportAccepted ? t('Accepted') : t('Ready')}`}
+                                label={item.resolvedReportAccepted ? t('Accepted') : t('Ready')}
                                 sx={{
                                   height: 24,
                                   borderRadius: '6px',
                                   fontSize: '0.75rem',
                                   fontWeight: 650,
-                                  fontVariantNumeric: 'tabular-nums',
                                   bgcolor: 'rgba(22, 163, 74, 0.10)',
                                   color: '#15803D',
                                 }}
@@ -683,13 +682,12 @@ export function CustomerDashboardPage() {
                         {isPublished ? (
                           <Chip
                             size="small"
-                            label={`v${item.reportVersionNo ?? 1} · ${item.resolvedReportAccepted ? t('Accepted') : t('Ready')}`}
+                            label={item.resolvedReportAccepted ? t('Accepted') : t('Ready')}
                             sx={{
                               height: 22,
                               borderRadius: '6px',
                               fontSize: '0.72rem',
                               fontWeight: 650,
-                              fontVariantNumeric: 'tabular-nums',
                               bgcolor: 'rgba(22, 163, 74, 0.10)',
                               color: '#15803D',
                             }}
