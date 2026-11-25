@@ -39,6 +39,7 @@ import {
 } from '../api/droneDocumentConfigApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
+import { useToastStore } from '@/shared/ui/Toast';
 import { AdminTableToolbar } from '@/features/admin/components/AdminTableToolbar';
 
 interface FormState {
@@ -67,6 +68,7 @@ export function DroneDocumentConfigTab() {
   const { locale } = useLocale();
   const tr = (vi: string, en: string) => (locale === 'vi' ? vi : en);
   const queryClient = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
 
   const [openDialog, setOpenDialog] = useState(false);
   const [editingItem, setEditingItem] = useState<DroneDocumentConfig | null>(null);
@@ -94,10 +96,12 @@ export function DroneDocumentConfigTab() {
       setForm(initialForm);
       setErrorMsg(null);
       await invalidate();
+      showToast(tr('Đã tạo cấu hình tài liệu Drone.', 'Drone document config created.'), 'success');
     },
     onError: (err: unknown) => {
       const msg = err instanceof Error ? err.message : 'Failed to create document config';
       setErrorMsg(msg);
+      showToast(msg, 'error');
     },
   });
 
@@ -110,16 +114,27 @@ export function DroneDocumentConfigTab() {
       setForm(initialForm);
       setErrorMsg(null);
       await invalidate();
+      showToast(tr('Đã cập nhật cấu hình tài liệu Drone.', 'Drone document config updated.'), 'success');
     },
     onError: (err: unknown) => {
       const msg = err instanceof Error ? err.message : 'Failed to update document config';
       setErrorMsg(msg);
+      showToast(msg, 'error');
     },
   });
 
   const toggleMutation = useMutation({
     mutationFn: (id: string) => droneDocumentConfigApi.toggleActive(id),
-    onSuccess: invalidate,
+    onSuccess: async () => {
+      await invalidate();
+      showToast(tr('Đã đổi trạng thái tài liệu Drone.', 'Drone document status updated.'), 'success');
+    },
+    onError: (err: unknown) => {
+      showToast(
+        err instanceof Error ? err.message : tr('Không thể đổi trạng thái tài liệu Drone.', 'Could not toggle document config.'),
+        'error',
+      );
+    },
   });
 
   const deleteMutation = useMutation({
@@ -127,6 +142,14 @@ export function DroneDocumentConfigTab() {
     onSuccess: async () => {
       setDeletingId(null);
       await invalidate();
+      showToast(tr('Đã xóa cấu hình tài liệu Drone.', 'Drone document config deleted.'), 'success');
+    },
+    onError: (err: unknown) => {
+      setDeletingId(null);
+      showToast(
+        err instanceof Error ? err.message : tr('Không thể xóa cấu hình tài liệu Drone.', 'Could not delete document config.'),
+        'error',
+      );
     },
   });
 

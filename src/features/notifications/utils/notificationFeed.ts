@@ -19,7 +19,10 @@ export interface UnifiedNotificationEntry {
   isUnread: boolean;
   safeRoute: string | null;
   rawNotification?: NotificationItem;
+  chatChannel?: 'requests' | 'inspections' | 'partners';
   chatRequestId?: string;
+  chatInspectionId?: string;
+  chatInspectorId?: string;
 }
 
 export type DayBucket = 'TODAY' | 'YESTERDAY' | 'EARLIER';
@@ -28,6 +31,20 @@ export interface NotificationDayGroup {
   bucket: DayBucket;
   label: string;
   items: UnifiedNotificationEntry[];
+}
+
+export function resolveLocalizedNotificationText(text: string, locale: Locale): string {
+  if (!text) return '';
+  const separatorIndex = text.indexOf(' | ');
+  if (separatorIndex <= 0) {
+    return text;
+  }
+  const viPart = text.slice(0, separatorIndex).trim();
+  const enPart = text.slice(separatorIndex + 3).trim();
+  if (!viPart || !enPart) {
+    return text;
+  }
+  return locale === 'vi' ? viPart : enPart;
 }
 
 export function resolveNotificationCategory(eventType: string): NotificationCategory {
@@ -39,7 +56,9 @@ export function resolveNotificationCategory(eventType: string): NotificationCate
     upper.includes('PAY') ||
     upper.includes('INVOICE') ||
     upper.includes('SETTLEMENT') ||
-    upper.includes('QUOTE')
+    upper.includes('QUOTE') ||
+    upper.includes('REFUND') ||
+    upper.includes('RECEIVABLE')
   ) {
     return 'payment';
   }
@@ -49,7 +68,15 @@ export function resolveNotificationCategory(eventType: string): NotificationCate
     upper.includes('OVERDUE') ||
     upper.includes('HUNG') ||
     upper.includes('REJECT') ||
-    upper.includes('RETURN')
+    upper.includes('RETURN') ||
+    upper.includes('EXPIRE') ||
+    upper.includes('TIMEOUT') ||
+    upper.includes('REVOKED') ||
+    upper.includes('CANCEL') ||
+    upper.includes('FAILED') ||
+    upper.includes('SECURITY') ||
+    upper.includes('CLARIFICATION') ||
+    upper.includes('WITHDRAWN')
   ) {
     return 'warning';
   }
@@ -57,7 +84,10 @@ export function resolveNotificationCategory(eventType: string): NotificationCate
     upper.includes('INSPECTION') ||
     upper.includes('FIELD_SESSION') ||
     upper.includes('REPORT') ||
-    upper.includes('ASSIGN')
+    upper.includes('ASSIGN') ||
+    upper.includes('VIDEO') ||
+    upper.includes('CONTRACT') ||
+    upper.includes('FLIGHT_PERMIT')
   ) {
     return 'mission';
   }
@@ -70,14 +100,15 @@ export function buildUnifiedNotificationEntries(
   portal: PortalId,
   roles: readonly Role[],
   unreadOnly = false,
+  locale: Locale = 'en',
 ): UnifiedNotificationEntry[] {
   const entries: UnifiedNotificationEntry[] = notifications.map((item) => ({
     id: item.id,
     kind: 'notification',
     eventType: item.eventType,
     category: resolveNotificationCategory(item.eventType),
-    title: item.title,
-    body: item.body,
+    title: resolveLocalizedNotificationText(item.title, locale),
+    body: resolveLocalizedNotificationText(item.body, locale),
     createdAt: item.createdAt,
     isUnread: !item.read && item.status !== 'READ',
     safeRoute: resolveSafeNotificationRoute(item.targetPath, portal, roles),
@@ -85,9 +116,25 @@ export function buildUnifiedNotificationEntries(
   }));
 
   if (unreadChatItems && unreadChatItems.length > 0) {
+    const messagesBase = getSectionPath(portal, 'messages');
     for (const chat of unreadChatItems) {
+      const channel = chat.channel ?? 'requests';
+      const safeRoute =
+        channel === 'inspections'
+          ? `${messagesBase}?inspectionId=${chat.inspectionId ?? chat.requestId}`
+          : channel === 'partners'
+            ? `${messagesBase}?partnerRequestId=${chat.requestId}${
+                chat.inspectorId ? `&inspectorId=${chat.inspectorId}` : ''
+              }`
+            : `${messagesBase}?requestId=${chat.requestId}`;
+      const chatKey =
+        channel === 'inspections'
+          ? `chat-insp-${chat.inspectionId ?? chat.requestId}`
+          : channel === 'partners'
+            ? `chat-partner-${chat.requestId}-${chat.inspectorId ?? ''}`
+            : `chat-${chat.requestId}`;
       entries.push({
-        id: `chat-${chat.requestId}`,
+        id: chatKey,
         kind: 'chat',
         eventType: 'CONTRACT_CHAT_MESSAGE',
         category: 'message',
@@ -95,8 +142,11 @@ export function buildUnifiedNotificationEntries(
         body: `${chat.latestMessageAuthor}: ${chat.latestMessageBody}`,
         createdAt: chat.latestMessageTime || new Date().toISOString(),
         isUnread: true,
-        safeRoute: `${getSectionPath(portal, 'messages')}?requestId=${chat.requestId}`,
+        safeRoute,
+        chatChannel: channel,
         chatRequestId: chat.requestId,
+        ...(chat.inspectionId ? { chatInspectionId: chat.inspectionId } : {}),
+        ...(chat.inspectorId ? { chatInspectorId: chat.inspectorId } : {}),
       });
     }
   }

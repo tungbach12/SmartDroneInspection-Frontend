@@ -45,6 +45,7 @@ import {
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
+import { useToastStore } from '@/shared/ui/Toast';
 import { AdminTableToolbar } from '@/features/admin/components/AdminTableToolbar';
 
 function generateFeatureCode(raw: string): string {
@@ -85,6 +86,7 @@ export function DroneFeatureConfigTab() {
   const { locale } = useLocale();
   const tr = (vi: string, en: string) => (locale === 'vi' ? vi : en);
   const queryClient = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
 
   const [openDialog, setOpenDialog] = useState(false);
   const [editingItem, setEditingItem] = useState<DroneFeatureConfig | null>(null);
@@ -113,9 +115,12 @@ export function DroneFeatureConfigTab() {
       setForm(initialForm);
       setErrorMsg(null);
       await invalidate();
+      showToast(tr('Đã tạo tính năng Drone.', 'Drone feature config created.'), 'success');
     },
     onError: (err: unknown) => {
-      setErrorMsg(getErrorMessage(err, 'Failed to create feature config'));
+      const msg = getErrorMessage(err, 'Failed to create feature config');
+      setErrorMsg(msg);
+      showToast(msg, 'error');
     },
   });
 
@@ -128,15 +133,27 @@ export function DroneFeatureConfigTab() {
       setForm(initialForm);
       setErrorMsg(null);
       await invalidate();
+      showToast(tr('Đã cập nhật tính năng Drone.', 'Drone feature config updated.'), 'success');
     },
     onError: (err: unknown) => {
-      setErrorMsg(getErrorMessage(err, 'Failed to update feature config'));
+      const msg = getErrorMessage(err, 'Failed to update feature config');
+      setErrorMsg(msg);
+      showToast(msg, 'error');
     },
   });
 
   const toggleMutation = useMutation({
     mutationFn: (id: string) => droneFeatureConfigApi.toggleActive(id),
-    onSuccess: invalidate,
+    onSuccess: async () => {
+      await invalidate();
+      showToast(tr('Đã đổi trạng thái tính năng Drone.', 'Drone feature status updated.'), 'success');
+    },
+    onError: (err: unknown) => {
+      showToast(
+        getErrorMessage(err, tr('Không thể đổi trạng thái tính năng Drone.', 'Could not toggle feature config.')),
+        'error',
+      );
+    },
   });
 
   const deleteMutation = useMutation({
@@ -144,6 +161,14 @@ export function DroneFeatureConfigTab() {
     onSuccess: async () => {
       setDeletingId(null);
       await invalidate();
+      showToast(tr('Đã xóa tính năng Drone.', 'Drone feature config deleted.'), 'success');
+    },
+    onError: (err: unknown) => {
+      setDeletingId(null);
+      showToast(
+        getErrorMessage(err, tr('Không thể xóa tính năng Drone.', 'Could not delete feature config.')),
+        'error',
+      );
     },
   });
 

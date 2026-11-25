@@ -12,6 +12,7 @@ vi.mock('../api/notificationApi', () => ({
     list: vi.fn(),
     getUnreadCount: vi.fn(),
     markAsRead: vi.fn(),
+    markAllAsRead: vi.fn(),
   },
 }));
 
@@ -141,10 +142,40 @@ describe('NotificationsPage', () => {
       expect(notificationApi.markAsRead).toHaveBeenCalledWith('n-today');
       expect(mockNavigate).toHaveBeenCalledWith('/manager/inspections/insp-1');
     });
+  });
+
+  it('marks all unread notifications as read when clicking Mark all as read', async () => {
+    const nowIso = new Date().toISOString();
+    vi.mocked(notificationApi.getUnreadCount).mockResolvedValue({ unreadCount: 1 });
+    vi.mocked(notificationApi.list).mockResolvedValue({
+      items: [
+        {
+          id: 'n-unread',
+          eventType: 'SECURITY_ALERT',
+          channel: 'IN_APP',
+          title: 'Cảnh báo bảo mật | Security alert',
+          body: 'Mật khẩu đã thay đổi | Password updated',
+          targetPath: '/profile?tab=security',
+          status: 'SENT',
+          readAt: null,
+          createdAt: nowIso,
+          read: false,
+        },
+      ],
+      page: 1,
+      pageSize: 20,
+      totalCount: 1,
+      totalPages: 1,
+    });
+    vi.mocked(notificationApi.markAllAsRead).mockResolvedValue({ updatedCount: 1 });
+
+    render(<NotificationsPage />, { wrapper: createWrapper(queryClient) });
+
+    expect(await screen.findByText('Security alert')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Mark all as read' }));
     await waitFor(() => {
-      expect(notificationApi.markAsRead).toHaveBeenCalledWith('n-today');
+      expect(notificationApi.markAllAsRead).toHaveBeenCalledTimes(1);
     });
   });
 });
