@@ -1839,6 +1839,24 @@ function AssetDetailDrawer({
                   {asset?.name}
                 </Typography>
                 {asset && <StatusChip status={asset.status} />}
+                {asset?.latitude != null && asset?.longitude != null && (() => {
+                  const ev = evaluateAirspace(asset.latitude, asset.longitude);
+                  if (ev.classification !== 'RESTRICTED_ZONE') return null;
+                  const zone = ev.matchingZones.find((z) => z.zoneType === 'RESTRICTED_ZONE');
+                  return (
+                    <Chip
+                      size="small"
+                      color="warning"
+                      variant="outlined"
+                      label={
+                        locale === 'vi'
+                          ? `Vùng hạn chế bay${zone ? ` · ≤ ${zone.maxAltitudeMetersAgl}m AGL` : ''}`
+                          : `Restricted airspace${zone ? ` · ≤ ${zone.maxAltitudeMetersAgl}m AGL` : ''}`
+                      }
+                      sx={{ fontWeight: 600 }}
+                    />
+                  );
+                })()}
               </Stack>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
                 {asset?.code}

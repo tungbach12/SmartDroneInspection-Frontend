@@ -250,15 +250,15 @@ describe('browser auth API', () => {
     expect(result.user?.roles).toEqual(['CUSTOMER', 'MANAGER']);
   });
 
-  it('accepts first asset data and handles pending airspace review response in customer registration', async () => {
+  it('accepts first asset data and activates customer immediately with restricted airspace advisory', async () => {
     transport.postWithBrowserCsrf.mockResolvedValue({
       data: {
-        registrationStatus: 'PENDING_AIRSPACE_REVIEW',
+        registrationStatus: 'ACTIVE',
         organizationName: 'Example Org',
         organizationCode: 'EXAMPLE',
-        airspaceClassification: 'UNKNOWN',
-        reviewMessage: 'Coordinates fall outside published advisory zones; manual review required.',
-        airspaceReviewId: 'review-123',
+        airspaceClassification: 'RESTRICTED_ZONE',
+        reviewMessage: 'MSG28: Restricted airspace advisory warning.',
+        airspaceReviewId: null,
         user: {
           ...user,
           roles: ['CUSTOMER'],
@@ -297,8 +297,9 @@ describe('browser auth API', () => {
         longitude: 106.7,
       },
     });
-    expect(result.registrationStatus).toBe('PENDING_AIRSPACE_REVIEW');
-    expect(result.airspaceReviewId).toBe('review-123');
+    expect(result.registrationStatus).toBe('ACTIVE');
+    expect(result.airspaceClassification).toBe('RESTRICTED_ZONE');
+    expect(result.reviewMessage).toContain('Restricted airspace');
     expect(result.user?.roles).toEqual(['CUSTOMER']);
   });
 

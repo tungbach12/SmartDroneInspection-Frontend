@@ -133,11 +133,15 @@ export function GoogleMapsLocationCard({
   const mapLang = locale === 'vi' ? 'vi' : 'en';
   const airspace = hasCoordinates ? evaluateAirspace(latitude, longitude) : null;
   const isNoFlyZone = airspace?.classification === 'NO_FLY_ZONE';
+  const isRestrictedZone = airspace?.classification === 'RESTRICTED_ZONE';
   const noFlyZoneNames =
     airspace?.matchingZones
       .filter((z) => z.zoneType === 'NO_FLY_ZONE')
       .map((z) => z.name)
       .join(', ') ?? '';
+  const restrictedZones =
+    airspace?.matchingZones.filter((z) => z.zoneType === 'RESTRICTED_ZONE') ?? [];
+  const restrictedPrimary = restrictedZones[0];
 
   return (
     <Box
@@ -145,7 +149,7 @@ export function GoogleMapsLocationCard({
         p: 2,
         borderRadius: '10px',
         border: '1px solid',
-        borderColor: isNoFlyZone ? 'error.main' : 'divider',
+        borderColor: isNoFlyZone ? 'error.main' : isRestrictedZone ? 'warning.main' : 'divider',
         bgcolor: 'action.hover',
       }}
     >
@@ -155,7 +159,12 @@ export function GoogleMapsLocationCard({
         sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.25, flexWrap: 'wrap', gap: 1 }}
       >
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-          <PlaceRounded sx={{ fontSize: 18, color: isNoFlyZone ? 'error.main' : 'primary.main' }} />
+          <PlaceRounded
+            sx={{
+              fontSize: 18,
+              color: isNoFlyZone ? 'error.main' : isRestrictedZone ? 'warning.main' : 'primary.main',
+            }}
+          />
           <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
             {t('Google Maps Location')}
           </Typography>
@@ -216,6 +225,25 @@ export function GoogleMapsLocationCard({
           {locale === 'vi'
             ? `⛔ Vị trí này nằm trong Vùng Cấm Bay (${noFlyZoneNames}). Không thể đăng ký hoặc cập nhật công trình tại khu vực cấm bay — vui lòng chọn vị trí khác.`
             : `⛔ This location falls inside a prohibited No-Fly Zone (${noFlyZoneNames}). Assets inside a no-fly zone are rejected — please pick another location.`}
+        </Alert>
+      )}
+
+      {isRestrictedZone && restrictedPrimary && (
+        <Alert severity="warning" sx={{ mb: 1.25, borderRadius: '8px', fontSize: '0.8125rem' }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '0.8125rem' }}>
+            {locale === 'vi'
+              ? `Vùng hạn chế bay (MSG28) — ${restrictedPrimary.name}`
+              : `Restricted Airspace (MSG28) — ${restrictedPrimary.name}`}
+          </Typography>
+          <Typography variant="caption" sx={{ display: 'block', mt: 0.35, color: 'text.primary' }}>
+            {locale === 'vi'
+              ? `Công trình vẫn có thể đăng ký/lưu bình thường, nhưng khi bay kiểm định bắt buộc phải có giấy phép bay hợp lệ từ ${restrictedPrimary.authority} (trần bay tham khảo: ≤ ${restrictedPrimary.maxAltitudeMetersAgl} m AGL). Tra cứu thêm tại `
+              : `You can still register and save this asset normally, but inspection flights require a valid flight permit from ${restrictedPrimary.authority} (reference ceiling: ≤ ${restrictedPrimary.maxAltitudeMetersAgl} m AGL). Check current rules at `}
+            <a href="https://cambay.mod.gov.vn" target="_blank" rel="noopener noreferrer">
+              https://cambay.mod.gov.vn
+            </a>
+            .
+          </Typography>
         </Alert>
       )}
 
@@ -338,7 +366,7 @@ export function AssetLocationPickerModal({
   initialLongitude,
   onApplyCoordinates,
 }: AssetLocationPickerModalProps) {
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
 
   const [pinLat, setPinLat] = useState<number>(() => {
     return typeof initialLatitude === 'number' && !Number.isNaN(initialLatitude)
@@ -770,6 +798,8 @@ export function AssetLocationPickerModal({
 
   const pinAirspace = evaluateAirspace(pinLat, pinLon);
   const isPinNoFlyZone = pinAirspace.classification === 'NO_FLY_ZONE';
+  const isPinRestrictedZone = pinAirspace.classification === 'RESTRICTED_ZONE';
+  const pinRestrictedPrimary = pinAirspace.matchingZones.find((z) => z.zoneType === 'RESTRICTED_ZONE');
 
   const handleConfirm = () => {
     if (isPinNoFlyZone) return;
@@ -1185,6 +1215,24 @@ export function AssetLocationPickerModal({
               Google Maps
             </Box>
           </Box>
+
+          {isPinRestrictedZone && pinRestrictedPrimary && (
+            <Alert severity="warning" sx={{ borderRadius: '10px', fontSize: '0.8125rem' }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '0.8125rem' }}>
+                {locale === 'vi'
+                  ? `Vùng hạn chế bay (MSG28) — ${pinRestrictedPrimary.name}`
+                  : `Restricted Airspace (MSG28) — ${pinRestrictedPrimary.name}`}
+              </Typography>
+              <Typography variant="caption" sx={{ display: 'block', mt: 0.25 }}>
+                {locale === 'vi'
+                  ? `Bạn vẫn có thể xác nhận vị trí này, nhưng khi bay kiểm định cần giấy phép từ ${pinRestrictedPrimary.authority} (≤ ${pinRestrictedPrimary.maxAltitudeMetersAgl} m AGL). `
+                  : `You can confirm this location normally; inspection flights require a permit from ${pinRestrictedPrimary.authority} (≤ ${pinRestrictedPrimary.maxAltitudeMetersAgl} m AGL). `}
+                <a href="https://cambay.mod.gov.vn" target="_blank" rel="noopener noreferrer">
+                  https://cambay.mod.gov.vn
+                </a>
+              </Typography>
+            </Alert>
+          )}
 
           {/* CURRENT PIN SUMMARY BOX */}
           <Paper

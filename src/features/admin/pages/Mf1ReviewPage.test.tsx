@@ -12,9 +12,6 @@ const originalCreateObjectUrl = URL.createObjectURL;
 
 vi.mock('../api/mf1ReviewApi', () => ({
   mf1ReviewApi: {
-    pendingCustomers: vi.fn(),
-    approveCustomer: vi.fn(),
-    rejectCustomer: vi.fn(),
     droneEvidence: vi.fn(),
     pendingDrones: vi.fn(),
     approveDrone: vi.fn(),
@@ -68,24 +65,8 @@ describe('MF1 review queues', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    useAuthStore.setState({ roles: ['ADMIN'] });
+    useAuthStore.setState({ roles: ['MANAGER'] });
     URL.createObjectURL = vi.fn().mockReturnValue('blob:license-evidence');
-    vi.mocked(mf1ReviewApi.pendingCustomers).mockResolvedValue([
-      {
-        id: 'review-1',
-        userId: 'user-1',
-        organizationName: 'Bridge Co',
-        organizationCode: 'BRIDGE',
-        assetName: 'Main bridge',
-        assetCode: 'AST-1',
-        airspaceClassification: 'UNKNOWN',
-        status: 'PENDING',
-        reviewNote: null,
-        reviewedByUserId: null,
-        reviewedAt: null,
-        createdAt: '2026-10-29T00:00:00Z',
-      },
-    ]);
     vi.mocked(mf1ReviewApi.droneEvidence).mockResolvedValue(new Blob(['%PDF-1.7']));
     vi.mocked(mf1ReviewApi.droneHistory).mockResolvedValue([]);
     vi.mocked(mf1ReviewApi.pendingDrones).mockResolvedValue([
@@ -134,14 +115,17 @@ describe('MF1 review queues', () => {
     expect(mf1ReviewApi.rejectDrone).not.toHaveBeenCalled();
   });
 
-  it('allows switching to Customer airspace tab and opens customer review dialog', async () => {
+  it('renders MF1 queues in read-only view mode for ADMIN without approve/reject actions', async () => {
+    useAuthStore.setState({ roles: ['ADMIN'] });
     renderPage();
-    fireEvent.click(await screen.findByRole('tab', { name: /Customer airspace|Vùng bay khách hàng/i }));
-    expect(await screen.findByText('Bridge Co')).toBeTruthy();
-    fireEvent.click(await screen.findByRole('button', { name: /Review|Thẩm định/i }));
+    expect(screen.queryByRole('tab', { name: /Customer airspace|Vùng bay khách hàng/i })).toBeNull();
+    const viewBtn = await screen.findByRole('button', { name: /View details|Xem chi tiết/i });
+    fireEvent.click(viewBtn);
     expect(
       await screen.findByText(/Review Compliance Application|Thẩm định hồ sơ Phương tiện Drone/i),
     ).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^Approve$|^Duyệt$/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Reject$|^Từ chối$/i })).toBeNull();
   });
 
   it('allows reviewing pending inspector applications and viewing license scan', async () => {

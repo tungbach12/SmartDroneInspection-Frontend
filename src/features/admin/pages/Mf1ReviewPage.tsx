@@ -35,14 +35,12 @@ import FactCheckOutlined from '@mui/icons-material/FactCheckOutlined';
 import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined';
 import AssignmentIndOutlined from '@mui/icons-material/AssignmentIndOutlined';
 import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
-import ApartmentOutlined from '@mui/icons-material/ApartmentOutlined';
 import { AdminTableToolbar } from '../components/AdminTableToolbar';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToastStore } from '@/shared/ui/Toast';
 import {
   mf1ReviewApi,
   type DroneRegistrationApplication,
-  type ProspectiveCustomerReview,
 } from '../api/mf1ReviewApi';
 import {
   inspectorApplicationApi,
@@ -56,7 +54,7 @@ import { QueryState } from '@/shared/ui/QueryState';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
-type QueueId = 'inspectors' | 'drones' | 'customers';
+type QueueId = 'inspectors' | 'drones';
 type SortOption = 'NEWEST' | 'OLDEST' | 'NAME_ASC';
 type LicenseClassFilter = 'ALL' | 'CLASS_A' | 'CLASS_B';
 type ScanFilter = 'ALL' | 'HAS_SCAN' | 'MISSING_SCAN';
@@ -202,14 +200,12 @@ export default function Mf1ReviewPage({
 
   const roles = useAuthStore((state) => state.roles);
   const isAdmin = roles.includes('ADMIN');
+  const canReview = roles.includes('MANAGER');
   const queryClient = useQueryClient();
 
   const queues = [
     { id: 'inspectors' as const, label: tr('Đơn Inspector', 'Inspector Applications'), icon: <AssignmentIndOutlined fontSize="small" /> },
     { id: 'drones' as const, label: tr('Duyệt Drone', 'Drone Registrations'), icon: <FlightTakeoffRounded fontSize="small" /> },
-    ...(isAdmin
-      ? [{ id: 'customers' as const, label: tr('Vùng bay khách hàng', 'Customer Airspace'), icon: <ApartmentOutlined fontSize="small" /> }]
-      : []),
   ];
 
   const [selectedQueue, setSelectedQueue] = useState<QueueId>('drones');
@@ -224,9 +220,8 @@ export default function Mf1ReviewPage({
   const [page, setPage] = useState(0);
   const rowsPerPage = 10;
 
-  // Review dialog state for drone registrations and customer airspace
-  const [selected, setSelected] = useState<ReviewItem | null>(null);
-  const [reviewQueue, setReviewQueue] = useState<'drones' | 'customers'>('drones');
+  // Review dialog state for drone registrations
+  const [selected, setSelected] = useState<DroneRegistrationApplication | null>(null);
   const [pendingDecision, setPendingDecision] = useState<'approve' | 'reject' | null>(null);
   const [reviewNote, setReviewNote] = useState('');
   const [evidenceDocs, setEvidenceDocs] = useState<EvidenceDoc[]>([]);
@@ -245,13 +240,6 @@ export default function Mf1ReviewPage({
   const [appPending, setAppPending] = useState(false);
   const [appError, setAppError] = useState<string | null>(null);
   const [uploadingContractId, setUploadingContractId] = useState<string | null>(null);
-
-  const customers = useQuery({
-    queryKey: ['mf1-reviews', 'customers'],
-    queryFn: mf1ReviewApi.pendingCustomers,
-    enabled: isAdmin && (!fixedQueue || fixedQueue === 'customers'),
-    retry: false,
-  });
 
   const usesServerDroneQueue = typeof mf1ReviewApi.droneQueue === 'function';
 
@@ -484,32 +472,6 @@ export default function Mf1ReviewPage({
     usesServerDroneQueue,
   ]);
 
-  const customerRows = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return [...(customers.data ?? [])]
-      .filter((review) => {
-        if (statusFilter !== 'ALL' && review.status !== statusFilter) return false;
-        if (!query) return true;
-        return (
-          review.organizationName.toLowerCase().includes(query) ||
-          review.organizationCode.toLowerCase().includes(query) ||
-          review.assetName.toLowerCase().includes(query) ||
-          review.assetCode.toLowerCase().includes(query) ||
-          (review.airspaceClassification ?? '').toLowerCase().includes(query)
-        );
-      })
-      .sort((left, right) => {
-        if (sort === 'NAME_ASC') {
-          return left.organizationName.localeCompare(right.organizationName, dateLocale, {
-            sensitivity: 'base',
-          });
-        }
-        const leftDate = new Date(left.createdAt).getTime();
-        const rightDate = new Date(right.createdAt).getTime();
-        return sort === 'NEWEST' ? rightDate - leftDate : leftDate - rightDate;
-      });
-  }, [customers.data, dateLocale, search, sort, statusFilter]);
-
   const statusOptions =
     queue === 'inspectors'
       ? [
@@ -517,17 +479,12 @@ export default function Mf1ReviewPage({
           { value: 'PENDING', label: `${tr('Chờ duyệt', 'Pending')} (${inspectorCounts.pending})` },
           { value: 'APPROVED', label: `${tr('Chờ hợp đồng', 'Awaiting contract')} (${inspectorCounts.awaiting})` },
         ]
-      : queue === 'drones'
-        ? [
-            { value: 'ALL', label: `${tr('Tất cả', 'All')} (${droneCounts.all})` },
-            { value: 'PENDING', label: `${tr('Chờ duyệt', 'Pending')} (${droneCounts.pending})` },
-            { value: 'APPROVED', label: `${tr('Đã duyệt', 'Approved')} (${droneCounts.approved})` },
-            { value: 'REJECTED', label: `${tr('Từ chối', 'Rejected')} (${droneCounts.rejected})` },
-          ]
-        : [
-            { value: 'ALL', label: `${tr('Tất cả', 'All')} (${customers.data?.length ?? 0})` },
-            { value: 'PENDING', label: `${tr('Chờ duyệt', 'Pending')} (${customers.data?.length ?? 0})` },
-          ];
+      : [
+          { value: 'ALL', label: `${tr('Tất cả', 'All')} (${droneCounts.all})` },
+          { value: 'PENDING', label: `${tr('Chờ duyệt', 'Pending')} (${droneCounts.pending})` },
+          { value: 'APPROVED', label: `${tr('Đã duyệt', 'Approved')} (${droneCounts.approved})` },
+          { value: 'REJECTED', label: `${tr('Từ chối', 'Rejected')} (${droneCounts.rejected})` },
+        ];
 
   const clearReview = () => {
     setSelected(null);
@@ -547,7 +504,6 @@ export default function Mf1ReviewPage({
 
   const openDroneReview = async (application: DroneRegistrationApplication) => {
     clearReview();
-    setReviewQueue('drones');
     setSelected(application);
     setTelemetryLoading(true);
     try {
@@ -627,43 +583,26 @@ export default function Mf1ReviewPage({
     }
   };
 
-  const openCustomerReview = (review: ProspectiveCustomerReview) => {
-    clearReview();
-    setReviewQueue('customers');
-    setSelected(review);
-  };
-
   const submitReview = async (decision: 'approve' | 'reject') => {
-    if (!selected) return;
+    if (!selected || !canReview) return;
     if (decision === 'reject' && !reviewNote.trim()) {
       setError(tr('Vui lòng nêu rõ lý do từ chối để Inspector bổ sung lại.', 'Please provide a clear rejection reason so the applicant can resubmit.'));
-      return;
-    }
-    if (reviewQueue === 'customers' && decision === 'approve' && !reviewNote.trim()) {
-      setError(tr('Ghi chú xét duyệt là bắt buộc đối với vùng bay khách hàng.', 'A review note is required when approving customer airspace.'));
       return;
     }
     setPending(true);
     setPendingDecision(decision);
     setError(null);
     try {
-      if (reviewQueue === 'customers') {
-        if (decision === 'approve') await mf1ReviewApi.approveCustomer(selected.id, reviewNote.trim());
-        else await mf1ReviewApi.rejectCustomer(selected.id, reviewNote.trim());
-      } else if (decision === 'approve') {
+      if (decision === 'approve') {
         await mf1ReviewApi.approveDrone(selected.id);
       } else {
         await mf1ReviewApi.rejectDrone(selected.id, reviewNote.trim());
       }
       await queryClient.invalidateQueries({ queryKey: ['mf1-reviews'] });
       showToast(
-        reviewQueue === 'customers'
-          ? decision === 'approve'
-            ? tr('Đã phê duyệt vùng bay khách hàng.', 'Customer airspace approved.')
-            : tr('Đã từ chối hồ sơ vùng bay khách hàng.', 'Customer airspace rejected.')
-          : decision === 'approve'
-            ? tr('Đã phê duyệt hồ sơ Drone.', 'Drone registration approved.')
-            : tr('Đã từ chối hồ sơ Drone.', 'Drone registration rejected.'),
+        decision === 'approve'
+          ? tr('Đã phê duyệt hồ sơ Drone.', 'Drone registration approved.')
+          : tr('Đã từ chối hồ sơ Drone.', 'Drone registration rejected.'),
         'success',
       );
       clearReview();
@@ -756,14 +695,13 @@ export default function Mf1ReviewPage({
     drones: usesServerDroneQueue
       ? (droneQueueQuery.data?.totalAllCount ?? 0)
       : (drones.data?.length ?? 0) + (droneHistory.data?.length ?? 0),
-    customers: customers.data?.length ?? 0,
   };
 
   const droneVisibleCount = usesServerDroneQueue
     ? (droneQueueQuery.data?.totalCount ?? droneRows.length)
     : droneRows.length;
   const visibleCount =
-    queue === 'inspectors' ? inspectorRows.length : queue === 'drones' ? droneVisibleCount : customerRows.length;
+    queue === 'inspectors' ? inspectorRows.length : droneVisibleCount;
   const totalCount = queueCounts[queue];
   const maxPage = Math.max(0, Math.ceil(visibleCount / rowsPerPage) - 1);
   const safePage = Math.min(page, maxPage);
@@ -771,7 +709,6 @@ export default function Mf1ReviewPage({
   const pagedDroneRows = usesServerDroneQueue
     ? droneRows
     : droneRows.slice(safePage * rowsPerPage, (safePage + 1) * rowsPerPage);
-  const pagedCustomerRows = customerRows.slice(safePage * rowsPerPage, (safePage + 1) * rowsPerPage);
 
   const hasActiveFilters =
     search.trim().length > 0 ||
@@ -784,9 +721,7 @@ export default function Mf1ReviewPage({
   const pageTitle = fixedQueue
     ? fixedQueue === 'inspectors'
       ? t('Inspector applications')
-      : fixedQueue === 'drones'
-        ? t('Drone registrations')
-        : t('Customer airspace')
+      : t('Drone registrations')
     : tr('Xét duyệt hồ sơ (MF1)', 'Compliance reviews');
 
   return (
@@ -841,9 +776,7 @@ export default function Mf1ReviewPage({
         searchPlaceholder={
           queue === 'inspectors'
             ? tr('Tìm tên, email, SĐT, bằng lái…', 'Search name, email, phone, license…')
-            : queue === 'drones'
-              ? tr('Tìm model, serial, đăng ký, inspector…', 'Search drone, serial, reg, applicant…')
-              : tr('Tìm khách hàng, mã, tài sản hoặc vùng bay…', 'Search customer, code, asset, or airspace…')
+            : tr('Tìm model, serial, đăng ký, inspector…', 'Search drone, serial, reg, applicant…')
         }
         visibleCount={visibleCount}
         totalCount={totalCount}
@@ -1083,14 +1016,14 @@ export default function Mf1ReviewPage({
                   <Button
                     size="small"
                     variant="outlined"
-                    startIcon={<FactCheckOutlined />}
+                    startIcon={canReview ? <FactCheckOutlined /> : <VisibilityOutlined />}
                     onClick={(event) => {
                       event.stopPropagation();
                       void openInspectorAppReview(application);
                     }}
                     sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
                   >
-                    {tr('Xem hồ sơ & Duyệt', 'Review application')}
+                    {canReview ? tr('Xem hồ sơ & Duyệt', 'Review application') : tr('Xem hồ sơ', 'View details')}
                   </Button>
                 </TableCell>
               </TableRow>
@@ -1226,7 +1159,7 @@ export default function Mf1ReviewPage({
                     />
                   </TableCell>
                   <TableCell align="right">
-                    {status === 'PENDING' ? (
+                    {status === 'PENDING' && canReview ? (
                       <Button
                         size="small"
                         variant="outlined"
@@ -1268,106 +1201,7 @@ export default function Mf1ReviewPage({
         </QueryState>
       )}
 
-      {queue === 'customers' && (
-        <QueryState
-          isLoading={customers.isLoading}
-          error={customers.error}
-          onRetry={() => void customers.refetch()}
-          isEmpty={customerRows.length === 0}
-          empty={
-            <EmptyState
-              title={tr('Không có vùng bay khách hàng nào.', 'No customer airspace reviews')}
-              description={tr('Thử điều chỉnh từ khóa tìm kiếm hoặc xóa bộ lọc đang áp dụng.', 'Try adjusting your search or clearing the active filters.')}
-              action={
-                hasActiveFilters ? (
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    onClick={clearAllFilters}
-                    sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
-                  >
-                    {tr('Xóa bộ lọc', 'Clear filters')}
-                  </Button>
-                ) : undefined
-              }
-            />
-          }
-        >
-          <QueueTable
-            headers={[
-              tr('Khách hàng', 'Customer'),
-              tr('Tài sản', 'Asset'),
-              tr('Phân loại vùng bay', 'Airspace'),
-              tr('Ngày nộp', 'Submitted'),
-              '',
-            ]}
-            ariaLabel={tr('Vùng bay khách hàng', 'Customer airspace')}
-            totalCount={customerRows.length}
-            page={safePage}
-            rowsPerPage={rowsPerPage}
-            onPageChange={setPage}
-            summaryText={`${t('Showing')} ${safePage * rowsPerPage + 1}–${Math.min((safePage + 1) * rowsPerPage, customerRows.length)} ${t('of')} ${customerRows.length}`}
-          >
-            {pagedCustomerRows.map((review) => (
-              <TableRow
-                key={review.id}
-                hover
-                tabIndex={0}
-                onClick={() => openCustomerReview(review)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    openCustomerReview(review);
-                  }
-                }}
-                sx={{ cursor: 'pointer' }}
-              >
-                <TableCell>
-                  <Typography sx={{ fontWeight: 650, fontSize: '0.875rem' }}>
-                    {review.organizationName}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {review.organizationCode}
-                  </Typography>
-                </TableCell>
-                <TableCell>
-                  <Typography variant="body2">{review.assetName}</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {review.assetCode}
-                  </Typography>
-                </TableCell>
-                <TableCell>
-                  <Chip
-                    size="small"
-                    variant="outlined"
-                    label={review.airspaceClassification || 'UNKNOWN'}
-                    sx={{ fontWeight: 600 }}
-                  />
-                </TableCell>
-                <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                  {new Date(review.createdAt).toLocaleDateString(dateLocale)}
-                </TableCell>
-                <TableCell align="right">
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    startIcon={<FactCheckOutlined />}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      openCustomerReview(review);
-                    }}
-                    sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
-                  >
-                    {tr('Thẩm định', 'Review')}
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </QueueTable>
-        </QueryState>
-      )}
-
-      {/* Drone / customer review dialog */}
+      {/* Drone review dialog */}
       <Dialog open={Boolean(selected)} onClose={() => (pending ? undefined : clearReview())} fullWidth maxWidth="md">
         {selected && (
           <>
@@ -1395,8 +1229,7 @@ export default function Mf1ReviewPage({
               <Stack spacing={2}>
                 {error && <Alert severity="error">{error}</Alert>}
 
-                {reviewQueue === 'drones' ? (
-                  <>
+                <>
                     <Box
                       sx={{
                         display: 'grid',
@@ -1622,68 +1455,45 @@ export default function Mf1ReviewPage({
                         </Box>
                       )}
                     </Box>
-                  </>
-                ) : (
-                  <Box
-                    sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}
-                  >
-                    <DetailField label={tr('Khách hàng', 'Customer')} value={(selected as ProspectiveCustomerReview).organizationName} />
-                    <DetailField label={tr('Mã khách hàng', 'Customer code')} value={(selected as ProspectiveCustomerReview).organizationCode} />
-                    <DetailField label={tr('Tài sản', 'Asset')} value={(selected as ProspectiveCustomerReview).assetName} />
-                    <DetailField label={tr('Mã tài sản', 'Asset code')} value={(selected as ProspectiveCustomerReview).assetCode} />
-                    <DetailField
-                      label={tr('Phân loại vùng bay', 'Airspace classification')}
-                      value={(selected as ProspectiveCustomerReview).airspaceClassification}
-                    />
-                    <DetailField
-                      label={tr('Ngày nộp', 'Submitted')}
-                      value={new Date((selected as ProspectiveCustomerReview).createdAt).toLocaleString(dateLocale)}
-                    />
-                  </Box>
-                )}
+                </>
 
                 <Divider />
 
-                {reviewQueue === 'drones' &&
-                (selected as DroneRegistrationApplication).status !== 'PENDING' ? (
+                {selected.status !== 'PENDING' ? (
                   <Alert
-                    severity={
-                      (selected as DroneRegistrationApplication).status === 'APPROVED'
-                        ? 'success'
-                        : 'error'
-                    }
+                    severity={selected.status === 'APPROVED' ? 'success' : 'error'}
                     variant="outlined"
                   >
                     <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                      {(selected as DroneRegistrationApplication).status === 'APPROVED'
+                      {selected.status === 'APPROVED'
                         ? tr('Hồ sơ drone đã được phê duyệt', 'Drone registration approved')
                         : tr('Hồ sơ drone đã bị từ chối', 'Drone registration rejected')}
                     </Typography>
-                    {(selected as DroneRegistrationApplication).reviewNote && (
+                    {selected.reviewNote && (
                       <Typography variant="body2" sx={{ mt: 0.5 }}>
-                        {(selected as DroneRegistrationApplication).reviewNote}
+                        {selected.reviewNote}
                       </Typography>
+                    )}
+                  </Alert>
+                ) : !canReview ? (
+                  <Alert severity="info" variant="outlined">
+                    {tr(
+                      'Admin chỉ có quyền xem hồ sơ. Chỉ Manager mới có thể phê duyệt hoặc từ chối đăng ký Drone.',
+                      'Admin has read-only access. Only Manager can approve or reject Drone registrations.',
                     )}
                   </Alert>
                 ) : (
                   <TextField
                     multiline
                     minRows={3}
-                    label={
-                      reviewQueue === 'customers'
-                        ? tr('Ghi chú duyệt / Lý do từ chối (bắt buộc)', 'Review note / Rejection reason (required)')
-                        : tr('Ghi chú duyệt / Lý do từ chối (bắt buộc nếu từ chối)', 'Review note / Rejection reason (required to reject)')
-                    }
+                    label={tr('Ghi chú duyệt / Lý do từ chối (bắt buộc nếu từ chối)', 'Review note / Rejection reason (required to reject)')}
                     value={reviewNote}
                     onChange={(event) => setReviewNote(event.target.value)}
                   />
                 )}
               </Stack>
             </DialogContent>
-            {!(
-              reviewQueue === 'drones' &&
-              (selected as DroneRegistrationApplication).status !== 'PENDING'
-            ) && (
+            {canReview && selected.status === 'PENDING' && (
               <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
                 <Button
                   variant="outlined"
@@ -1807,86 +1617,97 @@ export default function Mf1ReviewPage({
 
                 <Divider />
 
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
-                  <Button
-                    variant="outlined"
-                    component="label"
-                    startIcon={<UploadFileRounded />}
-                    disabled={uploadingContractId === selectedApplication.id}
-                  >
-                    {uploadingContractId === selectedApplication.id
-                      ? tr('Đang tải lên…', 'Uploading…')
-                      : tr('Tải lên hợp đồng đã ký', 'Upload signed contract')}
-                    <input
-                      type="file"
-                      hidden
-                      accept="application/pdf,image/png,image/jpeg,image/webp"
-                      onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        event.target.value = '';
-                        if (file) void uploadSignedContract(selectedApplication, file);
-                      }}
-                    />
-                  </Button>
-                  {selectedApplication.hasSignedContract && (
-                    <Chip
-                      size="small"
-                      color="success"
-                      variant="outlined"
-                      label={tr('Đã có hợp đồng đã ký', 'Signed contract uploaded')}
-                      sx={{ alignSelf: 'center', fontWeight: 600 }}
-                    />
-                  )}
-                </Stack>
+                {canReview ? (
+                  <>
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
+                      <Button
+                        variant="outlined"
+                        component="label"
+                        startIcon={<UploadFileRounded />}
+                        disabled={uploadingContractId === selectedApplication.id}
+                      >
+                        {uploadingContractId === selectedApplication.id
+                          ? tr('Đang tải lên…', 'Uploading…')
+                          : tr('Tải lên hợp đồng đã ký', 'Upload signed contract')}
+                        <input
+                          type="file"
+                          hidden
+                          accept="application/pdf,image/png,image/jpeg,image/webp"
+                          onChange={(event) => {
+                            const file = event.target.files?.[0];
+                            event.target.value = '';
+                            if (file) void uploadSignedContract(selectedApplication, file);
+                          }}
+                        />
+                      </Button>
+                      {selectedApplication.hasSignedContract && (
+                        <Chip
+                          size="small"
+                          color="success"
+                          variant="outlined"
+                          label={tr('Đã có hợp đồng đã ký', 'Signed contract uploaded')}
+                          sx={{ alignSelf: 'center', fontWeight: 600 }}
+                        />
+                      )}
+                    </Stack>
 
-                <Divider />
+                    <Divider />
 
-                <TextField
-                  multiline
-                  minRows={3}
-                  label={tr(
-                    'Lý do từ chối (bắt buộc nếu từ chối)',
-                    'Rejection reason (required when rejecting)',
-                  )}
-                  value={appRejectReason}
-                  onChange={(event) => setAppRejectReason(event.target.value)}
-                />
+                    <TextField
+                      multiline
+                      minRows={3}
+                      label={tr(
+                        'Lý do từ chối (bắt buộc nếu từ chối)',
+                        'Rejection reason (required when rejecting)',
+                      )}
+                      value={appRejectReason}
+                      onChange={(event) => setAppRejectReason(event.target.value)}
+                    />
+                  </>
+                ) : (
+                  <Alert severity="info" variant="outlined">
+                    {tr(
+                      'Admin chỉ có quyền xem hồ sơ. Chỉ Manager mới có thể tải hợp đồng, phê duyệt hoặc từ chối đơn Inspector.',
+                      'Admin has read-only access. Only Manager can upload contracts, approve, or reject Inspector applications.',
+                    )}
+                  </Alert>
+                )}
               </Stack>
             </DialogContent>
-            <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
-              <Button
-                variant="outlined"
-                color="error"
-                startIcon={<HighlightOffRounded />}
-                onClick={() => void submitInspectorAppReview('reject')}
-                disabled={appPending}
-                sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600, px: 2.5 }}
-              >
-                {appPending && appPendingDecision === 'reject'
-                  ? tr('Đang lưu…', 'Saving…')
-                  : tr('Từ chối', 'Reject')}
-              </Button>
-              <Button
-                variant="contained"
-                color="success"
-                startIcon={<CheckCircleOutlineRounded />}
-                onClick={() => void submitInspectorAppReview('approve')}
-                disabled={appPending}
-                sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600, px: 2.5 }}
-              >
-                {appPending && appPendingDecision === 'approve'
-                  ? tr('Đang lưu…', 'Saving…')
-                  : tr('Duyệt', 'Approve')}
-              </Button>
-            </DialogActions>
+            {canReview && (
+              <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+                <Button
+                  variant="outlined"
+                  color="error"
+                  startIcon={<HighlightOffRounded />}
+                  onClick={() => void submitInspectorAppReview('reject')}
+                  disabled={appPending}
+                  sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600, px: 2.5 }}
+                >
+                  {appPending && appPendingDecision === 'reject'
+                    ? tr('Đang lưu…', 'Saving…')
+                    : tr('Từ chối', 'Reject')}
+                </Button>
+                <Button
+                  variant="contained"
+                  color="success"
+                  startIcon={<CheckCircleOutlineRounded />}
+                  onClick={() => void submitInspectorAppReview('approve')}
+                  disabled={appPending}
+                  sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600, px: 2.5 }}
+                >
+                  {appPending && appPendingDecision === 'approve'
+                    ? tr('Đang lưu…', 'Saving…')
+                    : tr('Duyệt', 'Approve')}
+                </Button>
+              </DialogActions>
+            )}
           </>
         )}
       </Dialog>
     </Box>
   );
 }
-
-type ReviewItem = ProspectiveCustomerReview | DroneRegistrationApplication;
 
 function QueueTable({
   headers,

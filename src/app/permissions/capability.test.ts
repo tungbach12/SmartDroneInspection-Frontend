@@ -16,17 +16,17 @@ describe('canPerform capability gate', () => {
     expect(canPerform('inspections.authorReport', makeUser(['INSPECTOR']))).toBe(true);
     expect(canPerform('inspections.authorReport', makeUser(['CUSTOMER']))).toBe(false);
 
-    // MF3-09: only Manager / Admin reviews and publishes; Customer and Inspector never do.
+    // MF3-09: only Manager reviews and publishes; Customer, Admin, and Inspector never do.
     expect(canPerform('reports.review', makeUser(['CUSTOMER']))).toBe(false);
-    expect(canPerform('reports.review', makeUser(['ADMIN']))).toBe(true);
+    expect(canPerform('reports.review', makeUser(['ADMIN']))).toBe(false);
     expect(canPerform('reports.review', makeUser(['MANAGER']))).toBe(true);
     expect(canPerform('reports.review', makeUser(['INSPECTOR']))).toBe(false);
     expect(canPerform('reports.publish', makeUser(['CUSTOMER']))).toBe(false);
-    expect(canPerform('reports.publish', makeUser(['ADMIN']))).toBe(true);
+    expect(canPerform('reports.publish', makeUser(['ADMIN']))).toBe(false);
     expect(canPerform('reports.publish', makeUser(['MANAGER']))).toBe(true);
     expect(canPerform('reports.publish', makeUser(['INSPECTOR']))).toBe(false);
     expect(canPerform('findings.decide', makeUser(['CUSTOMER']))).toBe(true);
-    expect(canPerform('findings.decide', makeUser(['ADMIN']))).toBe(true);
+    expect(canPerform('findings.decide', makeUser(['ADMIN']))).toBe(false);
     expect(canPerform('findings.decide', makeUser(['MANAGER']))).toBe(true);
     expect(canPerform('contracts.request', makeUser(['CUSTOMER']))).toBe(true);
     expect(canPerform('contracts.request', makeUser(['MANAGER']))).toBe(false);
