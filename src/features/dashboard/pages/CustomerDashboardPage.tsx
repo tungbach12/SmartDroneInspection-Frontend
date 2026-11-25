@@ -382,7 +382,7 @@ export function CustomerDashboardPage() {
             lg: 'minmax(0, 1.35fr) minmax(0, 1fr)',
           },
           gap: 2.5,
-          alignItems: 'start',
+          alignItems: 'stretch',
         }}
       >
         {/* Left: Recent Inspections, Reports & Fee Status */}
@@ -395,6 +395,9 @@ export function CustomerDashboardPage() {
             bgcolor: 'background.paper',
             boxShadow: 'none',
             overflow: 'hidden',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
           }}
         >
           <Box
@@ -442,7 +445,7 @@ export function CustomerDashboardPage() {
           ) : (
             <>
               {/* Desktop / Tablet Table (`sm+`) */}
-              <TableContainer sx={{ display: { xs: 'none', sm: 'block' } }}>
+              <TableContainer sx={{ display: { xs: 'none', sm: 'block' }, flex: 1 }}>
                 <Table size="small" aria-label={t('Recent customer inspections')}>
                   <TableHead>
                     <TableRow>
@@ -498,7 +501,7 @@ export function CustomerDashboardPage() {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {enrichedInspections.slice(0, 6).map((item) => {
+                    {enrichedInspections.slice(0, 7).map((item) => {
                       const isPublished = item.reportStatus === 'PUBLISHED';
                       return (
                         <TableRow
@@ -740,7 +743,7 @@ export function CustomerDashboardPage() {
         </Paper>
 
         {/* Right: Defect Severity Donut + Asset Overview Register */}
-        <Stack spacing={2.5}>
+        <Stack spacing={2.5} sx={{ height: '100%' }}>
           <DefectSeverityDonutCard
             criticalHigh={severityTotals.criticalHigh}
             medium={severityTotals.medium}
@@ -756,6 +759,9 @@ export function CustomerDashboardPage() {
             bgcolor: 'background.paper',
             boxShadow: 'none',
             overflow: 'hidden',
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
           }}
         >
           <Box
