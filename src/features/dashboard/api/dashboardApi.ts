@@ -72,17 +72,65 @@ export interface QueueTableData {
   viewAllText?: string;
 }
 
+export interface PipelineStage {
+  label: string;
+  count: number;
+  percentage: number;
+  color: string;
+}
+
+export interface DashboardActionItem {
+  category: string;
+  title: string;
+  code: string;
+  subtitle: string;
+  status: string;
+  badgeTone: 'positive' | 'warning' | 'negative' | 'neutral';
+  link: string;
+}
+
+export interface DashboardScheduleSlot {
+  id: string;
+  title: string;
+  subtitle: string;
+  timeLabel: string;
+  status: string;
+  link: string;
+}
+
+export interface DashboardInspectorWorkload {
+  inspectorName: string;
+  activeMissions: number;
+  averageRating: number;
+  ratingCount: number;
+  licenseClass: string;
+}
+
+export interface DashboardServiceHealth {
+  name: string;
+  status: string;
+  detail: string;
+}
+
 export interface DashboardAnalytics {
   summaryCards: DashboardMetric[];
   performanceChart: PerformanceChartData;
   radialGauge: RadialGaugeData;
   stackedBarChart: StackedBarChartData;
   queueTable: QueueTableData;
+  pipelineStages?: PipelineStage[];
+  secondaryPerformanceChart?: PerformanceChartData | null;
+  actionItems?: DashboardActionItem[];
+  upcomingSchedule?: DashboardScheduleSlot[];
+  inspectorWorkloads?: DashboardInspectorWorkload[];
+  serviceHealth?: DashboardServiceHealth[];
 }
 
 export const dashboardApi = {
-  getAnalytics: async (): Promise<DashboardAnalytics> => {
-    const { data } = await api.get<DashboardAnalytics>('/dashboard/analytics');
+  getAnalytics: async (role?: string): Promise<DashboardAnalytics> => {
+    const { data } = await api.get<DashboardAnalytics>('/dashboard/analytics', {
+      ...(role ? { params: { role } } : {}),
+    });
     return data;
   },
 };

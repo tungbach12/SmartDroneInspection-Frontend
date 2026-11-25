@@ -51,21 +51,19 @@ describe('CursorEffectOverlay', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders non-blocking canvas overlay and switches or disables cursor effect', () => {
+  it('defaults to off and renders non-blocking canvas overlay when enabled or disabled', () => {
     render(
       <CustomThemeProvider>
         <OverlayHarness />
       </CustomThemeProvider>,
     );
 
-    const overlay = screen.getByTestId('cursor-effect-overlay');
-    expect(overlay.getAttribute('data-effect')).toBe('trail');
-    expect(overlay.style.pointerEvents).toBe('none');
+    expect(screen.queryByTestId('cursor-effect-overlay')).toBeNull();
 
     fireEvent.click(screen.getByText('Enable Reticle'));
-    expect(screen.getByTestId('cursor-effect-overlay').getAttribute('data-effect')).toBe(
-      'reticle',
-    );
+    const overlay = screen.getByTestId('cursor-effect-overlay');
+    expect(overlay.getAttribute('data-effect')).toBe('reticle');
+    expect(overlay.style.pointerEvents).toBe('none');
 
     fireEvent.click(screen.getByText('Disable Effect'));
     expect(screen.queryByTestId('cursor-effect-overlay')).toBeNull();

@@ -40,7 +40,7 @@ export function InspectorMonthlyRevenueChart({
   totalGross,
   totalNet,
   totalCommission,
-  totalDisbursed,
+  totalDisbursed: _totalDisbursed,
 }: InspectorMonthlyRevenueChartProps) {
   const { formatNumber, t } = useLocale();
   const theme = useTheme();
@@ -116,9 +116,6 @@ export function InspectorMonthlyRevenueChart({
                 }}
               />
             </Stack>
-            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25, fontSize: '0.875rem' }}>
-              {t('Track monthly order revenue, 15% platform commission deductions, and net payouts received.')}
-            </Typography>
           </Box>
 
           {/* Legend */}
@@ -415,7 +412,7 @@ export function InspectorMonthlyRevenueChart({
             }}
           >
             <Typography variant="caption" sx={{ color: 'success.main', fontWeight: 650 }}>
-              {t('Total Net Earnings')} ({formatNumber(totalDisbursed)} ₫ {t('disbursed')})
+              {t('Total Net Earnings')}
             </Typography>
             <Typography
               sx={{

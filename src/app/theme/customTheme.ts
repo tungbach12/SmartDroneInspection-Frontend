@@ -225,9 +225,9 @@ export const DEFAULT_USER_THEME_PREFERENCES: UserThemePreferences = {
   customBackgroundName: null,
   backgroundTarget: 'both',
   surfaceOpacity: 0.88,
-  cursorStyle: 'waypoint-diamond',
+  cursorStyle: 'system',
   cursorColor: 'theme',
-  cursorEffect: 'trail',
+  cursorEffect: 'none',
   petCompanionId: 'none',
 };
 

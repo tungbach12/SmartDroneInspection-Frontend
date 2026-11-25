@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   Box,
   Button,
+  Chip,
   Divider,
   Paper,
   Stack,
@@ -16,8 +18,6 @@ import {
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import Add from '@mui/icons-material/Add';
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
-import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
-import HourglassEmptyRounded from '@mui/icons-material/HourglassEmptyRounded';
 import PlaceOutlined from '@mui/icons-material/PlaceOutlined';
 import { useAssets } from '@/features/assets/hooks/useAssets';
 import { useAuthStore } from '@/features/auth/store/authStore';
@@ -28,6 +28,8 @@ import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { MetricCard } from '@/shared/ui/MetricCard';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import { DashboardHeaderActions } from '../components/LyticHeaderActions';
+import { DefectSeverityDonutCard } from '../components/NextAdminWidgets';
+import { useDashboardAnalytics } from '../hooks/useDashboardAnalytics';
 
 /**
  * Customer Dashboard (`/client/dashboard`).
@@ -39,11 +41,13 @@ import { DashboardHeaderActions } from '../components/LyticHeaderActions';
  *    - Right: Asset Overview register
  */
 export function CustomerDashboardPage() {
-  const { formatNumber, t } = useLocale();
+  const { formatNumber, locale, t } = useLocale();
+  const tr = (vi: string, en: string) => (locale === 'vi' ? vi : en);
   const navigate = useNavigate();
   const accessToken = useAuthStore((state) => state.accessToken);
 
   const assets = useAssets({ page: 1, pageSize: 50 }, true);
+  const analytics = useDashboardAnalytics('CUSTOMER');
 
   const [inspectionsList, setInspectionsList] = useState<InspectionListItem[]>([]);
   const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([]);
@@ -138,6 +142,27 @@ export function CustomerDashboardPage() {
     .filter((item) => item.resolvedPaymentStatus === 'PAID')
     .reduce((sum, item) => sum + (item.resolvedAmount ?? 0), 0);
 
+  const quotedRequestsCount = serviceRequests.filter((r) => r.status === 'QUOTED').length;
+  const pendingAcceptReport = enrichedInspections.find(
+    (item) => item.reportStatus === 'PUBLISHED' && !item.resolvedReportAccepted,
+  );
+  const paymentDueCount = enrichedInspections.filter(
+    (item) => item.resolvedPaymentStatus === 'PAYMENT_DUE',
+  ).length;
+  const hasActionNeeded =
+    quotedRequestsCount > 0 || Boolean(pendingAcceptReport) || paymentDueCount > 0;
+
+  const severityTotals = useMemo(() => {
+    const channels = analytics.data?.stackedBarChart?.channels ?? [];
+    const sumChannel = (idx: number) =>
+      (channels[idx]?.data ?? []).reduce((acc, v) => acc + v, 0);
+    return {
+      criticalHigh: sumChannel(0),
+      medium: sumChannel(1),
+      low: sumChannel(2),
+    };
+  }, [analytics.data?.stackedBarChart]);
+
   const inspectionCountByAssetId = useMemo(() => {
     const counts = new Map<string, { total: number; published: number }>();
     for (const item of enrichedInspections) {
@@ -227,18 +252,6 @@ export function CustomerDashboardPage() {
           >
             {t('Organization portfolio & deliverables')}
           </Typography>
-          <Typography
-            variant="body2"
-            sx={{
-              color: '#71717A',
-              fontSize: '0.875rem',
-              fontWeight: 400,
-              lineHeight: '1.25rem',
-              mt: '4px',
-            }}
-          >
-            {t('Monitor registered assets, published inspection reports, and Sepay fee settlements.')}
-          </Typography>
         </Box>
 
         <Stack
@@ -304,11 +317,60 @@ export function CustomerDashboardPage() {
             value={st.value}
             change={st.change}
             positive={st.positive}
-            subtext={st.subtext}
             iconType={st.iconType}
           />
         ))}
       </Box>
+
+      {/* Action Needed Strip (shown only when customer confirmation/payment is pending) */}
+      {hasActionNeeded && (
+        <Alert
+          severity="info"
+          sx={{
+            mb: 3,
+            borderRadius: '10px',
+            alignItems: { xs: 'flex-start', sm: 'center' },
+          }}
+          action={
+            <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 0.75 }}>
+              {quotedRequestsCount > 0 && (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => navigate('/client/contracts')}
+                  sx={{ textTransform: 'none', fontWeight: 600 }}
+                >
+                  {tr(`Duyệt báo giá (${quotedRequestsCount})`, `Review quotes (${quotedRequestsCount})`)}
+                </Button>
+              )}
+              {pendingAcceptReport && (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => navigate(`/client/inspections/${pendingAcceptReport.id}/report`)}
+                  sx={{ textTransform: 'none', fontWeight: 600 }}
+                >
+                  {tr('Nghiệm thu báo cáo', 'Accept report')}
+                </Button>
+              )}
+              {paymentDueCount > 0 && (
+                <Button
+                  size="small"
+                  variant="contained"
+                  onClick={() => navigate('/client/contracts')}
+                  sx={{ textTransform: 'none', fontWeight: 600, boxShadow: 'none' }}
+                >
+                  {tr(`Thanh toán (${paymentDueCount})`, `Pay fees (${paymentDueCount})`)}
+                </Button>
+              )}
+            </Stack>
+          }
+        >
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            {tr('Cần bạn xác nhận:', 'Action needed:')}
+          </Typography>
+        </Alert>
+      )}
 
       {/* Row 2: 2-Column Responsive Split — Inspections & Deliverables (Left) + Asset Overview (Right) */}
       <Box
@@ -319,7 +381,7 @@ export function CustomerDashboardPage() {
             lg: 'minmax(0, 1.35fr) minmax(0, 1fr)',
           },
           gap: 2.5,
-          alignItems: 'start',
+          alignItems: 'stretch',
         }}
       >
         {/* Left: Recent Inspections, Reports & Fee Status */}
@@ -332,6 +394,9 @@ export function CustomerDashboardPage() {
             bgcolor: 'background.paper',
             boxShadow: 'none',
             overflow: 'hidden',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
           }}
         >
           <Box
@@ -379,7 +444,7 @@ export function CustomerDashboardPage() {
           ) : (
             <>
               {/* Desktop / Tablet Table (`sm+`) */}
-              <TableContainer sx={{ display: { xs: 'none', sm: 'block' } }}>
+              <TableContainer sx={{ display: { xs: 'none', sm: 'block' }, flex: 1 }}>
                 <Table size="small" aria-label={t('Recent customer inspections')}>
                   <TableHead>
                     <TableRow>
@@ -388,8 +453,8 @@ export function CustomerDashboardPage() {
                           bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
                           color: 'text.secondary',
                           fontSize: '0.75rem',
-                          fontWeight: 500,
-                          py: 1.5,
+                          fontWeight: 600,
+                          py: 1.35,
                           px: 2.5,
                         }}
                       >
@@ -400,8 +465,8 @@ export function CustomerDashboardPage() {
                           bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
                           color: 'text.secondary',
                           fontSize: '0.75rem',
-                          fontWeight: 500,
-                          py: 1.5,
+                          fontWeight: 600,
+                          py: 1.35,
                           px: 1.5,
                         }}
                       >
@@ -412,8 +477,8 @@ export function CustomerDashboardPage() {
                           bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
                           color: 'text.secondary',
                           fontSize: '0.75rem',
-                          fontWeight: 500,
-                          py: 1.5,
+                          fontWeight: 600,
+                          py: 1.35,
                           px: 1.5,
                         }}
                       >
@@ -425,8 +490,8 @@ export function CustomerDashboardPage() {
                           bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
                           color: 'text.secondary',
                           fontSize: '0.75rem',
-                          fontWeight: 500,
-                          py: 1.5,
+                          fontWeight: 600,
+                          py: 1.35,
                           px: 2.5,
                         }}
                       >
@@ -435,7 +500,7 @@ export function CustomerDashboardPage() {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {enrichedInspections.slice(0, 5).map((item) => {
+                    {enrichedInspections.slice(0, 7).map((item) => {
                       const isPublished = item.reportStatus === 'PUBLISHED';
                       return (
                         <TableRow
@@ -448,22 +513,18 @@ export function CustomerDashboardPage() {
                           }
                           sx={{ cursor: 'pointer' }}
                         >
-                          <TableCell sx={{ py: 1.5, px: 2.5 }}>
-                            <Stack
-                              direction="row"
-                              spacing={0.75}
-                              sx={{ alignItems: 'center', flexWrap: 'wrap' }}
+                          <TableCell sx={{ py: 1.5, px: 2.5, maxWidth: 280 }}>
+                            <Typography
+                              variant="body2"
+                              sx={{ fontWeight: 650, color: 'text.primary' }}
+                              noWrap
                             >
-                              <Typography
-                                variant="body2"
-                                sx={{ fontWeight: 650, color: 'text.primary' }}
-                              >
-                                {item.resolvedAssetName}
-                              </Typography>
-                            </Stack>
+                              {item.resolvedAssetName}
+                            </Typography>
                             <Typography
                               variant="caption"
                               sx={{ color: 'text.secondary', display: 'block' }}
+                              noWrap
                             >
                               {item.resolvedObjective}
                             </Typography>
@@ -471,35 +532,33 @@ export function CustomerDashboardPage() {
 
                           <TableCell sx={{ py: 1.5, px: 1.5 }}>
                             {isPublished ? (
-                              <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-                                <CheckCircleRounded sx={{ fontSize: 15, color: 'success.main' }} />
-                                <Typography
-                                  variant="caption"
-                                  sx={{
-                                    fontWeight: 650,
-                                    color: 'success.main',
-                                    fontVariantNumeric: 'tabular-nums',
-                                    whiteSpace: 'nowrap',
-                                  }}
-                                >
-                                  v{item.reportVersionNo ?? 1} ·{' '}
-                                  {item.resolvedReportAccepted ? t('Accepted') : t('Ready')}
-                                </Typography>
-                              </Stack>
+                              <Chip
+                                size="small"
+                                label={item.resolvedReportAccepted ? t('Accepted') : t('Ready')}
+                                sx={{
+                                  height: 24,
+                                  borderRadius: '6px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 650,
+                                  bgcolor: (muiTheme) =>
+                                    muiTheme.palette.mode === 'dark' ? 'rgba(34, 197, 94, 0.16)' : 'rgba(22, 163, 74, 0.10)',
+                                  color: 'success.main',
+                                }}
+                              />
                             ) : (
-                              <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-                                <HourglassEmptyRounded sx={{ fontSize: 15, color: 'info.main' }} />
-                                <Typography
-                                  variant="caption"
-                                  sx={{
-                                    fontWeight: 600,
-                                    color: 'info.main',
-                                    whiteSpace: 'nowrap',
-                                  }}
-                                >
-                                  {t('In review')}
-                                </Typography>
-                              </Stack>
+                              <Chip
+                                size="small"
+                                label={t('In review')}
+                                sx={{
+                                  height: 24,
+                                  borderRadius: '6px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 600,
+                                  bgcolor: (muiTheme) =>
+                                    muiTheme.palette.mode === 'dark' ? 'rgba(56, 189, 248, 0.16)' : 'rgba(34, 95, 133, 0.10)',
+                                  color: 'info.main',
+                                }}
+                              />
                             )}
                           </TableCell>
 
@@ -557,8 +616,9 @@ export function CustomerDashboardPage() {
                                   fontSize: '0.75rem',
                                   fontWeight: 600,
                                   textTransform: 'none',
-                                  px: 1.25,
-                                  py: 0.4,
+                                  minWidth: 104,
+                                  height: 32,
+                                  px: 1.5,
                                   whiteSpace: 'nowrap',
                                 }}
                               >
@@ -622,35 +682,33 @@ export function CustomerDashboardPage() {
                         }}
                       >
                         {isPublished ? (
-                          <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-                            <CheckCircleRounded sx={{ fontSize: 14, color: 'success.main' }} />
-                            <Typography
-                              variant="caption"
-                              sx={{
-                                fontWeight: 650,
-                                color: 'success.main',
-                                fontVariantNumeric: 'tabular-nums',
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              v{item.reportVersionNo ?? 1} ·{' '}
-                              {item.resolvedReportAccepted ? t('Accepted') : t('Ready')}
-                            </Typography>
-                          </Stack>
+                          <Chip
+                            size="small"
+                            label={item.resolvedReportAccepted ? t('Accepted') : t('Ready')}
+                            sx={{
+                              height: 22,
+                              borderRadius: '6px',
+                              fontSize: '0.72rem',
+                              fontWeight: 650,
+                              bgcolor: (muiTheme) =>
+                                muiTheme.palette.mode === 'dark' ? 'rgba(34, 197, 94, 0.16)' : 'rgba(22, 163, 74, 0.10)',
+                              color: 'success.main',
+                            }}
+                          />
                         ) : (
-                          <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-                            <HourglassEmptyRounded sx={{ fontSize: 14, color: 'info.main' }} />
-                            <Typography
-                              variant="caption"
-                              sx={{
-                                fontWeight: 600,
-                                color: 'info.main',
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              {t('In review')}
-                            </Typography>
-                          </Stack>
+                          <Chip
+                            size="small"
+                            label={t('In review')}
+                            sx={{
+                              height: 22,
+                              borderRadius: '6px',
+                              fontSize: '0.72rem',
+                              fontWeight: 600,
+                              bgcolor: (muiTheme) =>
+                                muiTheme.palette.mode === 'dark' ? 'rgba(56, 189, 248, 0.16)' : 'rgba(34, 95, 133, 0.10)',
+                              color: 'info.main',
+                            }}
+                          />
                         )}
                         <Typography
                           variant="caption"
@@ -680,7 +738,14 @@ export function CustomerDashboardPage() {
           )}
         </Paper>
 
-        {/* Right: Asset Overview Register */}
+        {/* Right: Defect Severity Donut + Asset Overview Register */}
+        <Stack spacing={2.5} sx={{ height: '100%' }}>
+          <DefectSeverityDonutCard
+            criticalHigh={severityTotals.criticalHigh}
+            medium={severityTotals.medium}
+            low={severityTotals.low}
+          />
+
         <Paper
           variant="outlined"
           sx={{
@@ -690,6 +755,9 @@ export function CustomerDashboardPage() {
             bgcolor: 'background.paper',
             boxShadow: 'none',
             overflow: 'hidden',
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
           }}
         >
           <Box
@@ -756,8 +824,8 @@ export function CustomerDashboardPage() {
                         bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
                         color: 'text.secondary',
                         fontSize: '0.75rem',
-                        fontWeight: 500,
-                        py: 1.5,
+                        fontWeight: 600,
+                        py: 1.35,
                         px: 2.5,
                       }}
                     >
@@ -768,8 +836,8 @@ export function CustomerDashboardPage() {
                         bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
                         color: 'text.secondary',
                         fontSize: '0.75rem',
-                        fontWeight: 500,
-                        py: 1.5,
+                        fontWeight: 600,
+                        py: 1.35,
                         px: 1.5,
                       }}
                     >
@@ -781,8 +849,8 @@ export function CustomerDashboardPage() {
                         bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
                         color: 'text.secondary',
                         fontSize: '0.75rem',
-                        fontWeight: 500,
-                        py: 1.5,
+                        fontWeight: 600,
+                        py: 1.35,
                         px: 2.5,
                       }}
                     >
@@ -793,7 +861,7 @@ export function CustomerDashboardPage() {
                 <TableBody>
                   {assetList
                     .filter((asset) => asset.status !== 'RETIRED')
-                    .slice(0, 6)
+                    .slice(0, 4)
                     .map((asset) => {
                     const counts = inspectionCountByAssetId.get(asset.id);
                     return (
@@ -844,6 +912,7 @@ export function CustomerDashboardPage() {
             </TableContainer>
           )}
         </Paper>
+        </Stack>
       </Box>
     </Box>
   );

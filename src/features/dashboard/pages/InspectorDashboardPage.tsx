@@ -47,7 +47,8 @@ import { InspectorRatingsBreakdownPanel } from '@/features/inspections/component
  * 3. Monthly Financial Settlement Table (Month, Missions, Gross, Commission, Net, Disbursement status)
  */
 export function InspectorDashboardPage() {
-  const { formatNumber, t } = useLocale();
+  const { formatNumber, locale, t } = useLocale();
+  const tr = (vi: string, en: string) => (locale === 'vi' ? vi : en);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') === 'ratings' ? 'ratings' : 'overview';
@@ -79,6 +80,18 @@ export function InspectorDashboardPage() {
     (i) => i.status === 'IN_PROGRESS' || i.status === 'FIELD_COMPLETED' || i.status === 'SCHEDULED',
   ).length;
   const publishedReports = items.filter((i) => i.reportStatus === 'PUBLISHED').length;
+  const upcomingMissions = useMemo(
+    () =>
+      items
+        .filter((i) => i.status === 'SCHEDULED' || i.status === 'IN_PROGRESS')
+        .sort((a, b) => {
+          const ta = a.plannedStartAt ? new Date(a.plannedStartAt).getTime() : Number.MAX_SAFE_INTEGER;
+          const tb = b.plannedStartAt ? new Date(b.plannedStartAt).getTime() : Number.MAX_SAFE_INTEGER;
+          return ta - tb;
+        })
+        .slice(0, 4),
+    [items],
+  );
 
   // Monthly revenue aggregation
   const { monthlyData, totalGross, totalNet, totalCommission, totalDisbursed, activeMonths } =
@@ -166,18 +179,6 @@ export function InspectorDashboardPage() {
               }}
             >
               {t('Inspector Dashboard')}
-            </Typography>
-            <Typography
-              variant="body2"
-              sx={{
-                color: '#71717A',
-                fontSize: '0.875rem',
-                fontWeight: 400,
-                lineHeight: '1.25rem',
-                mt: '4px',
-              }}
-            >
-              {t('Personal monthly revenue, commission deductions, and flight mission overview.')}
             </Typography>
           </Box>
 
@@ -416,7 +417,6 @@ export function InspectorDashboardPage() {
                 : t('All up to date')
             }
             positive={inProgressMissions === 0}
-            subtext={t('drone field surveys')}
             iconType="plane"
           />
 
@@ -429,7 +429,6 @@ export function InspectorDashboardPage() {
                 : `${totalAssigned - publishedReports} ${t('in review/progress')}`
             }
             positive={true}
-            subtext={t('verified deliverables')}
             iconType="shield"
           />
 
@@ -438,7 +437,6 @@ export function InspectorDashboardPage() {
             value={`${formatNumber(totalNet)} ₫`}
             change={`${disbursementPercent}% ${t('disbursed')}`}
             positive={true}
-            subtext={t('after 15% platform commission')}
             iconType="wallet"
           />
 
@@ -447,10 +445,100 @@ export function InspectorDashboardPage() {
             value={`${activeDroneCount} / ${droneCount}`}
             change={`${myProfile?.totalFlightHours ?? 0}h ${t('flight hrs')}`}
             positive={activeDroneCount > 0}
-            subtext={myProfile?.pilotLicenseClass || t('fleet readiness')}
             iconType="users"
           />
         </Box>
+
+        {/* Upcoming Flight Missions / Flight Permit Check (CRM Upcoming Tasks style) */}
+        <Paper
+          variant="outlined"
+          sx={{
+            p: 2.5,
+            borderRadius: '12px',
+            borderColor: 'divider',
+            bgcolor: 'background.paper',
+            boxShadow: 'none',
+          }}
+        >
+          <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+            <Typography component="h2" sx={{ fontSize: '1rem', fontWeight: 600 }}>
+              {tr('Nhiệm vụ sắp tới / Cần nộp Flight Permit', 'Upcoming Missions & Flight Permits')}
+            </Typography>
+            <Button
+              size="small"
+              endIcon={<ArrowForwardRounded sx={{ fontSize: 15 }} />}
+              onClick={() => navigate('/operations/inspections')}
+              sx={{ textTransform: 'none', fontWeight: 600 }}
+            >
+              {tr('Xem tất cả', 'View all')}
+            </Button>
+          </Stack>
+          {upcomingMissions.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              {tr('Hiện không có nhiệm vụ sắp tới hoặc đang bay.', 'No scheduled or in-progress missions.')}
+            </Typography>
+          ) : (
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+                gap: 1.25,
+              }}
+            >
+              {upcomingMissions.map((mission) => {
+                const permitReady = mission.flightPermitVerificationStatus === 'APPROVED';
+                const plannedText = mission.plannedStartAt
+                  ? new Date(mission.plannedStartAt).toLocaleString(locale === 'vi' ? 'vi-VN' : 'en-US', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })
+                  : tr('Chưa xếp giờ', 'TBD');
+                return (
+                  <Box
+                    key={mission.id}
+                    onClick={() => navigate(`/operations/inspections/${mission.id}`)}
+                    sx={{
+                      p: 1.5,
+                      borderRadius: '8px',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      bgcolor: 'background.default',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 1.5,
+                      cursor: 'pointer',
+                      '&:hover': { borderColor: 'primary.main', bgcolor: 'action.hover' },
+                    }}
+                  >
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 650 }} noWrap>
+                        {mission.assetName || mission.assetCode || tr('Ca kiểm định', 'Inspection')}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+                        {plannedText}
+                        {mission.droneSerialNumber ? ` · ${mission.droneSerialNumber}` : ''}
+                      </Typography>
+                    </Box>
+                    <Chip
+                      size="small"
+                      color={permitReady ? 'success' : 'warning'}
+                      variant={permitReady ? 'outlined' : 'filled'}
+                      label={
+                        permitReady
+                          ? tr('Đã có phép bay', 'Permit ready')
+                          : tr('Nộp phép bay', 'Upload permit')
+                      }
+                      sx={{ height: 22, fontSize: '0.72rem', fontWeight: 650, flexShrink: 0 }}
+                    />
+                  </Box>
+                );
+              })}
+            </Box>
+          )}
+        </Paper>
 
         {/* Monthly Personal Revenue & Net Payout Chart */}
         <InspectorMonthlyRevenueChart
@@ -634,17 +722,12 @@ export function InspectorDashboardPage() {
               borderColor: 'divider',
             }}
           >
-            <Box>
-              <Typography
-                component="h2"
-                sx={{ fontSize: '1rem', fontWeight: 600, color: 'text.primary' }}
-              >
-                {t('Monthly Settlement Breakdown')}
-              </Typography>
-              <Typography variant="caption" sx={{ color: '#71717A', fontSize: '0.875rem' }}>
-                {t('Consolidated monthly orders, platform commission, and disbursement records')}
-              </Typography>
-            </Box>
+            <Typography
+              component="h2"
+              sx={{ fontSize: '1rem', fontWeight: 600, color: 'text.primary' }}
+            >
+              {t('Monthly Settlement Breakdown')}
+            </Typography>
             <Button
               size="small"
               variant="text"
@@ -681,7 +764,7 @@ export function InspectorDashboardPage() {
                       fontWeight: 500,
                       py: 1.5,
                       px: 2,
-                      width: 120,
+                      width: 140,
                       textTransform: 'uppercase',
                     }}
                   >
@@ -695,35 +778,7 @@ export function InspectorDashboardPage() {
                       fontWeight: 500,
                       py: 1.5,
                       px: 2,
-                      width: 150,
-                      textTransform: 'uppercase',
-                    }}
-                  >
-                    {t('Order Value')}
-                  </TableCell>
-                  <TableCell
-                    sx={{
-                      bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
-                      color: 'text.secondary',
-                      fontSize: '0.75rem',
-                      fontWeight: 500,
-                      py: 1.5,
-                      px: 2,
-                      width: 150,
-                      textTransform: 'uppercase',
-                    }}
-                  >
-                    {t('Commission (15%)')}
-                  </TableCell>
-                  <TableCell
-                    sx={{
-                      bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
-                      color: 'text.secondary',
-                      fontSize: '0.75rem',
-                      fontWeight: 500,
-                      py: 1.5,
-                      px: 2,
-                      width: 160,
+                      width: 180,
                       textTransform: 'uppercase',
                     }}
                   >
@@ -738,7 +793,7 @@ export function InspectorDashboardPage() {
                       fontWeight: 500,
                       py: 1.5,
                       px: 2.5,
-                      width: 160,
+                      width: 180,
                       textTransform: 'uppercase',
                     }}
                   >
@@ -750,7 +805,7 @@ export function InspectorDashboardPage() {
               <TableBody>
                 {activeMonths.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6}>
+                    <TableCell colSpan={4}>
                       <Typography
                         color="text.secondary"
                         sx={{ py: 6, textAlign: 'center', fontSize: '0.875rem' }}
@@ -779,9 +834,6 @@ export function InspectorDashboardPage() {
                         >
                           {m.fullLabel}
                         </Typography>
-                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                          {t('Settled occurrence cycle')}
-                        </Typography>
                       </TableCell>
 
                       {/* Col 2: Missions */}
@@ -794,27 +846,7 @@ export function InspectorDashboardPage() {
                         </Typography>
                       </TableCell>
 
-                      {/* Col 3: Order Value */}
-                      <TableCell sx={{ py: 1.75, px: 2 }}>
-                        <Typography
-                          variant="body2"
-                          sx={{ fontWeight: 600, color: 'text.primary', fontVariantNumeric: 'tabular-nums' }}
-                        >
-                          {formatNumber(m.grossAmount)} ₫
-                        </Typography>
-                      </TableCell>
-
-                      {/* Col 4: Commission */}
-                      <TableCell sx={{ py: 1.75, px: 2 }}>
-                        <Typography
-                          variant="body2"
-                          sx={{ fontWeight: 600, color: '#8C520B', fontVariantNumeric: 'tabular-nums' }}
-                        >
-                          - {formatNumber(m.commissionAmount)} ₫
-                        </Typography>
-                      </TableCell>
-
-                      {/* Col 5: Net Payout */}
+                      {/* Col 3: Net Payout */}
                       <TableCell sx={{ py: 1.75, px: 2 }}>
                         <Typography
                           variant="body2"
@@ -829,7 +861,7 @@ export function InspectorDashboardPage() {
                         </Typography>
                       </TableCell>
 
-                      {/* Col 6: Disbursement Status & Arrow */}
+                      {/* Col 4: Disbursement Status & Arrow */}
                       <TableCell align="right" sx={{ py: 1.75, px: 2.5 }}>
                         <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end', alignItems: 'center' }}>
                           <Chip

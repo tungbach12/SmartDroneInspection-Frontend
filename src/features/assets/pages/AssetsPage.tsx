@@ -111,11 +111,6 @@ function ReadOnlyLocationField({ value }: { value: string }) {
           ? 'Chọn vị trí bằng GPS hoặc Google Maps bên dưới'
           : 'Select a location via GPS or Google Maps below'
       }
-      helperText={
-        locale === 'vi'
-          ? 'Chỉ đọc — dùng "Lấy GPS của tôi" hoặc "Chọn trên Google Maps" bên dưới để cập nhật vị trí.'
-          : 'Read-only — use "Use my GPS" or "Pick on Google Maps" below to set the location.'
-      }
       slotProps={{
         input: { readOnly: true },
         htmlInput: { readOnly: true },
@@ -895,11 +890,6 @@ function CreateAssetDialogForm({
             value={code}
             onChange={(e) => setCode(e.target.value)}
             placeholder="AST-X7K9A"
-            helperText={
-              locale === 'vi'
-                ? 'Mã định danh tự động tạo ngẫu nhiên (có thể chỉnh sửa hoặc bấm đổi mã)'
-                : 'Auto-generated identifier (editable or click to regenerate)'
-            }
             slotProps={{
               input: {
                 endAdornment: (
@@ -982,7 +972,7 @@ function CreateAssetDialogForm({
               helperText={
                 heightValue === undefined
                   ? t('Enter a number of 0 or more')
-                  : t('Optional. Used to check the drone maximum altitude.')
+                  : undefined
               }
             />
             <TextField
@@ -996,7 +986,7 @@ function CreateAssetDialogForm({
               helperText={
                 areaValue === undefined
                   ? t('Enter a number of 0 or more')
-                  : t('Optional. Shown to the manager when choosing a partner.')
+                  : undefined
               }
             />
           </Stack>
@@ -1018,9 +1008,6 @@ function CreateAssetDialogForm({
               <Box sx={{ minWidth: 0, flex: 1 }}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 650, color: 'text.primary' }}>
                   {t('Asset photos (optional)')}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {t('Attach reference photos of the structure so reviewers and pilots can identify it visually.')}
                 </Typography>
               </Box>
               <Button

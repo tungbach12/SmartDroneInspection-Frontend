@@ -72,8 +72,8 @@ describe('ThemeCustomizationPanel', () => {
 
     fireEvent.click(screen.getByTestId('theme-reset-default-button'));
     expect(screen.getByTestId('theme-preset-default').getAttribute('aria-pressed')).toBe('true');
-    expect(screen.getByTestId('cursor-style-waypoint-diamond').getAttribute('aria-pressed')).toBe('true');
-    expect(screen.getByTestId('cursor-effect-trail').getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByTestId('cursor-style-system').getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByTestId('cursor-effect-none').getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByTestId('pet-companion-none').getAttribute('aria-pressed')).toBe('true');
     expect(screen.queryByTestId('bg-target-both')).toBeNull();
   });

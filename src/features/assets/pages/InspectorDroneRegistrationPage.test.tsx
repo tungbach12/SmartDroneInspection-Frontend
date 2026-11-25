@@ -1,6 +1,6 @@
 import { ThemeProvider } from '@mui/material/styles';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { theme } from '@/app/theme/theme';
@@ -156,5 +156,47 @@ describe('InspectorDroneRegistrationPage Capabilities & Safety Checklist', () =>
     expect(within(dialog).getByText('VN-DRONE-M350-2026')).toBeTruthy();
     expect(within(dialog).getByText('Custom Thermal Payload')).toBeTruthy();
     expect(within(dialog).getAllByRole('button', { name: /^Close$/i }).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('toggles drone serviceability between Retire and Set Active with immediate UI update', async () => {
+    const { mf1DroneApi } = await import('../api/mf1DroneApi');
+    const activeDrone = {
+      id: 'drone-1',
+      serialNumber: 'DJI-M3E-SG-0001',
+      model: 'DJI Mavic 3 Enterprise',
+      manufacturer: 'DJI',
+      serviceability: 'ACTIVE',
+      registrationNumber: 'VN-DRN-2026-0001',
+      registrationExpiresAt: '2029-12-31T00:00:00Z',
+    };
+    const retiredDrone = { ...activeDrone, serviceability: 'RETIRED' };
+
+    vi.mocked(mf1DroneApi.drones)
+      .mockResolvedValueOnce([activeDrone])
+      .mockResolvedValueOnce([retiredDrone])
+      .mockResolvedValueOnce([activeDrone]);
+    vi.mocked(mf1DroneApi.updateMyDroneServiceability)
+      .mockResolvedValueOnce(retiredDrone)
+      .mockResolvedValueOnce(activeDrone);
+
+    renderPage();
+
+    const retireBtn = await screen.findByRole('button', { name: /^Retire$/i });
+    expect(screen.queryByRole('button', { name: /Mark Maintenance/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Delete$/i })).toBeNull();
+
+    fireEvent.click(retireBtn);
+
+    await waitFor(() => {
+      expect(mf1DroneApi.updateMyDroneServiceability).toHaveBeenCalledWith('drone-1', 'RETIRED');
+    });
+    const setActiveBtn = await screen.findByRole('button', { name: /^Set Active$/i });
+    expect(screen.getByText('RETIRED')).toBeTruthy();
+
+    fireEvent.click(setActiveBtn);
+    await waitFor(() => {
+      expect(mf1DroneApi.updateMyDroneServiceability).toHaveBeenCalledWith('drone-1', 'ACTIVE');
+    });
+    await screen.findByRole('button', { name: /^Retire$/i });
   });
 });
