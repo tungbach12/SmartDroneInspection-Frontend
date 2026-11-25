@@ -19,7 +19,8 @@ export function RequireAuth({ roles, children }: RequireAuthProps) {
   }
 
   if (status !== 'authenticated' || !accessToken) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    const loginPath = location.pathname.startsWith('/operations') ? '/inspector/login' : '/login';
+    return <Navigate to={loginPath} state={{ from: location }} replace />;
   }
 
   if (roles && !roles.some((r) => userRoles.includes(r))) {

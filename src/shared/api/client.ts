@@ -133,12 +133,16 @@ function redirectToLogin(): void {
     pathname === '/' ||
     pathname === '/login' ||
     pathname.startsWith('/login?') ||
+    pathname === '/inspector/login' ||
+    pathname.startsWith('/inspector/login?') ||
+    pathname.startsWith('/inspector/register') ||
     pathname.startsWith('/register')
   ) {
     return;
   }
   const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-  window.location.assign(`/login?returnTo=${encodeURIComponent(currentPath)}`);
+  const loginBase = pathname.startsWith('/operations') ? '/inspector/login' : '/login';
+  window.location.assign(`${loginBase}?returnTo=${encodeURIComponent(currentPath)}`);
 }
 
 api.interceptors.request.use((config) => {

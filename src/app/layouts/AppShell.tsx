@@ -354,7 +354,7 @@ export function AppShell({ portal }: AppShellProps) {
       clearNotificationCache(queryClient);
       showToast('You have been signed out.', 'success');
       setAccountMenuAnchor(null);
-      navigate('/login', { replace: true });
+      navigate(portal === 'operations' ? '/inspector/login' : '/login', { replace: true });
     } catch (error) {
       showToast(`Could not sign out. ${getAuthErrorMessage(error)}`, 'error');
     } finally {

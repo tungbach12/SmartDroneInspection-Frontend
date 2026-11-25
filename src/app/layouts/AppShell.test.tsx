@@ -137,7 +137,7 @@ describe('AppShell with NotificationBell integration', () => {
     await waitFor(() => {
       expect(logoutCurrentSession).toHaveBeenCalled();
       expect(useAuthStore.getState().status).toBe('anonymous');
-      expect(mockNavigate).toHaveBeenCalledWith('/login', { replace: true });
+      expect(mockNavigate).toHaveBeenCalledWith('/inspector/login', { replace: true });
     });
 
     // Verify notification query data is purged from cache
