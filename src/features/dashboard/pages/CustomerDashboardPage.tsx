@@ -3,6 +3,7 @@ import {
   Alert,
   Box,
   Button,
+  Chip,
   Divider,
   Paper,
   Stack,
@@ -17,8 +18,6 @@ import {
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import Add from '@mui/icons-material/Add';
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
-import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
-import HourglassEmptyRounded from '@mui/icons-material/HourglassEmptyRounded';
 import PlaceOutlined from '@mui/icons-material/PlaceOutlined';
 import { useAssets } from '@/features/assets/hooks/useAssets';
 import { useAuthStore } from '@/features/auth/store/authStore';
@@ -533,35 +532,32 @@ export function CustomerDashboardPage() {
 
                           <TableCell sx={{ py: 1.5, px: 1.5 }}>
                             {isPublished ? (
-                              <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-                                <CheckCircleRounded sx={{ fontSize: 15, color: '#176B52' }} />
-                                <Typography
-                                  variant="caption"
-                                  sx={{
-                                    fontWeight: 650,
-                                    color: '#176B52',
-                                    fontVariantNumeric: 'tabular-nums',
-                                    whiteSpace: 'nowrap',
-                                  }}
-                                >
-                                  v{item.reportVersionNo ?? 1} ·{' '}
-                                  {item.resolvedReportAccepted ? t('Accepted') : t('Ready')}
-                                </Typography>
-                              </Stack>
+                              <Chip
+                                size="small"
+                                label={`v${item.reportVersionNo ?? 1} · ${item.resolvedReportAccepted ? t('Accepted') : t('Ready')}`}
+                                sx={{
+                                  height: 24,
+                                  borderRadius: '6px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 650,
+                                  fontVariantNumeric: 'tabular-nums',
+                                  bgcolor: 'rgba(22, 163, 74, 0.10)',
+                                  color: '#15803D',
+                                }}
+                              />
                             ) : (
-                              <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-                                <HourglassEmptyRounded sx={{ fontSize: 15, color: '#225F85' }} />
-                                <Typography
-                                  variant="caption"
-                                  sx={{
-                                    fontWeight: 600,
-                                    color: '#225F85',
-                                    whiteSpace: 'nowrap',
-                                  }}
-                                >
-                                  {t('In review')}
-                                </Typography>
-                              </Stack>
+                              <Chip
+                                size="small"
+                                label={t('In review')}
+                                sx={{
+                                  height: 24,
+                                  borderRadius: '6px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 600,
+                                  bgcolor: 'rgba(34, 95, 133, 0.10)',
+                                  color: '#225F85',
+                                }}
+                              />
                             )}
                           </TableCell>
 
@@ -619,8 +615,9 @@ export function CustomerDashboardPage() {
                                   fontSize: '0.75rem',
                                   fontWeight: 600,
                                   textTransform: 'none',
-                                  px: 1.25,
-                                  py: 0.4,
+                                  minWidth: 104,
+                                  height: 32,
+                                  px: 1.5,
                                   whiteSpace: 'nowrap',
                                 }}
                               >
@@ -684,35 +681,32 @@ export function CustomerDashboardPage() {
                         }}
                       >
                         {isPublished ? (
-                          <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-                            <CheckCircleRounded sx={{ fontSize: 14, color: '#176B52' }} />
-                            <Typography
-                              variant="caption"
-                              sx={{
-                                fontWeight: 650,
-                                color: '#176B52',
-                                fontVariantNumeric: 'tabular-nums',
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              v{item.reportVersionNo ?? 1} ·{' '}
-                              {item.resolvedReportAccepted ? t('Accepted') : t('Ready')}
-                            </Typography>
-                          </Stack>
+                          <Chip
+                            size="small"
+                            label={`v${item.reportVersionNo ?? 1} · ${item.resolvedReportAccepted ? t('Accepted') : t('Ready')}`}
+                            sx={{
+                              height: 22,
+                              borderRadius: '6px',
+                              fontSize: '0.72rem',
+                              fontWeight: 650,
+                              fontVariantNumeric: 'tabular-nums',
+                              bgcolor: 'rgba(22, 163, 74, 0.10)',
+                              color: '#15803D',
+                            }}
+                          />
                         ) : (
-                          <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-                            <HourglassEmptyRounded sx={{ fontSize: 14, color: '#225F85' }} />
-                            <Typography
-                              variant="caption"
-                              sx={{
-                                fontWeight: 600,
-                                color: '#225F85',
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              {t('In review')}
-                            </Typography>
-                          </Stack>
+                          <Chip
+                            size="small"
+                            label={t('In review')}
+                            sx={{
+                              height: 22,
+                              borderRadius: '6px',
+                              fontSize: '0.72rem',
+                              fontWeight: 600,
+                              bgcolor: 'rgba(34, 95, 133, 0.10)',
+                              color: '#225F85',
+                            }}
+                          />
                         )}
                         <Typography
                           variant="caption"

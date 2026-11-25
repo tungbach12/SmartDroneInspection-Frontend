@@ -9,6 +9,9 @@ function PointerHarness() {
   const { setCursorStyle, setCursorColor } = useCustomTheme();
   return (
     <div>
+      <button type="button" onClick={() => setCursorStyle('waypoint-diamond')}>
+        Use Waypoint Cursor
+      </button>
       <button type="button" data-cursor-tag="FLY" onClick={() => setCursorStyle('pilot-badge')}>
         Use Pilot Badge
       </button>
@@ -54,13 +57,17 @@ describe('CustomCursorPointer (10 Designs + Color)', () => {
     vi.restoreAllMocks();
   });
 
-  it('defaults to Waypoint Diamond, supports switching cursor design & color, and toggles to system cursor', () => {
+  it('defaults to system cursor (off), supports switching cursor design & color, and toggles back to system cursor', () => {
     render(
       <CustomThemeProvider>
         <PointerHarness />
       </CustomThemeProvider>,
     );
 
+    expect(document.documentElement.classList.contains('sdi-custom-cursor')).toBe(false);
+    expect(screen.queryByTestId('custom-cursor-pointer')).toBeNull();
+
+    fireEvent.click(screen.getByText('Use Waypoint Cursor'));
     expect(document.documentElement.classList.contains('sdi-custom-cursor')).toBe(true);
     const pointer = screen.getByTestId('custom-cursor-pointer');
     expect(pointer.getAttribute('data-cursor-style')).toBe('waypoint-diamond');
