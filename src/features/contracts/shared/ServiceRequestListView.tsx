@@ -35,6 +35,8 @@ import FilterListRounded from '@mui/icons-material/FilterListRounded';
 import HandshakeOutlinedIcon from '@mui/icons-material/HandshakeOutlined';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import { PageHeader } from '@/shared/ui/PageHeader';
+import { PaginationFooter } from '@/shared/ui/PaginationFooter';
+import { paginateItems } from '@/shared/ui/pagination';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { useAuthStore } from '@/features/auth/store/authStore';
@@ -96,6 +98,7 @@ export function ServiceRequestListView({
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'), { noSsr: true });
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [page, setPage] = useState(1);
   const [overviewRequest, setOverviewRequest] = useState<ServiceRequest | null>(null);
   const [managerProfileRequest, setManagerProfileRequest] = useState<ServiceRequest | null>(null);
   const [assignmentRequest, setAssignmentRequest] = useState<ServiceRequest | null>(null);
@@ -162,6 +165,8 @@ export function ServiceRequestListView({
       statusFilter === 'ALL' || effectiveStatus === statusFilter || req.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  const paginatedRequests = paginateItems(filteredRequests, page, 10);
 
   const openNegotiatingCount = requests.filter((r) => {
     const effectiveStatus = getEffectiveRequestStatus(r);
@@ -278,7 +283,10 @@ export function ServiceRequestListView({
             size="small"
             placeholder={t('Search requests…')}
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
             slotProps={{
               input: {
                 startAdornment: (
@@ -304,7 +312,10 @@ export function ServiceRequestListView({
               select
               size="small"
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setPage(1);
+              }}
               slotProps={{
                 input: {
                   startAdornment: (
@@ -349,7 +360,7 @@ export function ServiceRequestListView({
           </Box>
         ) : isMobile ? (
             <Box>
-              {filteredRequests.map((req, index) => {
+              {paginatedRequests.items.map((req, index) => {
                 const effectiveStatus = getEffectiveRequestStatus(req);
                 const stageSubtitle = getRequestStageSubtitle(
                   effectiveStatus,
@@ -480,7 +491,7 @@ export function ServiceRequestListView({
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {filteredRequests.map((req) => {
+                  {paginatedRequests.items.map((req) => {
                     const effectiveStatus = getEffectiveRequestStatus(req);
                     const stageSubtitle = getRequestStageSubtitle(
                       effectiveStatus,
@@ -615,6 +626,15 @@ export function ServiceRequestListView({
                 </TableBody>
               </Table>
             </TableContainer>
+        )}
+        {filteredRequests.length > 0 && (
+          <PaginationFooter
+            page={paginatedRequests.page}
+            pageSize={paginatedRequests.pageSize}
+            totalCount={paginatedRequests.totalCount}
+            onPageChange={setPage}
+            ariaLabel={t('Service requests pagination')}
+          />
         )}
       </Paper>
 

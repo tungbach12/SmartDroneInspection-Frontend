@@ -354,7 +354,7 @@ export function AppShell({ portal }: AppShellProps) {
       clearNotificationCache(queryClient);
       showToast('You have been signed out.', 'success');
       setAccountMenuAnchor(null);
-      navigate('/login', { replace: true });
+      navigate(portal === 'operations' ? '/inspector/login' : '/login', { replace: true });
     } catch (error) {
       showToast(`Could not sign out. ${getAuthErrorMessage(error)}`, 'error');
     } finally {
@@ -1299,7 +1299,7 @@ export function AppShell({ portal }: AppShellProps) {
             py: 1.5,
             borderTop: '1px solid',
             borderColor: 'divider',
-            bgcolor: isDark ? '#111827' : '#FCFCFD',
+            bgcolor: isDark ? activePreset.darkInset : '#FCFCFD',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',

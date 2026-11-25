@@ -329,8 +329,9 @@ export function createAppTheme(presetId: ThemePresetId = 'default') {
         styleOverrides: {
           tooltip: {
             borderRadius: 6,
-            backgroundColor: '#18181B',
+            backgroundColor: '#27272A',
             color: '#FFFFFF',
+            border: '1px solid var(--mui-palette-divider)',
             fontSize: '0.75rem',
             fontWeight: 500,
             padding: '6px 10px',

@@ -159,7 +159,7 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
                 sx={{
                   fontSize: '0.875rem',
                   fontWeight: 500,
-                  color: '#15803D',
+                  color: 'success.main',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 0.5,
@@ -276,7 +276,7 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
                   y1={y}
                   x2={svgWidth - paddingRight}
                   y2={y}
-                  stroke="#E5E7EB"
+                  stroke={theme.palette.divider}
                   strokeDasharray="3 3"
                   strokeWidth="1"
                 />
@@ -284,7 +284,7 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
                   x={paddingLeft - 10}
                   y={y + 4}
                   textAnchor="end"
-                  fill="#52525B"
+                  fill={theme.palette.text.secondary}
                   fontSize="12"
                   fontFamily="Inter, sans-serif"
                   fontWeight="400"
@@ -356,7 +356,7 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
                 x={x}
                 y={svgHeight - 12}
                 textAnchor="middle"
-                fill="#71717A"
+                fill={theme.palette.text.secondary}
                 fontSize="12"
                 fontFamily="Inter, sans-serif"
                 fontWeight="400"

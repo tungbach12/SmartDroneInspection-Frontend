@@ -1458,4 +1458,63 @@ describe('ContractsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Partner Alice' }));
     await waitFor(() => expect(getInspectorSpy).toHaveBeenCalledWith('p-insp-1'));
   });
+
+  it('paginates service requests across pages when more than ten exist', () => {
+    const manyRequests = Array.from({ length: 12 }, (_, index) => ({
+      id: `req-${index + 1}`,
+      ownerCustomerId: 'customer-1',
+      ownerCustomerName: 'Skyview Co.',
+      assetId: 'asset-1',
+      assetName: 'Bridge 1',
+      assetCode: 'BR-1',
+      assetLocationText: 'HCMC',
+      description: `Inspection Request ${String(index + 1).padStart(2, '0')}`,
+      requestedFrom: '2026-12-20',
+      requestedUntil: '2026-12-20',
+      timezone: 'Asia/Ho_Chi_Minh',
+      windowStart: '08:00',
+      windowEnd: '17:00',
+      requestType: 'ONE_TIME' as const,
+      recurrenceUnit: null,
+      recurrenceInterval: null,
+      occurrenceCount: null,
+      recurrenceEndDate: null,
+      status: 'OPEN',
+      assignedManagerId: null,
+      canClaim: false,
+      acceptedQuoteId: null,
+      acceptedAt: null,
+      acceptedByUserId: null,
+      acceptedTermsSnapshot: null,
+      contractFileName: null,
+      contractContentType: null,
+      contractSizeBytes: null,
+      contractUploadedAt: null,
+      createdAt: '2026-11-20T00:00:00Z',
+      currentQuote: null,
+      occurrences: [],
+      messages: [],
+    }));
+
+    vi.spyOn(contractsHook, 'useServiceRequests').mockReturnValue({
+      data: manyRequests,
+      isPending: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    } as any);
+    vi.spyOn(contractsHook, 'useServiceRequest').mockReturnValue({ data: undefined, isFetching: false } as any);
+
+    renderPage();
+
+    expect(screen.getByText('Showing 1–10 of 12')).toBeTruthy();
+    expect(screen.getByText('Inspection Request 01')).toBeTruthy();
+    expect(screen.queryByText('Inspection Request 11')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Go to page 2' }));
+
+    expect(screen.getByText('Showing 11–12 of 12')).toBeTruthy();
+    expect(screen.getByText('Inspection Request 11')).toBeTruthy();
+    expect(screen.queryByText('Inspection Request 01')).toBeNull();
+  });
 });

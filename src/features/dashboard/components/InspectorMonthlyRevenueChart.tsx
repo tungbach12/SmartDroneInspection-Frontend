@@ -8,6 +8,8 @@ import {
   Typography,
 } from '@mui/material';
 import TrendingUpRounded from '@mui/icons-material/TrendingUpRounded';
+import { useTheme } from '@mui/material/styles';
+import { useIsDarkMode } from '@/app/layouts/ColorModeContext';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 export interface MonthRevenueData {
@@ -41,6 +43,8 @@ export function InspectorMonthlyRevenueChart({
   totalDisbursed: _totalDisbursed,
 }: InspectorMonthlyRevenueChartProps) {
   const { formatNumber, t } = useLocale();
+  const theme = useTheme();
+  const isDark = useIsDarkMode();
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   // SVG Chart Dimensions
@@ -100,15 +104,15 @@ export function InspectorMonthlyRevenueChart({
               </Typography>
               <Chip
                 size="small"
-                icon={<TrendingUpRounded sx={{ fontSize: '14px !important', color: '#15803D' }} />}
+                icon={<TrendingUpRounded sx={{ fontSize: '14px !important', color: isDark ? '#6EE7B7' : '#15803D' }} />}
                 label={t('Year 2026')}
                 sx={{
                   height: 22,
                   borderRadius: '6px',
                   fontSize: '0.75rem',
                   fontWeight: 500,
-                  bgcolor: '#F0FDF4',
-                  color: '#15803D',
+                  bgcolor: isDark ? 'rgba(16, 185, 129, 0.16)' : '#F0FDF4',
+                  color: isDark ? '#6EE7B7' : '#15803D',
                 }}
               />
             </Stack>
@@ -161,7 +165,7 @@ export function InspectorMonthlyRevenueChart({
                       y1={y}
                       x2={svgWidth - paddingRight}
                       y2={y}
-                      stroke="#E5E7EB"
+                      stroke={theme.palette.divider}
                       strokeDasharray={tickVal === 0 ? 'none' : '3 3'}
                     />
                     <text
@@ -169,7 +173,7 @@ export function InspectorMonthlyRevenueChart({
                       y={y + 4}
                       textAnchor="end"
                       fontSize="12"
-                      fill="#71717A"
+                      fill={theme.palette.text.secondary}
                       fontFamily="Inter, sans-serif"
                     >
                       {tickVal >= 1_000_000
@@ -277,7 +281,7 @@ export function InspectorMonthlyRevenueChart({
                       textAnchor="middle"
                       fontSize="12"
                       fontWeight={hasData ? 600 : 400}
-                      fill={hasData ? '#18181B' : '#71717A'}
+                      fill={hasData ? theme.palette.text.primary : theme.palette.text.secondary}
                       fontFamily="Inter, sans-serif"
                     >
                       {m.label}
@@ -322,18 +326,18 @@ export function InspectorMonthlyRevenueChart({
                     </Typography>
                   </Stack>
                   <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
-                    <Typography variant="caption" sx={{ color: '#8C520B' }}>
+                    <Typography variant="caption" sx={{ color: 'warning.main' }}>
                       {t('Commission (15%)')}:
                     </Typography>
-                    <Typography variant="caption" sx={{ fontWeight: 650, color: '#8C520B' }}>
+                    <Typography variant="caption" sx={{ fontWeight: 650, color: 'warning.main' }}>
                       - {formatNumber(activeMonth.commissionAmount)} ₫
                     </Typography>
                   </Stack>
                   <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
-                    <Typography variant="caption" sx={{ color: '#176B52', fontWeight: 700 }}>
+                    <Typography variant="caption" sx={{ color: 'success.main', fontWeight: 700 }}>
                       {t('Net payout')}:
                     </Typography>
-                    <Typography variant="caption" sx={{ fontWeight: 700, color: '#176B52' }}>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: 'success.main' }}>
                       {formatNumber(activeMonth.netPayoutAmount)} ₫
                     </Typography>
                   </Stack>
@@ -384,14 +388,14 @@ export function InspectorMonthlyRevenueChart({
               bgcolor: 'background.default',
             }}
           >
-            <Typography variant="caption" sx={{ color: '#8C520B', fontWeight: 600 }}>
+            <Typography variant="caption" sx={{ color: 'warning.main', fontWeight: 600 }}>
               {t('Platform Commission Retained (15%)')}
             </Typography>
             <Typography
               sx={{
                 fontSize: '1.125rem',
                 fontWeight: 700,
-                color: '#8C520B',
+                color: 'warning.main',
                 mt: 0.25,
                 fontVariantNumeric: 'tabular-nums',
               }}
@@ -404,17 +408,17 @@ export function InspectorMonthlyRevenueChart({
             sx={{
               p: 1.5,
               borderRadius: '8px',
-              bgcolor: 'rgba(23, 107, 82, 0.06)',
+              bgcolor: isDark ? 'rgba(16, 185, 129, 0.12)' : 'rgba(23, 107, 82, 0.06)',
             }}
           >
-            <Typography variant="caption" sx={{ color: '#176B52', fontWeight: 650 }}>
+            <Typography variant="caption" sx={{ color: 'success.main', fontWeight: 650 }}>
               {t('Total Net Earnings')}
             </Typography>
             <Typography
               sx={{
                 fontSize: '1.125rem',
                 fontWeight: 700,
-                color: '#176B52',
+                color: 'success.main',
                 mt: 0.25,
                 fontVariantNumeric: 'tabular-nums',
               }}

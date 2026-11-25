@@ -596,20 +596,23 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                                 size="small"
                                 variant="outlined"
                                 label={confirmed ? t('Confirmed') : t('Awaiting review')}
-                                sx={{
-                                  fontWeight: 600,
-                                  fontSize: '0.75rem',
-                                  ...(confirmed
-                                    ? {
-                                        bgcolor: '#f0fdf4',
-                                        color: '#166534',
-                                        borderColor: '#bbf7d0',
-                                      }
-                                    : {
-                                        bgcolor: '#fffbeb',
-                                        color: '#b45309',
-                                        borderColor: '#fde68a',
-                                      }),
+                                sx={(muiTheme) => {
+                                  const dark = muiTheme.palette.mode === 'dark';
+                                  return {
+                                    fontWeight: 600,
+                                    fontSize: '0.75rem',
+                                    ...(confirmed
+                                      ? {
+                                          bgcolor: dark ? 'rgba(16, 185, 129, 0.16)' : '#f0fdf4',
+                                          color: dark ? '#6EE7B7' : '#166534',
+                                          borderColor: dark ? 'rgba(16, 185, 129, 0.35)' : '#bbf7d0',
+                                        }
+                                      : {
+                                          bgcolor: dark ? 'rgba(245, 158, 11, 0.16)' : '#fffbeb',
+                                          color: dark ? '#FCD34D' : '#b45309',
+                                          borderColor: dark ? 'rgba(245, 158, 11, 0.35)' : '#fde68a',
+                                        }),
+                                  };
                                 }}
                               />
                             </Stack>

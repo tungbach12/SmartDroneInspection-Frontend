@@ -450,7 +450,7 @@ export function CustomerDashboardPage() {
                     <TableRow>
                       <TableCell
                         sx={{
-                          bgcolor: 'action.hover',
+                          bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
                           color: 'text.secondary',
                           fontSize: '0.75rem',
                           fontWeight: 600,
@@ -462,7 +462,7 @@ export function CustomerDashboardPage() {
                       </TableCell>
                       <TableCell
                         sx={{
-                          bgcolor: 'action.hover',
+                          bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
                           color: 'text.secondary',
                           fontSize: '0.75rem',
                           fontWeight: 600,
@@ -474,7 +474,7 @@ export function CustomerDashboardPage() {
                       </TableCell>
                       <TableCell
                         sx={{
-                          bgcolor: 'action.hover',
+                          bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
                           color: 'text.secondary',
                           fontSize: '0.75rem',
                           fontWeight: 600,
@@ -487,7 +487,7 @@ export function CustomerDashboardPage() {
                       <TableCell
                         align="right"
                         sx={{
-                          bgcolor: 'action.hover',
+                          bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
                           color: 'text.secondary',
                           fontSize: '0.75rem',
                           fontWeight: 600,
@@ -540,8 +540,9 @@ export function CustomerDashboardPage() {
                                   borderRadius: '6px',
                                   fontSize: '0.75rem',
                                   fontWeight: 650,
-                                  bgcolor: 'rgba(22, 163, 74, 0.10)',
-                                  color: '#15803D',
+                                  bgcolor: (muiTheme) =>
+                                    muiTheme.palette.mode === 'dark' ? 'rgba(34, 197, 94, 0.16)' : 'rgba(22, 163, 74, 0.10)',
+                                  color: 'success.main',
                                 }}
                               />
                             ) : (
@@ -553,8 +554,9 @@ export function CustomerDashboardPage() {
                                   borderRadius: '6px',
                                   fontSize: '0.75rem',
                                   fontWeight: 600,
-                                  bgcolor: 'rgba(34, 95, 133, 0.10)',
-                                  color: '#225F85',
+                                  bgcolor: (muiTheme) =>
+                                    muiTheme.palette.mode === 'dark' ? 'rgba(56, 189, 248, 0.16)' : 'rgba(34, 95, 133, 0.10)',
+                                  color: 'info.main',
                                 }}
                               />
                             )}
@@ -579,9 +581,9 @@ export function CustomerDashboardPage() {
                               sx={{
                                 color:
                                   item.resolvedPaymentStatus === 'PAID'
-                                    ? '#176B52'
+                                    ? 'success.main'
                                     : item.resolvedPaymentStatus === 'PAYMENT_DUE'
-                                      ? '#8C520B'
+                                      ? 'warning.main'
                                       : 'text.secondary',
                                 fontWeight: 600,
                               }}
@@ -688,8 +690,9 @@ export function CustomerDashboardPage() {
                               borderRadius: '6px',
                               fontSize: '0.72rem',
                               fontWeight: 650,
-                              bgcolor: 'rgba(22, 163, 74, 0.10)',
-                              color: '#15803D',
+                              bgcolor: (muiTheme) =>
+                                muiTheme.palette.mode === 'dark' ? 'rgba(34, 197, 94, 0.16)' : 'rgba(22, 163, 74, 0.10)',
+                              color: 'success.main',
                             }}
                           />
                         ) : (
@@ -701,8 +704,9 @@ export function CustomerDashboardPage() {
                               borderRadius: '6px',
                               fontSize: '0.72rem',
                               fontWeight: 600,
-                              bgcolor: 'rgba(34, 95, 133, 0.10)',
-                              color: '#225F85',
+                              bgcolor: (muiTheme) =>
+                                muiTheme.palette.mode === 'dark' ? 'rgba(56, 189, 248, 0.16)' : 'rgba(34, 95, 133, 0.10)',
+                              color: 'info.main',
                             }}
                           />
                         )}
@@ -711,9 +715,9 @@ export function CustomerDashboardPage() {
                           sx={{
                             color:
                               item.resolvedPaymentStatus === 'PAID'
-                                ? '#176B52'
+                                ? 'success.main'
                                 : item.resolvedPaymentStatus === 'PAYMENT_DUE'
-                                  ? '#8C520B'
+                                  ? 'warning.main'
                                   : 'text.secondary',
                             fontWeight: 600,
                             whiteSpace: 'nowrap',
@@ -817,7 +821,7 @@ export function CustomerDashboardPage() {
                   <TableRow>
                     <TableCell
                       sx={{
-                        bgcolor: 'action.hover',
+                        bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
                         color: 'text.secondary',
                         fontSize: '0.75rem',
                         fontWeight: 600,
@@ -829,7 +833,7 @@ export function CustomerDashboardPage() {
                     </TableCell>
                     <TableCell
                       sx={{
-                        bgcolor: 'action.hover',
+                        bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
                         color: 'text.secondary',
                         fontSize: '0.75rem',
                         fontWeight: 600,
@@ -842,7 +846,7 @@ export function CustomerDashboardPage() {
                     <TableCell
                       align="right"
                       sx={{
-                        bgcolor: 'action.hover',
+                        bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
                         color: 'text.secondary',
                         fontSize: '0.75rem',
                         fontWeight: 600,

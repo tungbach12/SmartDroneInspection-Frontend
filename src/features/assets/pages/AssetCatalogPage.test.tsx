@@ -229,4 +229,32 @@ describe('AssetCatalogPage', () => {
       input: { label: 'Check roof membrane', sortOrder: 2, active: true },
     });
   });
+
+  it('paginates categories across pages when more than ten exist', () => {
+    const manyCategories = Array.from({ length: 12 }, (_, index) => ({
+      id: `cat-${index + 1}`,
+      code: `CAT_${String(index + 1).padStart(2, '0')}`,
+      name: `Category ${String(index + 1).padStart(2, '0')}`,
+      description: `Description ${index + 1}`,
+      active: true,
+    }));
+    mocks.useCategories.mockReturnValue({
+      data: manyCategories,
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    renderPage();
+
+    expect(screen.getByText('Showing 1–10 of 12')).toBeTruthy();
+    expect(screen.getByText('Category 01')).toBeTruthy();
+    expect(screen.queryByText('Category 11')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Go to page 2' }));
+
+    expect(screen.getByText('Showing 11–12 of 12')).toBeTruthy();
+    expect(screen.getByText('Category 11')).toBeTruthy();
+    expect(screen.queryByText('Category 01')).toBeNull();
+  });
 });

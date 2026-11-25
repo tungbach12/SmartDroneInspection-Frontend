@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Box, Typography } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 export interface LyticStackedBarChartProps {
@@ -20,6 +21,7 @@ export const LyticStackedBarChart: React.FC<LyticStackedBarChartProps> = ({
   maxStack = 120,
 }) => {
   const { t } = useLocale();
+  const theme = useTheme();
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
 
   const svgWidth = 520;
@@ -78,7 +80,7 @@ export const LyticStackedBarChart: React.FC<LyticStackedBarChartProps> = ({
         </Typography>
         <Box
           sx={{
-            color: '#9CA3AF',
+            color: 'text.secondary',
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -114,7 +116,7 @@ export const LyticStackedBarChart: React.FC<LyticStackedBarChartProps> = ({
                 bgcolor: nextAdminColors[idx % nextAdminColors.length] ?? ch.color,
               }}
             />
-            <Typography sx={{ color: '#71717A', fontSize: '0.75rem', fontWeight: 500 }}>
+            <Typography sx={{ color: 'text.secondary', fontSize: '0.75rem', fontWeight: 500 }}>
               {t(ch.name)}
             </Typography>
           </Box>
@@ -138,7 +140,7 @@ export const LyticStackedBarChart: React.FC<LyticStackedBarChartProps> = ({
                   y1={y}
                   x2={svgWidth - paddingRight}
                   y2={y}
-                  stroke="#E5E7EB"
+                  stroke={theme.palette.divider}
                   strokeDasharray="3 3"
                   strokeWidth="1"
                 />
@@ -146,7 +148,7 @@ export const LyticStackedBarChart: React.FC<LyticStackedBarChartProps> = ({
                   x={paddingLeft - 8}
                   y={y + 4}
                   textAnchor="end"
-                  fill="#71717A"
+                  fill={theme.palette.text.secondary}
                   fontSize="12"
                   fontFamily="Inter, sans-serif"
                   fontWeight="400"
@@ -192,7 +194,7 @@ export const LyticStackedBarChart: React.FC<LyticStackedBarChartProps> = ({
                   x={groupX}
                   y={svgHeight - 10}
                   textAnchor="middle"
-                  fill="#71717A"
+                  fill={theme.palette.text.secondary}
                   fontSize="12"
                   fontFamily="Inter, sans-serif"
                   fontWeight="400"

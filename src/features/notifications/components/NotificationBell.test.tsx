@@ -12,6 +12,7 @@ vi.mock('../api/notificationApi', () => ({
     list: vi.fn(),
     getUnreadCount: vi.fn(),
     markAsRead: vi.fn(),
+    markAllAsRead: vi.fn(),
   },
 }));
 
@@ -353,18 +354,7 @@ describe('NotificationBell & Inbox', () => {
       totalCount: 2,
       totalPages: 1,
     });
-    vi.mocked(notificationApi.markAsRead).mockResolvedValue({
-      id: 'n-1',
-      eventType: 'EVENT',
-      channel: 'IN_APP',
-      title: 'Item 1',
-      body: 'Body 1',
-      targetPath: null,
-      status: 'READ',
-      readAt: '2026-10-26T10:05:00Z',
-      createdAt: '2026-10-26T10:00:00Z',
-      read: true,
-    });
+    vi.mocked(notificationApi.markAllAsRead).mockResolvedValue({ updatedCount: 2 });
 
     render(<NotificationBell portal="operations" />, {
       wrapper: createWrapper(queryClient),
@@ -377,8 +367,7 @@ describe('NotificationBell & Inbox', () => {
     fireEvent.click(markAllBtn);
 
     await waitFor(() => {
-      expect(notificationApi.markAsRead).toHaveBeenCalledWith('n-1');
-      expect(notificationApi.markAsRead).toHaveBeenCalledWith('n-2');
+      expect(notificationApi.markAllAsRead).toHaveBeenCalledTimes(1);
     });
   });
 

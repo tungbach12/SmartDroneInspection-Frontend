@@ -164,4 +164,37 @@ describe('FlightDroneConfigPage', () => {
     renderPage('/admin/flight-config?tab=license-classes');
     expect(screen.getByText('UAV license class settings')).toBeTruthy();
   });
+
+  it('paginates checklist items and preserves continuous row numbering across pages', () => {
+    const manyChecklists = Array.from({ length: 12 }, (_, index) => ({
+      id: `pre-${index + 1}`,
+      templateType: 'PRE_FLIGHT',
+      categoryId: null,
+      label: `Checkpoint ${String(index + 1).padStart(2, '0')}`,
+      labelVi: null,
+      referenceThreshold: null,
+      sortOrder: index + 1,
+      active: true,
+      required: true,
+    }));
+    mocks.useChecklistTemplates.mockReturnValue({
+      data: manyChecklists,
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    renderPage('/admin/flight-config');
+
+    expect(screen.getByText('Showing 1–10 of 12')).toBeTruthy();
+    expect(screen.getByText('Checkpoint 01')).toBeTruthy();
+    expect(screen.queryByText('Checkpoint 11')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Go to page 2' }));
+
+    expect(screen.getByText('Showing 11–12 of 12')).toBeTruthy();
+    expect(screen.getByText('Checkpoint 11')).toBeTruthy();
+    expect(screen.getByText('11')).toBeTruthy();
+    expect(screen.queryByText('Checkpoint 01')).toBeNull();
+  });
 });

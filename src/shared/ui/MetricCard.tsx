@@ -156,7 +156,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
               lineHeight: '1rem',
               fontWeight: 600,
               color: showTrend
-                ? (positive ? '#15803D' : '#DC2626')
+                ? (positive ? 'success.main' : 'error.main')
                 : 'text.secondary',
               display: 'inline-flex',
               alignItems: 'center',

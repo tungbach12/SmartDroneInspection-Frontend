@@ -37,11 +37,17 @@ import {
   type PasswordSetupFormValues,
 } from '../schemas/authSchemas';
 import { getAuthRedirectTarget, getLoginReturnTo } from '../utils/authRedirect';
-import { useAuthStore } from '../store/authStore';
+import { useAuthStore, type AuthUser, type Role } from '../store/authStore';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
-export default function LoginPage() {
+export interface LoginPageProps {
+  audience?: 'default' | 'inspector';
+}
+
+export default function LoginPage({ audience = 'default' }: LoginPageProps) {
   const { t } = useLocale();
+  const isInspectorPortal = audience === 'inspector';
+  const loginPath = isInspectorPortal ? '/inspector/login' : '/login';
   const status = useAuthStore((state) => state.status);
   const roles = useAuthStore((state) => state.roles);
   const setSession = useAuthStore((state) => state.setSession);
@@ -101,6 +107,33 @@ export default function LoginPage() {
   const returnTo = getLoginReturnTo(from, searchParams.get('returnTo'));
   const destination = getAuthRedirectTarget(returnTo, roles);
 
+  const completeAuthenticatedSignIn = (accessToken: string, user: AuthUser): boolean => {
+    const portal: PortalId | null = getPortalForHost(window.location.hostname);
+    if (portal && !hasAnyRole(user.roles, PORTAL_ROLE_ACCESS[portal])) {
+      setErrorMessage('This account does not belong to this workspace.');
+      return false;
+    }
+    if (isInspectorPortal) {
+      if (!user.roles.includes('INSPECTOR')) {
+        setErrorMessage(
+          t('This sign-in page is for Partner Inspectors only. Please sign in on the Customer portal (/login).'),
+        );
+        return false;
+      }
+    } else if (
+      user.roles.includes('INSPECTOR') &&
+      !user.roles.some((r: Role) => ['CUSTOMER', 'ADMIN', 'MANAGER'].includes(r))
+    ) {
+      setErrorMessage(
+        t('Partner Inspector accounts must sign in at the dedicated Inspector portal (/inspector/login).'),
+      );
+      return false;
+    }
+    setSession({ accessToken, user });
+    navigate(getAuthRedirectTarget(returnTo, user.roles), { replace: true });
+    return true;
+  };
+
   const onLogin = async (values: LoginFormValues) => {
     setErrorMessage(null);
     try {
@@ -129,17 +162,7 @@ export default function LoginPage() {
       if (!result.accessToken || !result.user) {
         throw new Error('The sign-in response did not include an access token.');
       }
-      const portal: PortalId | null = getPortalForHost(
-        window.location.hostname,
-      );
-      if (portal && !hasAnyRole(result.user.roles, PORTAL_ROLE_ACCESS[portal])) {
-        setErrorMessage('This account does not belong to this workspace.');
-        return;
-      }
-      setSession({ accessToken: result.accessToken, user: result.user });
-      navigate(getAuthRedirectTarget(returnTo, result.user.roles), {
-        replace: true,
-      });
+      completeAuthenticatedSignIn(result.accessToken, result.user);
     } catch (error) {
       setErrorMessage(getAuthErrorMessage(error));
     }
@@ -164,13 +187,7 @@ export default function LoginPage() {
       if (result.step !== 'AUTHENTICATED' || !result.accessToken || !result.user) {
         throw new Error('The verification response did not complete sign-in.');
       }
-      const portal: PortalId | null = getPortalForHost(window.location.hostname);
-      if (portal && !hasAnyRole(result.user.roles, PORTAL_ROLE_ACCESS[portal])) {
-        setErrorMessage('This account does not belong to this workspace.');
-        return;
-      }
-      setSession({ accessToken: result.accessToken, user: result.user });
-      navigate(getAuthRedirectTarget(returnTo, result.user.roles), { replace: true });
+      completeAuthenticatedSignIn(result.accessToken, result.user);
     } catch (error) {
       setErrorMessage(getAuthErrorMessage(error));
     }
@@ -204,18 +221,7 @@ export default function LoginPage() {
         throw new Error('Password setup did not complete sign-in.');
       }
 
-      const portal: PortalId | null = getPortalForHost(
-        window.location.hostname,
-      );
-      if (portal && !hasAnyRole(result.user.roles, PORTAL_ROLE_ACCESS[portal])) {
-        setErrorMessage('This account does not belong to this workspace.');
-        return;
-      }
-
-      setSession({ accessToken: result.accessToken, user: result.user });
-      navigate(getAuthRedirectTarget(returnTo, result.user.roles), {
-        replace: true,
-      });
+      completeAuthenticatedSignIn(result.accessToken, result.user);
     } catch (error) {
       setErrorMessage(getAuthErrorMessage(error));
     }
@@ -360,7 +366,7 @@ export default function LoginPage() {
             : t('A 6-digit OTP code was sent to your email. Enter the code and your new password below.')
         }
         backLabel={t('Back to sign in')}
-        backTo="/login"
+        backTo={loginPath}
         showSocial={false}
         heroTagline={{
           line1: 'Precision View,',
@@ -693,18 +699,33 @@ export default function LoginPage() {
 
   return (
     <AuthPageLayout
-      title={t('Welcome back')}
-      subtitleText={t('Don\'t have an account?')}
-      subtitleLinkText={t('Sign up')}
-      subtitleLinkTo="/register"
+      {...(isInspectorPortal
+        ? {
+            eyebrow: t('Partner Inspector Portal'),
+            description: t('Sign in to manage assigned drone inspections and flight missions.'),
+          }
+        : {
+            onGoogleClick: onGoogleLogin,
+          })}
+      title={isInspectorPortal ? t('Inspector sign-in') : t('Welcome back')}
+      subtitleText={isInspectorPortal ? t('New drone partner?') : t("Don't have an account?")}
+      subtitleLinkText={isInspectorPortal ? t('Register as Inspector') : t('Sign up')}
+      subtitleLinkTo={isInspectorPortal ? '/inspector/register' : '/register'}
       backLabel={t('Back to website')}
       backTo="/"
+      showSocial={!isInspectorPortal}
       socialPrompt={t('Or sign in with')}
-      onGoogleClick={onGoogleLogin}
-      heroTagline={{
-        line1: 'Smart Drone Infrastructure Inspection',
-        line2: 'AI-assisted defect detection, inspection reports, and maintenance tracking in one unified platform.',
-      }}
+      heroTagline={
+        isInspectorPortal
+          ? {
+              line1: 'Partner UAV Operations',
+              line2: 'Verify flight permits, capture inspection telemetry, and deliver certified field evidence.',
+            }
+          : {
+              line1: 'Smart Drone Infrastructure Inspection',
+              line2: 'AI-assisted defect detection, inspection reports, and maintenance tracking in one unified platform.',
+            }
+      }
     >
       <Stack
         component="form"
@@ -778,7 +799,7 @@ export default function LoginPage() {
               setIsForgotPassword(true);
             }}
             sx={{
-              color: '#2B84EB',
+              color: isInspectorPortal ? '#087E8B' : '#2B84EB',
               textTransform: 'none',
               fontWeight: 600,
               fontSize: '13px',
@@ -803,16 +824,20 @@ export default function LoginPage() {
           sx={{
             minHeight: 48,
             borderRadius: '10px',
-            bgcolor: '#2B84EB',
+            bgcolor: isInspectorPortal ? '#087E8B' : '#2B84EB',
             fontSize: '15px',
             fontWeight: 600,
             textTransform: 'none',
             color: '#FFFFFF',
-            boxShadow: '0 2px 10px rgba(43, 132, 235, 0.20)',
+            boxShadow: isInspectorPortal
+              ? '0 2px 10px rgba(8, 126, 139, 0.20)'
+              : '0 2px 10px rgba(43, 132, 235, 0.20)',
             transition: 'all 0.2s ease',
             '&:hover': {
-              bgcolor: '#1F71D4',
-              boxShadow: '0 4px 14px rgba(43, 132, 235, 0.26)',
+              bgcolor: isInspectorPortal ? '#066B70' : '#1F71D4',
+              boxShadow: isInspectorPortal
+                ? '0 4px 14px rgba(8, 126, 139, 0.26)'
+                : '0 4px 14px rgba(43, 132, 235, 0.26)',
             },
           }}
         >

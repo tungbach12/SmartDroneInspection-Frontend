@@ -28,6 +28,10 @@ export interface NotificationUnreadCountResponse {
   unreadCount: number;
 }
 
+export interface NotificationMarkAllReadResponse {
+  updatedCount: number;
+}
+
 export interface NotificationFilters {
   page?: number | undefined;
   pageSize?: number | undefined;
@@ -58,6 +62,16 @@ export const notificationApi = {
     } catch {
       // Fallback to PUT if PATCH is rejected by reverse proxy or gateway
       const response = await api.put<NotificationItem>(`/notifications/${id}/read`);
+      return response.data;
+    }
+  },
+
+  async markAllAsRead(): Promise<NotificationMarkAllReadResponse> {
+    try {
+      const response = await api.patch<NotificationMarkAllReadResponse>('/notifications/read-all');
+      return response.data;
+    } catch {
+      const response = await api.put<NotificationMarkAllReadResponse>('/notifications/read-all');
       return response.data;
     }
   },

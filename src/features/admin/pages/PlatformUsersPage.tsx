@@ -30,6 +30,8 @@ import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { MetricCard } from '@/shared/ui/MetricCard';
 import { MutationProblemAlert } from '@/shared/ui/MutationProblemAlert';
 import { PageHeader } from '@/shared/ui/PageHeader';
+import { PaginationFooter } from '@/shared/ui/PaginationFooter';
+import { paginateItems } from '@/shared/ui/pagination';
 import { QueryState } from '@/shared/ui/QueryState';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
@@ -88,6 +90,7 @@ export default function PlatformUsersPage() {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<'ALL' | PlatformUserRole>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | PlatformUserStatus>('ALL');
+  const [page, setPage] = useState(1);
 
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [accountTab, setAccountTab] = useState(0);
@@ -127,6 +130,8 @@ export default function PlatformUsersPage() {
       return true;
     });
   }, [roleFilter, scopedItems, search, statusFilter]);
+
+  const paginatedItems = useMemo(() => paginateItems(items, page, 10), [items, page]);
 
   const roleCounts = useMemo(() => {
     const platformCount = scopedItems.filter(
@@ -248,12 +253,18 @@ export default function PlatformUsersPage() {
 
       <AdminTableToolbar
         searchValue={search}
-        onSearchChange={setSearch}
+        onSearchChange={(value) => {
+          setSearch(value);
+          setPage(1);
+        }}
         searchPlaceholder={t('Search by name or email')}
         searchLabel={t('Search accounts')}
         visibleCount={items.length}
         totalCount={scopedItems.length}
-        onClearAll={() => setStatusFilter('ALL')}
+        onClearAll={() => {
+          setStatusFilter('ALL');
+          setPage(1);
+        }}
         filters={[
           ...(!isManager
             ? [
@@ -265,7 +276,10 @@ export default function PlatformUsersPage() {
                     value: option.value,
                     label: t(option.label),
                   })),
-                  onChange: (value: string) => setRoleFilter(value as 'ALL' | PlatformUserRole),
+                  onChange: (value: string) => {
+                    setRoleFilter(value as 'ALL' | PlatformUserRole);
+                    setPage(1);
+                  },
                 },
               ]
             : []),
@@ -277,7 +291,10 @@ export default function PlatformUsersPage() {
               value: option.value,
               label: t(option.label),
             })),
-            onChange: (value: string) => setStatusFilter(value as 'ALL' | PlatformUserStatus),
+            onChange: (value: string) => {
+              setStatusFilter(value as 'ALL' | PlatformUserStatus);
+              setPage(1);
+            },
           },
         ]}
       />
@@ -346,7 +363,7 @@ export default function PlatformUsersPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {items.map((user) => (
+                {paginatedItems.items.map((user) => (
                   <TableRow
                     key={user.id}
                     hover
@@ -435,6 +452,13 @@ export default function PlatformUsersPage() {
               </TableBody>
             </Table>
           </TableContainer>
+          <PaginationFooter
+            page={paginatedItems.page}
+            pageSize={paginatedItems.pageSize}
+            totalCount={paginatedItems.totalCount}
+            onPageChange={setPage}
+            ariaLabel={t('Platform accounts pagination')}
+          />
         </Box>
       </QueryState>
 

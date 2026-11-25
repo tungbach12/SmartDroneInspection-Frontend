@@ -87,7 +87,7 @@ export const LyticRadialGaugeCard: React.FC<LyticRadialGaugeCardProps> = ({
           </Typography>
           <Typography
             sx={{
-              color: '#71717A',
+              color: 'text.secondary',
               fontSize: '0.875rem',
               mt: 0.5,
             }}
@@ -97,7 +97,7 @@ export const LyticRadialGaugeCard: React.FC<LyticRadialGaugeCardProps> = ({
         </Box>
         <Box
           sx={{
-            color: '#9CA3AF',
+            color: 'text.secondary',
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -158,7 +158,7 @@ export const LyticRadialGaugeCard: React.FC<LyticRadialGaugeCardProps> = ({
             </Typography>
             <Typography
               sx={{
-                color: '#71717A',
+                color: 'text.secondary',
                 fontSize: '0.75rem',
                 fontWeight: 500,
                 mt: 0.25,
@@ -186,7 +186,7 @@ export const LyticRadialGaugeCard: React.FC<LyticRadialGaugeCardProps> = ({
           <Box key={item.label}>
             <Typography
               sx={{
-                color: '#71717A',
+                color: 'text.secondary',
                 fontSize: '0.875rem',
                 mb: 1,
               }}
@@ -230,7 +230,7 @@ export const LyticRadialGaugeCard: React.FC<LyticRadialGaugeCardProps> = ({
                 </Box>
                 <Typography
                   sx={{
-                    color: '#71717A',
+                    color: 'text.secondary',
                     fontSize: '0.75rem',
                     fontWeight: 500,
                     width: 32,

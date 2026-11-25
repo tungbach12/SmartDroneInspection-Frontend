@@ -35,6 +35,8 @@ import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
 import TuneRounded from '@mui/icons-material/TuneRounded';
 import BadgeOutlined from '@mui/icons-material/BadgeOutlined';
 import { PageHeader } from '@/shared/ui/PageHeader';
+import { PaginationFooter } from '@/shared/ui/PaginationFooter';
+import { paginateItems } from '@/shared/ui/pagination';
 import { QueryState } from '@/shared/ui/QueryState';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
@@ -146,6 +148,7 @@ function FlightChecklistsTab() {
   const [kind, setKind] = useState<ChecklistKind>('PRE_FLIGHT');
   const [search, setSearch] = useState('');
   const [policy, setPolicy] = useState<PolicyFilter>('ALL');
+  const [page, setPage] = useState(1);
 
   const templatesQuery = useChecklistTemplates({ type: kind }, true);
   const createTemplate = useCreateChecklistTemplate();
@@ -183,6 +186,8 @@ function FlightChecklistsTab() {
       return true;
     });
   }, [items, policy, search]);
+
+  const paginatedRows = useMemo(() => paginateItems(rows, page, 10), [rows, page]);
 
   const openCreate = () => {
     createTemplate.reset();
@@ -264,7 +269,10 @@ function FlightChecklistsTab() {
           size="small"
           value={kind}
           onChange={(_, value: ChecklistKind | null) => {
-            if (value) setKind(value);
+            if (value) {
+              setKind(value);
+              setPage(1);
+            }
           }}
           aria-label={t('Checklist phase')}
         >
@@ -290,11 +298,17 @@ function FlightChecklistsTab() {
 
       <AdminTableToolbar
         searchValue={search}
-        onSearchChange={setSearch}
+        onSearchChange={(value) => {
+          setSearch(value);
+          setPage(1);
+        }}
         searchPlaceholder={t('Search checklist items')}
         visibleCount={rows.length}
         totalCount={items.length}
-        onClearAll={() => setPolicy('ALL')}
+        onClearAll={() => {
+          setPolicy('ALL');
+          setPage(1);
+        }}
         filters={[
           {
             key: 'policy',
@@ -305,7 +319,10 @@ function FlightChecklistsTab() {
               { value: 'REQUIRED', label: t('Required') },
               { value: 'OPTIONAL', label: t('Optional') },
             ],
-            onChange: (value) => setPolicy(value as PolicyFilter),
+            onChange: (value) => {
+              setPolicy(value as PolicyFilter);
+              setPage(1);
+            },
           },
         ]}
       />
@@ -359,7 +376,7 @@ function FlightChecklistsTab() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  rows.map((item, index) => (
+                  paginatedRows.items.map((item, index) => (
                     <TableRow
                       key={item.id}
                       hover
@@ -400,7 +417,7 @@ function FlightChecklistsTab() {
                             color: 'text.secondary',
                           }}
                         >
-                          {String(index + 1).padStart(2, '0')}
+                          {String((paginatedRows.page - 1) * paginatedRows.pageSize + index + 1).padStart(2, '0')}
                         </Box>
                       </TableCell>
                       <TableCell sx={{ py: 1.25 }}>
@@ -453,6 +470,13 @@ function FlightChecklistsTab() {
               </TableBody>
             </Table>
           </TableContainer>
+          <PaginationFooter
+            page={paginatedRows.page}
+            pageSize={paginatedRows.pageSize}
+            totalCount={paginatedRows.totalCount}
+            onPageChange={setPage}
+            ariaLabel={t('Flight checklists pagination')}
+          />
         </Paper>
       </QueryState>
 

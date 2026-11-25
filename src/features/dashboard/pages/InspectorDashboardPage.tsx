@@ -745,8 +745,8 @@ export function InspectorDashboardPage() {
                 <TableRow>
                   <TableCell
                     sx={{
-                      bgcolor: 'rgba(244, 244, 245, 0.5)',
-                      color: '#71717A',
+                      bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
+                      color: 'text.secondary',
                       fontSize: '0.75rem',
                       fontWeight: 500,
                       py: 1.5,
@@ -758,8 +758,8 @@ export function InspectorDashboardPage() {
                   </TableCell>
                   <TableCell
                     sx={{
-                      bgcolor: 'rgba(244, 244, 245, 0.5)',
-                      color: '#71717A',
+                      bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
+                      color: 'text.secondary',
                       fontSize: '0.75rem',
                       fontWeight: 500,
                       py: 1.5,
@@ -772,8 +772,8 @@ export function InspectorDashboardPage() {
                   </TableCell>
                   <TableCell
                     sx={{
-                      bgcolor: 'rgba(244, 244, 245, 0.5)',
-                      color: '#71717A',
+                      bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
+                      color: 'text.secondary',
                       fontSize: '0.75rem',
                       fontWeight: 500,
                       py: 1.5,
@@ -787,8 +787,8 @@ export function InspectorDashboardPage() {
                   <TableCell
                     align="right"
                     sx={{
-                      bgcolor: 'rgba(244, 244, 245, 0.5)',
-                      color: '#71717A',
+                      bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
+                      color: 'text.secondary',
                       fontSize: '0.75rem',
                       fontWeight: 500,
                       py: 1.5,
