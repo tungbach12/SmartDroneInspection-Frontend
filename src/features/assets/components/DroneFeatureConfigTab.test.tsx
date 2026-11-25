@@ -76,4 +76,33 @@ describe('DroneFeatureConfigTab', () => {
       );
     });
   });
+
+  it('paginates feature rows across pages when more than ten exist', async () => {
+    const manyFeatures = Array.from({ length: 12 }, (_, index) => ({
+      id: `feat-${index + 1}`,
+      code: `FEAT_${String(index + 1).padStart(2, '0')}`,
+      nameVi: `Tính năng ${index + 1}`,
+      nameEn: `Feature ${String(index + 1).padStart(2, '0')}`,
+      descriptionVi: '',
+      descriptionEn: '',
+      category: 'CAPABILITY' as const,
+      isActive: true,
+      displayOrder: index + 1,
+      createdAt: '2026-11-24T00:00:00Z',
+      updatedAt: '2026-11-24T00:00:00Z',
+    }));
+    vi.mocked(droneFeatureConfigApi.list).mockResolvedValueOnce(manyFeatures);
+
+    renderTab();
+
+    expect(await screen.findByText('Showing 1–10 of 12')).toBeTruthy();
+    expect(screen.getByText('Feature 01')).toBeTruthy();
+    expect(screen.queryByText('Feature 11')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Go to page 2' }));
+
+    expect(screen.getByText('Showing 11–12 of 12')).toBeTruthy();
+    expect(screen.getByText('Feature 11')).toBeTruthy();
+    expect(screen.queryByText('Feature 01')).toBeNull();
+  });
 });

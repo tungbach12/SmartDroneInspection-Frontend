@@ -31,6 +31,7 @@ import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
 import ToggleOnRounded from '@mui/icons-material/ToggleOnRounded';
 import ToggleOffOutlined from '@mui/icons-material/ToggleOffOutlined';
 import CloseRounded from '@mui/icons-material/CloseRounded';
+import { useToastStore } from '@/shared/ui/Toast';
 import {
   droneDocumentConfigApi,
   type DroneDocumentConfig,
@@ -39,6 +40,9 @@ import {
 } from '../api/droneDocumentConfigApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
+import { PaginationFooter } from '@/shared/ui/PaginationFooter';
+import { paginateItems } from '@/shared/ui/pagination';
+import { StatusChip } from '@/shared/ui/StatusChip';
 import { AdminTableToolbar } from '@/features/admin/components/AdminTableToolbar';
 
 interface FormState {
@@ -67,6 +71,7 @@ export function DroneDocumentConfigTab() {
   const { locale } = useLocale();
   const tr = (vi: string, en: string) => (locale === 'vi' ? vi : en);
   const queryClient = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
 
   const [openDialog, setOpenDialog] = useState(false);
   const [editingItem, setEditingItem] = useState<DroneDocumentConfig | null>(null);
@@ -76,6 +81,7 @@ export function DroneDocumentConfigTab() {
   const [search, setSearch] = useState('');
   const [policyFilter, setPolicyFilter] = useState<'ALL' | 'REQUIRED' | 'OPTIONAL'>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
+  const [page, setPage] = useState(1);
 
   const configsQuery = useQuery({
     queryKey: ['drone-document-configs-admin'],
@@ -94,6 +100,7 @@ export function DroneDocumentConfigTab() {
       setForm(initialForm);
       setErrorMsg(null);
       await invalidate();
+      showToast(tr('Đã tạo cấu hình tài liệu Drone.', 'Drone document config created.'), 'success');
     },
     onError: (err: unknown) => {
       const msg = err instanceof Error ? err.message : 'Failed to create document config';
@@ -110,6 +117,7 @@ export function DroneDocumentConfigTab() {
       setForm(initialForm);
       setErrorMsg(null);
       await invalidate();
+      showToast(tr('Đã cập nhật cấu hình tài liệu Drone.', 'Drone document config updated.'), 'success');
     },
     onError: (err: unknown) => {
       const msg = err instanceof Error ? err.message : 'Failed to update document config';
@@ -119,7 +127,10 @@ export function DroneDocumentConfigTab() {
 
   const toggleMutation = useMutation({
     mutationFn: (id: string) => droneDocumentConfigApi.toggleActive(id),
-    onSuccess: invalidate,
+    onSuccess: async () => {
+      await invalidate();
+      showToast(tr('Đã đổi trạng thái tài liệu Drone.', 'Drone document status updated.'), 'success');
+    },
   });
 
   const deleteMutation = useMutation({
@@ -127,6 +138,7 @@ export function DroneDocumentConfigTab() {
     onSuccess: async () => {
       setDeletingId(null);
       await invalidate();
+      showToast(tr('Đã xóa cấu hình tài liệu Drone.', 'Drone document config deleted.'), 'success');
     },
   });
 
@@ -202,6 +214,11 @@ export function DroneDocumentConfigTab() {
     });
   }, [configs, policyFilter, search, statusFilter]);
 
+  const paginatedConfigs = useMemo(
+    () => paginateItems(filteredConfigs, page, 10),
+    [filteredConfigs, page],
+  );
+
   return (
     <Card variant="outlined" sx={{ borderRadius: '12px' }}>
       <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
@@ -230,7 +247,10 @@ export function DroneDocumentConfigTab() {
 
         <AdminTableToolbar
           searchValue={search}
-          onSearchChange={setSearch}
+          onSearchChange={(value) => {
+            setSearch(value);
+            setPage(1);
+          }}
           searchPlaceholder={tr('Tìm theo mã hoặc tên tài liệu', 'Search code or document name')}
           visibleCount={filteredConfigs.length}
           totalCount={configs.length}
@@ -244,8 +264,10 @@ export function DroneDocumentConfigTab() {
                 { value: 'REQUIRED', label: tr('Bắt buộc', 'Required') },
                 { value: 'OPTIONAL', label: tr('Tùy chọn', 'Optional') },
               ],
-              onChange: (value) =>
-                setPolicyFilter(value as 'ALL' | 'REQUIRED' | 'OPTIONAL'),
+              onChange: (value) => {
+                setPolicyFilter(value as 'ALL' | 'REQUIRED' | 'OPTIONAL');
+                setPage(1);
+              },
             },
             {
               key: 'status',
@@ -256,8 +278,10 @@ export function DroneDocumentConfigTab() {
                 { value: 'ACTIVE', label: tr('Đang áp dụng', 'Active') },
                 { value: 'INACTIVE', label: tr('Tạm ẩn', 'Inactive') },
               ],
-              onChange: (value) =>
-                setStatusFilter(value as 'ALL' | 'ACTIVE' | 'INACTIVE'),
+              onChange: (value) => {
+                setStatusFilter(value as 'ALL' | 'ACTIVE' | 'INACTIVE');
+                setPage(1);
+              },
             },
           ]}
         />
@@ -285,54 +309,80 @@ export function DroneDocumentConfigTab() {
               : tr('Không có giấy tờ nào khớp bộ lọc.', 'No documents match the current filters.')}
           </Alert>
         ) : (
-          <TableContainer>
-            <Table size="small">
+          <Box
+            sx={{
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: '10px',
+              overflow: 'hidden',
+            }}
+          >
+            <TableContainer>
+            <Table
+              size="small"
+              sx={{
+                '& .MuiTableCell-root': { px: 1.25, py: 1.25 },
+              }}
+            >
               <TableHead>
-                <TableRow sx={{ bgcolor: 'action.hover' }}>
-                  <TableCell sx={{ fontWeight: 700 }}>{tr('Thứ tự', 'Order')}</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>{tr('Mã (Code)', 'Code')}</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>{tr('Tên tài liệu', 'Document Title')}</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>{tr('Mô tả', 'Description')}</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>{tr('Quy định', 'Requirement')}</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>{tr('Trạng thái', 'Status')}</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700 }}>{tr('Thao tác', 'Actions')}</TableCell>
+                <TableRow
+                  sx={{
+                    bgcolor: (muiTheme) =>
+                      muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB',
+                  }}
+                >
+                  <TableCell sx={{ width: 44, fontWeight: 600, fontSize: '0.75rem', color: 'text.secondary' }}>#</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: 'text.secondary' }}>{tr('Tài liệu', 'Document')}</TableCell>
+                  <TableCell sx={{ width: 100, fontWeight: 600, fontSize: '0.75rem', color: 'text.secondary' }}>{tr('Quy định', 'Requirement')}</TableCell>
+                  <TableCell sx={{ width: 96, fontWeight: 600, fontSize: '0.75rem', color: 'text.secondary' }}>{tr('Trạng thái', 'Status')}</TableCell>
+                  <TableCell align="right" sx={{ width: 104, fontWeight: 600, fontSize: '0.75rem', color: 'text.secondary' }}>{tr('Thao tác', 'Actions')}</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredConfigs.map((cfg) => (
+                {paginatedConfigs.items.map((cfg) => (
                   <TableRow key={cfg.id} hover>
-                    <TableCell sx={{ fontWeight: 600 }}>{cfg.displayOrder}</TableCell>
-                    <TableCell>
-                      <Chip size="small" label={cfg.code} sx={{ fontFamily: 'monospace', fontWeight: 700 }} />
-                    </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ fontWeight: 600, color: 'text.secondary' }}>{cfg.displayOrder}</TableCell>
+                    <TableCell sx={{ minWidth: 0 }}>
                       <Typography variant="body2" sx={{ fontWeight: 650 }}>
                         {locale === 'vi' ? cfg.titleVi : cfg.titleEn}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {locale === 'vi' ? cfg.titleEn : cfg.titleVi}
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+                        {locale === 'vi' ? cfg.descriptionVi || cfg.titleEn : cfg.descriptionEn || cfg.titleVi}
                       </Typography>
-                    </TableCell>
-                    <TableCell sx={{ maxWidth: 280 }}>
-                      <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
-                        {locale === 'vi' ? cfg.descriptionVi || '—' : cfg.descriptionEn || '—'}
-                      </Typography>
+                      <Box
+                        component="span"
+                        sx={{
+                          display: 'inline-block',
+                          mt: 0.75,
+                          px: 0.75,
+                          py: 0.125,
+                          borderRadius: '6px',
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          bgcolor: 'background.default',
+                          fontFamily: 'monospace',
+                          fontSize: '0.7rem',
+                          fontWeight: 600,
+                          color: 'text.secondary',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {cfg.code}
+                      </Box>
                     </TableCell>
                     <TableCell>
                       <Chip
                         size="small"
                         label={cfg.isRequired ? tr('Bắt buộc', 'Required') : tr('Tùy chọn', 'Optional')}
                         color={cfg.isRequired ? 'warning' : 'default'}
-                        variant={cfg.isRequired ? 'filled' : 'outlined'}
+                        variant="outlined"
                         sx={{ fontWeight: 600 }}
                       />
                     </TableCell>
                     <TableCell>
-                      <Chip
-                        size="small"
+                      <StatusChip
+                        status={cfg.isActive ? 'ACTIVE' : 'INACTIVE'}
                         label={cfg.isActive ? tr('Đang áp dụng', 'Active') : tr('Tạm ẩn', 'Inactive')}
-                        color={cfg.isActive ? 'success' : 'default'}
-                        sx={{ fontWeight: 600 }}
                       />
                     </TableCell>
                     <TableCell align="right">
@@ -368,6 +418,14 @@ export function DroneDocumentConfigTab() {
               </TableBody>
             </Table>
           </TableContainer>
+            <PaginationFooter
+              page={paginatedConfigs.page}
+              pageSize={paginatedConfigs.pageSize}
+              totalCount={paginatedConfigs.totalCount}
+              onPageChange={setPage}
+              ariaLabel={tr('Phân trang cấu hình giấy tờ Drone', 'Drone document configs pagination')}
+            />
+          </Box>
         )}
 
         {/* DIALOG THÊM / SỬA CẤU HÌNH */}
