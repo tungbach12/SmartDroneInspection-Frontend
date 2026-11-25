@@ -18,6 +18,7 @@ import {
   ListItem,
   ListItemText,
   MenuItem,
+  Pagination,
   Paper,
   Stack,
   TextField,
@@ -381,12 +382,14 @@ function AssetCard({
   );
 }
 
+const ASSETS_PER_PAGE = 8;
+
 export function AssetsPage() {
   const { formatNumber, t } = useLocale();
   const navigate = useNavigate();
   const roles = useAuthStore((state) => state.roles);
   const isClient = roles.includes('CUSTOMER');
-  const { data, isLoading, error, refetch } = useAssets({ page: 1, pageSize: 50 });
+  const { data, isLoading, error, refetch } = useAssets({ page: 1, pageSize: 100 });
   const createAsset = useCreateAsset();
   const uploadInitialPhoto = useUploadDocument('');
   const showToast = useToastStore((state) => state.showToast);
@@ -400,6 +403,7 @@ export function AssetsPage() {
   const [statusFilter, setStatusFilter] = useState<
     'ACTIVE' | 'PENDING_REVIEW' | 'INACTIVE' | 'RETIRED'
   >('ACTIVE');
+  const [page, setPage] = useState(1);
 
   const items = data?.items ?? [];
   const totalCount = data?.totalCount ?? items.length;
@@ -416,6 +420,12 @@ export function AssetsPage() {
       formatLocation(asset.locationText).toLowerCase().includes(normalizedQuery)
     );
   });
+  const totalFilteredPages = Math.max(1, Math.ceil(filteredItems.length / ASSETS_PER_PAGE));
+  const safePage = Math.min(page, totalFilteredPages);
+  const pagedItems = filteredItems.slice(
+    (safePage - 1) * ASSETS_PER_PAGE,
+    safePage * ASSETS_PER_PAGE,
+  );
 
   const categoryNameById = new Map((categories.data ?? []).map((c) => [c.id, c.name]));
 
@@ -443,7 +453,17 @@ export function AssetsPage() {
     <Box className="workspace-page workspace-page--assets">
       <PageHeader
         title={t('Assets')}
-        breadcrumbs={[{ label: t('Operations'), to: '/client/dashboard' }, { label: t('Assets') }]}
+        breadcrumbs={[
+          {
+            label: isClient ? t('Operations') : t('Overview'),
+            to: isClient
+              ? '/client/dashboard'
+              : roles.includes('MANAGER')
+                ? '/manager/dashboard'
+                : '/admin/dashboard',
+          },
+          { label: t('Assets') },
+        ]}
       />
       {/* 4 Lytic KPI Metric Cards */}
       {isClient && (
@@ -512,7 +532,10 @@ export function AssetsPage() {
             <TextField
               size="small"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setPage(1);
+              }}
               placeholder={t('Search by id, name, or code…')}
               sx={{ width: { xs: '100%', sm: 280 }, bgcolor: 'background.paper', borderRadius: '8px' }}
               slotProps={{
@@ -530,11 +553,12 @@ export function AssetsPage() {
               size="small"
               label={t('Status')}
               value={statusFilter}
-              onChange={(e) =>
+              onChange={(e) => {
                 setStatusFilter(
                   e.target.value as 'ACTIVE' | 'PENDING_REVIEW' | 'INACTIVE' | 'RETIRED',
-                )
-              }
+                );
+                setPage(1);
+              }}
               sx={{ minWidth: { xs: '100%', sm: 180 }, bgcolor: 'background.paper', borderRadius: '8px' }}
             >
               <MenuItem value="ACTIVE">{t('ACTIVE')}</MenuItem>
@@ -556,18 +580,69 @@ export function AssetsPage() {
             </Typography>
           </Paper>
         ) : (
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 2.5 }}>
-            {filteredItems.map((asset) => (
-              <AssetCard
-                key={asset.id}
-                asset={asset}
-                categoryName={categoryNameById.get(asset.categoryId)}
-                isClient={isClient}
-                onSelect={(picked) => setSelected(picked)}
-                onRequestInspection={() => navigate('/client/contracts')}
+          <Stack spacing={2.5}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 2.5 }}>
+              {pagedItems.map((asset) => (
+                <AssetCard
+                  key={asset.id}
+                  asset={asset}
+                  categoryName={categoryNameById.get(asset.categoryId)}
+                  isClient={isClient}
+                  onSelect={(picked) => setSelected(picked)}
+                  onRequestInspection={() => navigate('/client/contracts')}
+                />
+              ))}
+            </Box>
+
+            <Paper
+              variant="outlined"
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                px: { xs: 2, sm: 2.5 },
+                py: 1.5,
+                borderRadius: '10px',
+                borderColor: 'divider',
+                flexWrap: 'wrap',
+                gap: 1.5,
+              }}
+            >
+              <Typography
+                variant="body2"
+                sx={{ color: 'text.secondary', fontSize: '0.875rem', fontVariantNumeric: 'tabular-nums' }}
+              >
+                {`${t('Showing')} ${(safePage - 1) * ASSETS_PER_PAGE + 1}–${Math.min(safePage * ASSETS_PER_PAGE, filteredItems.length)} ${t('of')} ${filteredItems.length}`}
+              </Typography>
+              <Pagination
+                count={totalFilteredPages}
+                page={safePage}
+                onChange={(_event, nextPage) => setPage(nextPage)}
+                shape="rounded"
+                size="small"
+                siblingCount={1}
+                boundaryCount={1}
+                aria-label={t('Assets pagination')}
+                sx={{
+                  '& .MuiPaginationItem-root': {
+                    borderRadius: '8px',
+                    fontWeight: 600,
+                    fontSize: '0.8125rem',
+                    color: 'text.primary',
+                  },
+                  '& .MuiPaginationItem-page.Mui-selected': {
+                    bgcolor: 'primary.main',
+                    color: '#FFFFFF',
+                    '&:hover': { bgcolor: 'primary.dark' },
+                  },
+                  '& .MuiPaginationItem-previousNext': {
+                    border: '1px solid',
+                    borderColor: 'divider',
+                  },
+                }}
               />
-            ))}
-          </Box>
+            </Paper>
+          </Stack>
         )}
       </QueryState>
 

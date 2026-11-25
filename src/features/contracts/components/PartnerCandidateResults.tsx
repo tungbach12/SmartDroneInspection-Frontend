@@ -8,6 +8,7 @@ import {
   Divider,
   InputAdornment,
   MenuItem,
+  Pagination,
   Skeleton,
   Stack,
   TextField,
@@ -185,6 +186,78 @@ export function filtersHaveAdvancedSelection(filters: CandidateFilters): boolean
 }
 
 const pairKey = (candidate: PartnerCandidate) => `${candidate.inspectorId}:${candidate.droneId}`;
+const CANDIDATES_PER_PAGE = 6;
+const UNAVAILABLE_PER_PAGE = 5;
+
+function CandidatePaginationFooter({
+  page,
+  totalCount,
+  pageSize,
+  ariaLabel,
+  onPageChange,
+}: {
+  page: number;
+  totalCount: number;
+  pageSize: number;
+  ariaLabel: string;
+  onPageChange: (nextPage: number) => void;
+}) {
+  const { t } = useLocale();
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const start = totalCount === 0 ? 0 : (safePage - 1) * pageSize + 1;
+  const end = Math.min(safePage * pageSize, totalCount);
+
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        px: { xs: 1.5, sm: 2 },
+        py: 1.25,
+        borderTop: '1px solid',
+        borderColor: 'divider',
+        flexWrap: 'wrap',
+        gap: 1.5,
+      }}
+    >
+      <Typography
+        variant="body2"
+        sx={{ color: 'text.secondary', fontSize: '0.8125rem', fontVariantNumeric: 'tabular-nums' }}
+      >
+        {`${t('Showing')} ${start}–${end} ${t('of')} ${totalCount}`}
+      </Typography>
+      <Pagination
+        count={totalPages}
+        page={safePage}
+        onChange={(_event, nextPage) => onPageChange(nextPage)}
+        shape="rounded"
+        size="small"
+        siblingCount={1}
+        boundaryCount={1}
+        aria-label={ariaLabel}
+        sx={{
+          '& .MuiPaginationItem-root': {
+            borderRadius: '8px',
+            fontWeight: 600,
+            fontSize: '0.8125rem',
+            color: 'text.primary',
+          },
+          '& .MuiPaginationItem-page.Mui-selected': {
+            bgcolor: 'primary.main',
+            color: '#FFFFFF',
+            '&:hover': { bgcolor: 'primary.dark' },
+          },
+          '& .MuiPaginationItem-previousNext': {
+            border: '1px solid',
+            borderColor: 'divider',
+          },
+        }}
+      />
+    </Box>
+  );
+}
 
 function formatAltitudeSummary(candidate: PartnerCandidate, t: (key: string) => string): string {
   const parts: string[] = [];
@@ -299,14 +372,20 @@ export function PartnerCandidateResults({
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [filters, setFilters] = useState<CandidateFilters>(DEFAULT_FILTERS);
   const [detailKey, setDetailKey] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [unavailablePage, setUnavailablePage] = useState(1);
 
   const updateFilter = <Key extends keyof CandidateFilters>(key: Key, value: CandidateFilters[Key]) => {
     setFilters((current) => ({ ...current, [key]: value }));
+    setPage(1);
+    setUnavailablePage(1);
   };
 
   const resetFilters = () => {
     setFilters(DEFAULT_FILTERS);
     setShowAdvancedFilters(false);
+    setPage(1);
+    setUnavailablePage(1);
   };
 
   if (loading) {
@@ -338,7 +417,22 @@ export function PartnerCandidateResults({
   const visibleUnavailable = allUnavailableCandidates.filter((candidate) =>
     candidateMatchesFilters(candidate, { ...filters, eligibility: 'ALL_EVALUATED' }),
   );
-  const candidateGroups = groupByInspector(visibleCandidates);
+  const totalCandidatePages = Math.max(1, Math.ceil(visibleCandidates.length / CANDIDATES_PER_PAGE));
+  const safePage = Math.min(page, totalCandidatePages);
+  const pagedCandidates = visibleCandidates.slice(
+    (safePage - 1) * CANDIDATES_PER_PAGE,
+    safePage * CANDIDATES_PER_PAGE,
+  );
+  const candidateGroups = groupByInspector(pagedCandidates);
+  const totalUnavailablePages = Math.max(
+    1,
+    Math.ceil(visibleUnavailable.length / UNAVAILABLE_PER_PAGE),
+  );
+  const safeUnavailablePage = Math.min(unavailablePage, totalUnavailablePages);
+  const pagedUnavailable = visibleUnavailable.slice(
+    (safeUnavailablePage - 1) * UNAVAILABLE_PER_PAGE,
+    safeUnavailablePage * UNAVAILABLE_PER_PAGE,
+  );
   const capabilityOptions = capabilities.data ?? [];
 
   const advancedFiltersActive = filtersHaveAdvancedSelection(filters);
@@ -1226,6 +1320,15 @@ export function PartnerCandidateResults({
                 </tbody>
               ))}
             </table>
+            {visibleCandidates.length > 0 && (
+              <CandidatePaginationFooter
+                page={safePage}
+                totalCount={visibleCandidates.length}
+                pageSize={CANDIDATES_PER_PAGE}
+                ariaLabel={t('Candidate drones pagination')}
+                onPageChange={setPage}
+              />
+            )}
           </Box>
         )}
 
@@ -1271,7 +1374,7 @@ export function PartnerCandidateResults({
                     {t('No unavailable pairs match these filters.')}
                   </Typography>
                 ) : (
-                  visibleUnavailable.map((candidate) => {
+                  pagedUnavailable.map((candidate) => {
                     const isBlocked =
                       candidate.eligibility === 'FAIL' || candidate.capabilityFit === 'MISMATCH';
                     const rowDescId = `unavail-desc-${candidate.inspectorId}-${candidate.droneId}`;
@@ -1361,6 +1464,15 @@ export function PartnerCandidateResults({
                       </Stack>
                     );
                   })
+                )}
+                {visibleUnavailable.length > UNAVAILABLE_PER_PAGE && (
+                  <CandidatePaginationFooter
+                    page={safeUnavailablePage}
+                    totalCount={visibleUnavailable.length}
+                    pageSize={UNAVAILABLE_PER_PAGE}
+                    ariaLabel={t('Unavailable candidate drones pagination')}
+                    onPageChange={setUnavailablePage}
+                  />
                 )}
               </Stack>
             )}
