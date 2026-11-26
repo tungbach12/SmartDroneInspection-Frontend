@@ -1,6 +1,7 @@
-import { render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ServiceRequest } from '../../api/contractApi';
 import { ManagerOccurrencesStep } from './ManagerOccurrencesStep';
 
@@ -10,10 +11,22 @@ vi.mock('@/shared/i18n/LocaleProvider', () => ({
 vi.mock('../../hooks/useContracts', () => ({
   useAssignServiceOccurrence: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useAssignRemainingOccurrences: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useCancelServiceOccurrence: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useEvaluatePartnerCandidates: () => ({ mutateAsync: vi.fn(), isPending: false }),
   usePartnerInspectors: () => ({ data: [], isPending: false }),
   usePartnerDrones: () => ({ data: [], isPending: false }),
   usePartnerCapabilities: () => ({ data: [], isPending: false }),
+}));
+vi.mock('@/features/assets/hooks/useAssets', () => ({
+  useAsset: () => ({
+    data: {
+      id: 'asset-1',
+      latitude: 10.7789,
+      longitude: 106.7082,
+      structureHeightMeters: 45,
+    },
+    isPending: false,
+  }),
 }));
 vi.mock('@/shared/ui/AuthenticatedImage', () => ({
   AuthenticatedImage: () => null,
@@ -100,15 +113,38 @@ function assignedRequest(): ServiceRequest {
   } as unknown as ServiceRequest;
 }
 
-describe('ManagerOccurrencesStep', () => {
-  it('opens the inspection review at step 1 (field audit), not step 2', () => {
-    render(
+function renderOccurrencesStep(req: ServiceRequest) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={client}>
       <MemoryRouter>
-        <ManagerOccurrencesStep request={assignedRequest()} onChanged={vi.fn()} onError={vi.fn()} />
-      </MemoryRouter>,
-    );
+        <ManagerOccurrencesStep request={req} onChanged={vi.fn()} onError={vi.fn()} />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
+describe('ManagerOccurrencesStep', () => {
+  afterEach(() => cleanup());
+
+  it('opens the inspection review at step 1 (field audit), not step 2', () => {
+    renderOccurrencesStep(assignedRequest());
 
     const link = screen.getByRole('link', { name: 'Open review' });
     expect(link.getAttribute('href')).toBe('/manager/inspections/inspection-1/audit');
+  });
+
+  it('shows restricted airspace banner and lets manager open Cancel flight on pending occurrence', () => {
+    const req = assignedRequest();
+    req.occurrences[0] = {
+      ...req.occurrences[0]!,
+      assignmentStatus: 'PENDING_ACCEPTANCE',
+    };
+    renderOccurrencesStep(req);
+
+    expect(screen.getByText(/Max ceiling 120 m AGL/)).toBeTruthy();
+    const cancelBtn = screen.getByRole('button', { name: 'Cancel flight' });
+    fireEvent.click(cancelBtn);
+    expect(screen.getByText('Cancel scheduled flight?')).toBeTruthy();
   });
 });

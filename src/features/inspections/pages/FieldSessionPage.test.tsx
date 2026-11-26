@@ -619,4 +619,63 @@ describe('FieldSessionPage', () => {
     expect(screen.getByText('No MAVLink? Import a flight log')).toBeTruthy();
     expect(await screen.findByRole('button', { name: 'Upload another log' })).toBeTruthy();
   });
+
+  it('validates restricted-zone permit max altitude ceiling before uploading flight permit', async () => {
+    useAuthStore.setState({ roles: ['INSPECTOR'] });
+    mocks.getById.mockResolvedValue({
+      id: 'inspection-1',
+      assetName: 'Saigon River Wharf',
+      assetLatitude: 10.7789,
+      assetLongitude: 106.7082,
+      status: 'SCHEDULED',
+      flightPermitFileName: null,
+      flightPermitUploadedAt: null,
+      inspectionItems: ['Structure'],
+    });
+    mocks.list.mockResolvedValue([]);
+    mocks.uploadFlightPermit.mockResolvedValue({ id: 'inspection-1' });
+
+    renderWithClient('permit');
+
+    expect(await screen.findByText(/VN-RES-SGN-SAIGON-RIVER/)).toBeTruthy();
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const pdfFile = new File(['%PDF-1.4 test'], 'permit.pdf', { type: 'application/pdf' });
+    fireEvent.change(fileInput, { target: { files: [pdfFile] } });
+
+    fireEvent.change(screen.getByLabelText(/Permit number/), {
+      target: { value: 'CAAV-2026-009' },
+    });
+    fireEvent.change(screen.getByLabelText(/Issuing authority/), {
+      target: { value: 'Cuc Tac Chien' },
+    });
+    fireEvent.change(screen.getByLabelText(/Valid from/), {
+      target: { value: '2026-12-01T08:00' },
+    });
+    fireEvent.change(screen.getByLabelText(/Valid to/), {
+      target: { value: '2026-12-02T17:00' },
+    });
+
+    const maxAltInput = screen.getByLabelText(/Max altitude \(m\)/);
+    fireEvent.change(maxAltInput, { target: { value: '150' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Submit flight permit for verification' }));
+
+    expect(
+      await screen.findByText(/Permit max altitude \(150 m\) exceeds the restricted airspace ceiling \(120 m AGL\)/),
+    ).toBeTruthy();
+    expect(mocks.uploadFlightPermit).not.toHaveBeenCalled();
+
+    fireEvent.change(maxAltInput, { target: { value: '120' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Submit flight permit for verification' }));
+
+    await waitFor(() =>
+      expect(mocks.uploadFlightPermit).toHaveBeenCalledWith(
+        'inspection-1',
+        expect.objectContaining({
+          permitNumber: 'CAAV-2026-009',
+          maxAltitudeM: 120,
+        }),
+      ),
+    );
+  });
 });

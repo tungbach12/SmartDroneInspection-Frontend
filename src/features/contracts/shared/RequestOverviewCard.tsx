@@ -8,6 +8,7 @@ import { useAuthStore } from '@/features/auth/store/authStore';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { AuthenticatedImage } from '@/shared/ui/AuthenticatedImage';
 import { StatusChip } from '@/shared/ui/StatusChip';
+import { RestrictedAirspaceChip } from '@/shared/airspace/RestrictedAirspaceNotice';
 import type { ServiceRequest } from '../api/contractApi';
 import { AssetOverviewDialog } from './AssetOverviewDialog';
 import { CheckpointsOverviewDialog } from './CheckpointsOverviewDialog';
@@ -359,6 +360,10 @@ export function RequestOverviewCard({
                 status={resolvedStatus}
                 label={getStatusLabel(resolvedStatus, t)}
                 tone={statusTone(resolvedStatus)}
+              />
+              <RestrictedAirspaceChip
+                latitude={assetQuery.data?.latitude}
+                longitude={assetQuery.data?.longitude}
               />
               <Chip
                 size="small"

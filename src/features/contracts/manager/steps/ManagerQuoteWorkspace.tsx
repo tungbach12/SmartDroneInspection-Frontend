@@ -1,14 +1,28 @@
 import { useState } from 'react';
-import { Alert, Box, Button, Chip, Stack, TextField, Typography } from '@mui/material';
+import {
+  Alert,
+  Box,
+  Button,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material';
 import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import TaskAltOutlinedIcon from '@mui/icons-material/TaskAltOutlined';
+import { useAsset } from '@/features/assets/hooks/useAssets';
+import { RestrictedAirspaceAlert } from '@/shared/airspace/RestrictedAirspaceNotice';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import type { IssueServiceQuoteInput, ServiceRequest } from '../../api/contractApi';
 import { enumerateMonthlySchedule } from '../../api/recurrenceSchedule';
 import { dateTimeInputToInstant, instantToDateTimeInput } from '../../api/scheduleTime';
-import { useIssueServiceQuote } from '../../hooks/useContracts';
+import { useCancelServiceRequest, useIssueServiceQuote } from '../../hooks/useContracts';
 import { extractContractErrorText, resolveCurrentQuote } from '../../shared/contractStage';
 import { QuoteTermsSummary } from '../../shared/QuoteTermsSummary';
 import { RequestCheckpointsEditor } from '../components/RequestCheckpointsEditor';
@@ -55,6 +69,10 @@ export function ManagerQuoteWorkspace({
 
   const currentQuote = resolveCurrentQuote(request);
   const save = useIssueServiceQuote(request.id);
+  const cancelRequest = useCancelServiceRequest(request.id);
+  const assetQuery = useAsset(request.assetId);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
 
   const [scope, setScope] = useState(currentQuote?.scopeSnapshot ?? request.description);
   const [start, setStart] = useState(() =>
@@ -199,26 +217,52 @@ export function ManagerQuoteWorkspace({
             <Chip size="small" label={t('Current terms')} sx={{ borderRadius: '6px' }} />
           )}
         </Stack>
-        <Button
-          size="small"
-          variant="outlined"
-          startIcon={<ChatOutlinedIcon fontSize="small" />}
-          onClick={() => onOpenInbox(request.id)}
-          sx={{
-            borderRadius: '8px',
-            textTransform: 'none',
-            fontWeight: 600,
-            alignSelf: { xs: 'flex-start', sm: 'center' },
-            flexShrink: 0,
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {t('Messages')}
-        </Button>
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', flexShrink: 0 }}>
+          <Button
+            size="small"
+            variant="outlined"
+            color="error"
+            onClick={() => {
+              setCancelReason('');
+              setCancelOpen(true);
+            }}
+            sx={{
+              borderRadius: '8px',
+              textTransform: 'none',
+              fontWeight: 600,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {t('Cancel request')}
+          </Button>
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<ChatOutlinedIcon fontSize="small" />}
+            onClick={() => onOpenInbox(request.id)}
+            sx={{
+              borderRadius: '8px',
+              textTransform: 'none',
+              fontWeight: 600,
+              alignSelf: { xs: 'flex-start', sm: 'center' },
+              flexShrink: 0,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {t('Messages')}
+          </Button>
+        </Stack>
       </Stack>
 
       <Box sx={{ p: 2 }}>
         <Stack spacing={2}>
+          <RestrictedAirspaceAlert
+            role="MANAGER"
+            latitude={assetQuery.data?.latitude}
+            longitude={assetQuery.data?.longitude}
+            structureHeightMeters={assetQuery.data?.structureHeightMeters}
+            footprintAreaSquareMeters={assetQuery.data?.footprintAreaSquareMeters}
+          />
           <RequestCheckpointsEditor
             request={request}
             onChanged={onChanged}
@@ -406,6 +450,51 @@ export function ManagerQuoteWorkspace({
           )}
         </Stack>
       </Box>
+
+      <Dialog open={cancelOpen} onClose={() => setCancelOpen(false)} maxWidth="xs" fullWidth>
+        <form
+          onSubmit={async (event) => {
+            event.preventDefault();
+            if (!cancelReason.trim()) return;
+            try {
+              await cancelRequest.mutateAsync({ reason: cancelReason.trim() });
+              setCancelOpen(false);
+              onChanged();
+            } catch (error) {
+              onError(extractContractErrorText(error, 'Could not cancel service request.'));
+            }
+          }}
+        >
+          <DialogTitle sx={{ fontWeight: 700 }}>{t('Cancel service request?')}</DialogTitle>
+          <DialogContent>
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              <TextField
+                label={t('Cancellation reason')}
+                multiline
+                minRows={3}
+                required
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                helperText={t(
+                  'Explain why this request cannot proceed (for example, restricted-airspace permit unavailable).',
+                )}
+              />
+            </Stack>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button onClick={() => setCancelOpen(false)}>{t('Back')}</Button>
+            <LoadingButton
+              type="submit"
+              color="error"
+              variant="contained"
+              loading={Boolean(cancelRequest?.isPending)}
+              disabled={!cancelReason.trim()}
+            >
+              {t('Confirm cancellation')}
+            </LoadingButton>
+          </DialogActions>
+        </form>
+      </Dialog>
     </Box>
   );
 }

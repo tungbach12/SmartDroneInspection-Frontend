@@ -31,6 +31,7 @@ import { QueryState } from '@/shared/ui/QueryState';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import {
+  useDeclineInspection,
   useFieldSessionOutcome,
   useFieldSessions,
   useInspection,
@@ -49,6 +50,8 @@ import {
   isFlightPermitVerified,
   resolveFlightPermitVerificationStatus,
 } from '../utils/workflowStepResolver';
+import { RestrictedAirspaceAlert } from '@/shared/airspace/RestrictedAirspaceNotice';
+import { getRestrictedAirspaceSummary } from '@/shared/airspace/airspaceZones';
 import { FlightOperationsReportView } from '@/features/reports/components/FlightOperationsReportView';
 import { useChecklistTemplates } from '@/features/assets/hooks/useCatalog';
 import {
@@ -526,6 +529,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
   const startSession = useStartFieldSession(inspectionId);
   const outcome = useFieldSessionOutcome(inspectionId);
   const uploadPermit = useUploadFlightPermit(inspectionId);
+  const declineInspection = useDeclineInspection?.(inspectionId);
   const isReinspection = inspection?.inspectionType === 'RE_INSPECTION';
   const verifications = useReinspectionVerifications?.(isReinspection ? inspectionId : '');
   const evidenceQuery = useInspectionEvidence?.(inspectionId);
@@ -535,7 +539,10 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
   const [issuingAuthorityDraft, setIssuingAuthority] = useState<string | null>(null);
   const [permitValidFromDraft, setPermitValidFrom] = useState<string | null>(null);
   const [permitValidToDraft, setPermitValidTo] = useState<string | null>(null);
+  const [maxAltitudeDraft, setMaxAltitudeDraft] = useState<string | null>(null);
   const [permitFormError, setPermitFormError] = useState<string | null>(null);
+  const [declinePermitOpen, setDeclinePermitOpen] = useState(false);
+  const [declinePermitReason, setDeclinePermitReason] = useState('');
   const [permitPreviewOpen, setPermitPreviewOpen] = useState(false);
   const [replacePermitOpen, setReplacePermitOpen] = useState(false);
   const [pendingPermitReplacePayload, setPendingPermitReplacePayload] = useState<{
@@ -544,6 +551,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
     issuingAuthority: string;
     validFrom: string;
     validTo: string;
+    maxAltitudeM?: number | null | undefined;
   } | null>(null);
   const [startOpen, setStartOpen] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -731,12 +739,24 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
   const permitValidTo =
     permitValidToDraft ??
     toDateTimeLocalValue(inspection?.flightPermitValidTo ?? inspection?.plannedEndAt);
+  const restrictedAirspace = getRestrictedAirspaceSummary(
+    inspection?.assetLatitude,
+    inspection?.assetLongitude,
+  );
+  const maxAltitudeValue =
+    maxAltitudeDraft ??
+    (inspection?.flightPermitMaxAltitudeM != null
+      ? String(inspection.flightPermitMaxAltitudeM)
+      : restrictedAirspace?.maxAltitudeMetersAgl != null
+        ? String(restrictedAirspace.maxAltitudeMetersAgl)
+        : '');
   const submitPermitUpload = (payload: {
     file: File;
     permitNumber: string;
     issuingAuthority: string;
     validFrom: string;
     validTo: string;
+    maxAltitudeM?: number | null | undefined;
   }) => {
     uploadPermit.mutate(payload, {
       onSuccess: () => {
@@ -1108,11 +1128,18 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                   </Stack>
                 </Stack>
 
+                <RestrictedAirspaceAlert
+                  role={isManagerOrAdmin ? 'MANAGER' : 'INSPECTOR'}
+                  latitude={inspection.assetLatitude}
+                  longitude={inspection.assetLongitude}
+                  sx={{ borderRadius: '10px' }}
+                />
+
                 <FlightPermitVerificationPanel
                   inspection={inspection}
                   onPreviewPermit={() => setPermitPreviewOpen(true)}
                   compact
-                  showAirspace={false}
+                  showAirspace
                   hideHeader
                   hideEmptyNotice
                 />
@@ -1326,6 +1353,37 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                           }}
                         />
                       </Grid>
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <TextField
+                          required={Boolean(restrictedAirspace)}
+                          fullWidth
+                          size="small"
+                          type="number"
+                          label={t('Max altitude (m)')}
+                          slotProps={{ htmlInput: { min: 1, max: 2000, step: 1 } }}
+                          placeholder={
+                            restrictedAirspace
+                              ? String(restrictedAirspace.maxAltitudeMetersAgl)
+                              : '120'
+                          }
+                          helperText={
+                            restrictedAirspace
+                              ? tr(
+                                  `Trần vùng hạn chế ${restrictedAirspace.zoneCode}: tối đa ${restrictedAirspace.maxAltitudeMetersAgl} m AGL`,
+                                  `${restrictedAirspace.zoneCode} restricted ceiling: max ${restrictedAirspace.maxAltitudeMetersAgl} m AGL`,
+                                )
+                              : tr(
+                                  'Độ cao tối đa được cấp phép (tùy chọn, 1–2000 m)',
+                                  'Approved max altitude in meters AGL (optional, 1–2000 m)',
+                                )
+                          }
+                          value={maxAltitudeValue}
+                          onChange={(e) => {
+                            setMaxAltitudeDraft(e.target.value);
+                            setPermitFormError(null);
+                          }}
+                        />
+                      </Grid>
                     </Grid>
 
                     {permitFormError && (
@@ -1340,7 +1398,48 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                       fallbackMessage={t('Could not upload flight permit.')}
                     />
 
-                    <Stack direction="row" sx={{ justifyContent: 'flex-end' }}>
+                    <Stack
+                      direction={{ xs: 'column-reverse', sm: 'row' }}
+                      spacing={1.5}
+                      sx={{
+                        justifyContent:
+                          !isManagerOrAdmin &&
+                          !hasPermit &&
+                          !openSession &&
+                          Boolean(declineInspection)
+                            ? 'space-between'
+                            : 'flex-end',
+                        alignItems: { sm: 'center' },
+                      }}
+                    >
+                      {!isManagerOrAdmin &&
+                        !hasPermit &&
+                        !openSession &&
+                        Boolean(declineInspection) && (
+                          <Button
+                            variant="outlined"
+                            color="warning"
+                            size="medium"
+                            onClick={() => {
+                              setDeclinePermitReason(
+                                restrictedAirspace
+                                  ? t('Unable to obtain restricted-airspace flight permit')
+                                  : '',
+                              );
+                              setDeclinePermitOpen(true);
+                            }}
+                            sx={{
+                              borderRadius: '8px',
+                              fontWeight: 600,
+                              textTransform: 'none',
+                            }}
+                          >
+                            {tr(
+                              'Không xin được phép bay / Từ chối',
+                              'Unable to obtain permit / Decline',
+                            )}
+                          </Button>
+                        )}
                       <LoadingButton
                         variant="contained"
                         size="medium"
@@ -1393,6 +1492,39 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                               return;
                             }
                           }
+                          let parsedMaxAltitude: number | null = null;
+                          const trimmedMaxAlt = maxAltitudeValue.trim();
+                          if (restrictedAirspace && !trimmedMaxAlt) {
+                            setPermitFormError(
+                              tr(
+                                `Vui lòng nhập độ cao tối đa được cấp phép (tối đa ${restrictedAirspace.maxAltitudeMetersAgl} m AGL) cho vùng hạn chế.`,
+                                `Enter the approved max altitude (up to ${restrictedAirspace.maxAltitudeMetersAgl} m AGL) for this restricted airspace zone.`,
+                              ),
+                            );
+                            return;
+                          }
+                          if (trimmedMaxAlt) {
+                            const altNum = Number(trimmedMaxAlt);
+                            if (!Number.isInteger(altNum) || altNum < 1 || altNum > 2000) {
+                              setPermitFormError(
+                                t('Max altitude must be a whole number between 1 and 2000 meters.'),
+                              );
+                              return;
+                            }
+                            if (
+                              restrictedAirspace &&
+                              altNum > restrictedAirspace.maxAltitudeMetersAgl
+                            ) {
+                              setPermitFormError(
+                                tr(
+                                  `Độ cao giấy phép (${altNum} m) vượt trần vùng hạn chế (${restrictedAirspace.maxAltitudeMetersAgl} m AGL).`,
+                                  `Permit max altitude (${altNum} m) exceeds the restricted airspace ceiling (${restrictedAirspace.maxAltitudeMetersAgl} m AGL).`,
+                                ),
+                              );
+                              return;
+                            }
+                            parsedMaxAltitude = altNum;
+                          }
 
                           setPermitFormError(null);
                           const payload = {
@@ -1401,6 +1533,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                             issuingAuthority: trimmedAuth,
                             validFrom: fromDate.toISOString(),
                             validTo: toDate.toISOString(),
+                            maxAltitudeM: parsedMaxAltitude,
                           };
                           if (isPermitApproved) {
                             setPendingPermitReplacePayload(payload);
@@ -1427,6 +1560,63 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
               {t('No flight document is recorded. Contact the inspection manager before starting field work.')}
             </Alert>
           ) : null}
+          {declineInspection && (
+            <Dialog
+              open={declinePermitOpen}
+              onClose={() => !declineInspection.isPending && setDeclinePermitOpen(false)}
+              maxWidth="xs"
+              fullWidth
+            >
+              <DialogTitle sx={{ fontWeight: 700 }}>
+                {tr('Không xin được giấy phép bay?', 'Unable to obtain flight permit?')}
+              </DialogTitle>
+              <DialogContent>
+                <Stack spacing={2} sx={{ mt: 1 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    {tr(
+                      'Từ chối nhiệm vụ sẽ trả lịch bay về cho Quản lý để phân công lại hoặc hủy chuyến bay.',
+                      'Declining returns this flight to the Manager so they can reassign it or cancel the flight.',
+                    )}
+                  </Typography>
+                  <TextField
+                    label={t('Decline reason')}
+                    multiline
+                    minRows={3}
+                    required
+                    value={declinePermitReason}
+                    onChange={(e) => setDeclinePermitReason(e.target.value)}
+                    helperText={t('Explain why you cannot perform this inspection so the Manager can reassign it.')}
+                  />
+                </Stack>
+              </DialogContent>
+              <DialogActions sx={{ px: 3, pb: 2.5 }}>
+                <Button
+                  onClick={() => setDeclinePermitOpen(false)}
+                  disabled={declineInspection.isPending}
+                >
+                  {t('Cancel')}
+                </Button>
+                <LoadingButton
+                  variant="contained"
+                  color="warning"
+                  loading={declineInspection.isPending}
+                  disabled={!declinePermitReason.trim()}
+                  onClick={() => {
+                    const reason = declinePermitReason.trim();
+                    if (!reason) return;
+                    declineInspection.mutate(reason, {
+                      onSuccess: () => {
+                        setDeclinePermitOpen(false);
+                        setDeclinePermitReason('');
+                      },
+                    });
+                  }}
+                >
+                  {t('Confirm decline')}
+                </LoadingButton>
+              </DialogActions>
+            </Dialog>
+          )}
           {inspection && stage === 'permit' && isPermitApproved && (
             <Box sx={{ mt: 2 }}>
               <StepActionBar

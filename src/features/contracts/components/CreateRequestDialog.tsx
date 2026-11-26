@@ -23,9 +23,9 @@ import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded';
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded';
 import CloseRounded from '@mui/icons-material/CloseRounded';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
-import { evaluateAirspace } from '@/shared/airspace/airspaceZones';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { getErrorMessage } from '@/shared/api/errorMessage';
+import { RestrictedAirspaceAlert } from '@/shared/airspace/RestrictedAirspaceNotice';
 import { type CreateServiceRequestInput, type ServiceRequest } from '../api/contractApi';
 import {
   addAnchoredMonths,
@@ -45,6 +45,8 @@ interface CreateRequestDialogProps {
     status?: string;
     latitude?: number | null;
     longitude?: number | null;
+    structureHeightMeters?: number | null;
+    footprintAreaSquareMeters?: number | null;
   }[];
   existingRequests?: ServiceRequest[];
   onCreated: (requestId: string) => void;
@@ -58,7 +60,7 @@ function isActiveServiceRequest(request: ServiceRequest): boolean {
   if (request.status === 'CANCELLED') {
     return false;
   }
-  if (request.status !== 'ASSIGNED') {
+  if (request.status !== 'ASSIGNED' && request.status !== 'CONTRACT_SIGNED') {
     return true;
   }
   if (!request.occurrences || request.occurrences.length === 0) {
@@ -420,15 +422,6 @@ export function CreateRequestDialog({
   const activeAssetSelection = assetId || initialAssetId || '';
   const lockedReinspectionAsset = Boolean(sourceInspectionId && initialAssetId);
   const selectedAsset = selectableAssets.find((asset) => asset.id === activeAssetSelection);
-  const selectedAssetAirspace =
-    selectedAsset?.latitude != null && selectedAsset?.longitude != null
-      ? evaluateAirspace(selectedAsset.latitude, selectedAsset.longitude)
-      : null;
-  const selectedRestrictedZone =
-    selectedAssetAirspace?.classification === 'RESTRICTED_ZONE'
-      ? selectedAssetAirspace.matchingZones.find((z) => z.zoneType === 'RESTRICTED_ZONE') ??
-        selectedAssetAirspace.matchingZones[0]
-      : null;
 
   return (
     <Dialog
@@ -573,12 +566,14 @@ export function CreateRequestDialog({
             </Alert>
           )}
 
-          {selectedRestrictedZone && (
-            <Alert severity="warning" sx={{ borderRadius: '10px', fontSize: '0.8125rem' }}>
-              {locale === 'vi'
-                ? `Công trình nằm trong vùng hạn chế bay (${selectedRestrictedZone.name}). Thủ tục cấp phép bay có thể cần thêm thời gian xử lý — vui lòng chọn ngày bay dự kiến đủ rộng.`
-                : `This asset is in a restricted airspace zone (${selectedRestrictedZone.name}). Flight permit processing may take extra time — please select a sufficiently wide preferred inspection date.`}
-            </Alert>
+          {selectedAsset && (
+            <RestrictedAirspaceAlert
+              role="CUSTOMER"
+              latitude={selectedAsset.latitude}
+              longitude={selectedAsset.longitude}
+              structureHeightMeters={selectedAsset.structureHeightMeters}
+              footprintAreaSquareMeters={selectedAsset.footprintAreaSquareMeters}
+            />
           )}
 
           <FormControl
