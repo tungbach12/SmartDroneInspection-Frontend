@@ -62,7 +62,6 @@ import {
   type ChecklistItemSnapshot,
   type FieldSession,
   type FieldSessionFlight,
-  type PreFlightConditions,
 } from '../api/fieldSessionApi';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -571,12 +570,6 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
   }, []);
   const [preFlightChecked, setPreFlightChecked] = useState<string[]>([]);
   const [preFlightNote, setPreFlightNote] = useState('');
-  const [sessionDateInput, setSessionDateInput] = useState(() => new Date().toISOString().slice(0, 10));
-  const [windSpeedInput, setWindSpeedInput] = useState('');
-  const [minBatteryInput, setMinBatteryInput] = useState('');
-  const [gpsSatsInput, setGpsSatsInput] = useState('');
-  const [rthAltInput, setRthAltInput] = useState('');
-  const [weatherSummaryInput, setWeatherSummaryInput] = useState('');
   const [additionalSessionMode, setAdditionalSessionMode] = useState(
     () => searchParams.get('newSession') === '1',
   );
@@ -885,28 +878,6 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
   const hasFlightRecord = hasFlown || hasFlightReport || flightCompletedOnStep;
   const canProceedToPostFlight = hasFlightRecord;
 
-  const parseOptionalNum = (val: string): number | null => {
-    const num = Number(val.trim());
-    return val.trim() !== '' && Number.isFinite(num) ? num : null;
-  };
-
-  const buildPreFlightConditions = (): PreFlightConditions | null => {
-    const cond: PreFlightConditions = {
-      windSpeedMs: parseOptionalNum(windSpeedInput),
-      minBatteryPercent: parseOptionalNum(minBatteryInput),
-      gpsSatellites: parseOptionalNum(gpsSatsInput),
-      rthAltitudeMeters: parseOptionalNum(rthAltInput),
-      weatherSummary: weatherSummaryInput.trim() || null,
-    };
-    const hasAny =
-      cond.windSpeedMs != null ||
-      cond.minBatteryPercent != null ||
-      cond.gpsSatellites != null ||
-      cond.rthAltitudeMeters != null ||
-      Boolean(cond.weatherSummary);
-    return hasAny ? cond : null;
-  };
-
   const buildChecklistSnapshot = (
     specs: readonly ChecklistSpecItem[],
     checkedLabels: readonly string[],
@@ -969,14 +940,11 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
         ? preFlightChecked
         : preFlightSpecItems.filter((item) => item.required).map((item) => item.label);
     const snapshot = buildChecklistSnapshot(preFlightSpecItems, checkedForStartNow);
-    const conditions = buildPreFlightConditions();
     startSession.mutate(
       {
         preFlightChecklistNote: payload,
         startNow: true,
-        sessionDate: sessionDateInput || null,
         preFlightChecklistSnapshot: snapshot,
-        preFlightConditions: conditions,
       },
       {
         onSuccess: () => {
@@ -2016,12 +1984,10 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                           startSession.mutate(
                             {
                               preFlightChecklistNote: payload,
-                              sessionDate: sessionDateInput || null,
                               preFlightChecklistSnapshot: buildChecklistSnapshot(
                                 preFlightSpecItems,
                                 preFlightChecked,
                               ),
-                              preFlightConditions: buildPreFlightConditions(),
                             },
                             {
                               onSuccess: () => {
@@ -2048,79 +2014,6 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                             value={preFlightNote}
                             onChange={(event) => setPreFlightNote(event.target.value)}
                           />
-
-                          <Box component="details" sx={{ '& > summary': { cursor: 'pointer', color: 'text.secondary' } }}>
-                            <Typography component="summary" variant="caption" sx={{ fontWeight: 600 }}>
-                              {tr('Ngày bay & thông số hiện trường (tùy chọn)', 'Flight date & site readings (optional)')}
-                            </Typography>
-                            <Grid container spacing={1.25} sx={{ pt: 1.25 }}>
-                              <Grid size={{ xs: 6, sm: 4, md: 2 }}>
-                                <TextField
-                                  type="date"
-                                  size="small"
-                                  fullWidth
-                                  label={tr('Ngày bay', 'Flight date')}
-                                  value={sessionDateInput}
-                                  onChange={(e) => setSessionDateInput(e.target.value)}
-                                  slotProps={{ inputLabel: { shrink: true } }}
-                                />
-                              </Grid>
-                              <Grid size={{ xs: 6, sm: 4, md: 2 }}>
-                                <TextField
-                                  type="number"
-                                  size="small"
-                                  fullWidth
-                                  label={tr('Gió (m/s)', 'Wind (m/s)')}
-                                  value={windSpeedInput}
-                                  onChange={(e) => setWindSpeedInput(e.target.value)}
-                                  slotProps={{ htmlInput: { min: 0, max: 40, step: 0.5 } }}
-                                />
-                              </Grid>
-                              <Grid size={{ xs: 6, sm: 4, md: 2 }}>
-                                <TextField
-                                  type="number"
-                                  size="small"
-                                  fullWidth
-                                  label={tr('Pin (%)', 'Battery (%)')}
-                                  value={minBatteryInput}
-                                  onChange={(e) => setMinBatteryInput(e.target.value)}
-                                  slotProps={{ htmlInput: { min: 0, max: 100 } }}
-                                />
-                              </Grid>
-                              <Grid size={{ xs: 6, sm: 4, md: 2 }}>
-                                <TextField
-                                  type="number"
-                                  size="small"
-                                  fullWidth
-                                  label={tr('Vệ tinh GPS', 'GPS Sats')}
-                                  value={gpsSatsInput}
-                                  onChange={(e) => setGpsSatsInput(e.target.value)}
-                                  slotProps={{ htmlInput: { min: 0, max: 40 } }}
-                                />
-                              </Grid>
-                              <Grid size={{ xs: 6, sm: 4, md: 2 }}>
-                                <TextField
-                                  type="number"
-                                  size="small"
-                                  fullWidth
-                                  label="RTH (m)"
-                                  value={rthAltInput}
-                                  onChange={(e) => setRthAltInput(e.target.value)}
-                                  slotProps={{ htmlInput: { min: 10, max: 500 } }}
-                                />
-                              </Grid>
-                              <Grid size={{ xs: 6, sm: 4, md: 2 }}>
-                                <TextField
-                                  size="small"
-                                  fullWidth
-                                  label={tr('Thời tiết', 'Weather')}
-                                  placeholder={tr('Quang đãng', 'Clear')}
-                                  value={weatherSummaryInput}
-                                  onChange={(e) => setWeatherSummaryInput(e.target.value)}
-                                />
-                              </Grid>
-                            </Grid>
-                          </Box>
 
                           {!openSession && inspection.status === 'SCHEDULED' && isWindowExpired && (
                             <Alert severity="warning" sx={{ borderRadius: '10px' }}>
@@ -2180,12 +2073,10 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                             startSession.mutate(
                               {
                                 preFlightChecklistNote: payload,
-                                sessionDate: sessionDateInput || null,
                                 preFlightChecklistSnapshot: buildChecklistSnapshot(
                                   preFlightSpecItems,
                                   preFlightChecked,
                                 ),
-                                preFlightConditions: buildPreFlightConditions(),
                               },
                               {
                                 onSuccess: () => {
