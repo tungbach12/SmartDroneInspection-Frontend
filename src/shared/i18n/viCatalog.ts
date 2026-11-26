@@ -2385,6 +2385,8 @@
   "Airspace": "Không phận",
   "No-Fly Zone": "Vùng cấm bay",
   "Restricted Zone": "Vùng hạn chế bay",
+  "Restricted airspace. You can use this location. Inspection flights require a permit.": "Vùng hạn chế bay. Có thể dùng vị trí này. Bay kiểm định cần giấy phép.",
+  "Airspace rules": "Quy định vùng bay",
   "Clear Zone": "Vùng bay thông thoáng",
   "Submitted by Inspector": "Inspector đã nộp",
   "Re-upload required": "Cần tải lại giấy phép",
