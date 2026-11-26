@@ -38,6 +38,7 @@ import {
   useInspection,
   useInspectionEvidence,
   useInspectionFlights,
+  useInspectionWorkflowState,
   useReinspectionVerifications,
   useStartFieldSession,
   useUploadFlightPermit,
@@ -526,6 +527,11 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
   const inspectionQuery = useInspection(inspectionId);
   const inspection = inspectionQuery.data;
   const sessions = useFieldSessions(inspectionId);
+  const showPermitSection = !stage || stage === 'permit';
+  const isInspector = roles.includes('INSPECTOR');
+  const workflowQuery = useInspectionWorkflowState(
+    showPermitSection && isInspector ? inspectionId : null,
+  );
   const flightsQuery = useInspectionFlights(inspectionId);
   const startSession = useStartFieldSession(inspectionId);
   const outcome = useFieldSessionOutcome(inspectionId);
@@ -732,20 +738,8 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
       permitVerificationStatus === 'REJECTED' ||
       permitVerificationStatus === 'PENDING_REVIEW' ||
       replacePermitOpen);
-  // Earlier assignments can leave closed sessions on this inspection.
-  const assignmentAcceptedAt = Date.parse(inspection?.assignmentAcceptedAt ?? '');
   const canWithdrawAssignment =
-    roles.includes('INSPECTOR') &&
-    inspection?.status === 'SCHEDULED' &&
-    inspection.assignmentStatus === 'ACCEPTED' &&
-    !inspection.reassignmentRequired &&
-    sessions.isSuccess &&
-    !openSession &&
-    !items.some(
-      (session) =>
-        session.startedAt &&
-        (!Number.isFinite(assignmentAcceptedAt) || Date.parse(session.startedAt) >= assignmentAcceptedAt),
-    );
+    isInspector && workflowQuery.data?.canWithdrawAssignment === true;
   const windowEndMs = inspection?.plannedEndAt ? new Date(inspection.plannedEndAt).getTime() : Number.NaN;
   const isWindowExpired = Number.isFinite(windowEndMs) && windowEndMs < nowMs;
   const canStart =
@@ -1065,7 +1059,6 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
     return buildCompleteOutcomePayload();
   };
 
-  const showPermitSection = !stage || stage === 'permit';
   const showPreFlightStage = stage === 'pre-flight';
   const showFlightStage = !stage || stage === 'flight';
   const showPostFlightStage = stage === 'post-flight';

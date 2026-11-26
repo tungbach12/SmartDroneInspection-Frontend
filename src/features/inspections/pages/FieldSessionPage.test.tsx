@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   postpone: vi.fn(),
   abort: vi.fn(),
   getById: vi.fn(),
+  workflowState: vi.fn(),
   decline: vi.fn(),
   uploadFlightPermit: vi.fn(),
   importFlightLog: vi.fn(),
@@ -41,6 +42,7 @@ vi.mock('../api/inspectionApi', async (importOriginal) => {
     inspectionApi: {
       ...actual.inspectionApi,
       getById: mocks.getById,
+      workflowState: mocks.workflowState,
       decline: mocks.decline,
       uploadFlightPermit: mocks.uploadFlightPermit,
     },
@@ -110,6 +112,7 @@ describe('FieldSessionPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getById.mockResolvedValue(INSPECTION);
+    mocks.workflowState.mockResolvedValue({ status: 'SCHEDULED', canWithdrawAssignment: false });
     mocks.list.mockResolvedValue([SESSION]);
     mocks.start.mockResolvedValue(SESSION);
     mocks.complete.mockResolvedValue({
@@ -189,6 +192,7 @@ describe('FieldSessionPage', () => {
       flightPermitVerificationStatus: 'NOT_UPLOADED',
     };
     mocks.getById.mockResolvedValue(assignedInspection);
+    mocks.workflowState.mockResolvedValue({ status: 'SCHEDULED', canWithdrawAssignment: true });
     mocks.list.mockResolvedValue([]);
     mocks.decline.mockResolvedValue({ ...assignedInspection, assignmentStatus: 'DECLINED' });
 
@@ -220,33 +224,15 @@ describe('FieldSessionPage', () => {
     );
   });
 
-  it.each([
-    {
-      name: 'an unaccepted assignment',
-      role: 'INSPECTOR',
-      assignmentStatus: 'PENDING_ACCEPTANCE',
-      sessions: [],
-    },
-    { name: 'an active field session', role: 'INSPECTOR', assignmentStatus: 'ACCEPTED', sessions: [SESSION] },
-    {
-      name: 'an aborted field session on the current assignment',
-      role: 'INSPECTOR',
-      assignmentStatus: 'ACCEPTED',
-      sessions: [{ ...SESSION, status: 'ABORTED' }],
-    },
-    { name: 'a Manager viewing the permit', role: 'MANAGER', assignmentStatus: 'ACCEPTED', sessions: [] },
-  ] as const)('hides withdrawal for $name', async (scenario) => {
-    useAuthStore.setState({ roles: [scenario.role] });
-    mocks.getById.mockResolvedValue({
-      ...INSPECTION,
-      assignmentStatus: scenario.assignmentStatus,
-      assignmentAcceptedAt: '2026-10-20T01:00:00Z',
-    });
-    mocks.list.mockResolvedValue(scenario.sessions);
+  it('hides withdrawal when the backend does not allow it for an accepted assignment', async () => {
+    useAuthStore.setState({ roles: ['INSPECTOR'] });
+    mocks.getById.mockResolvedValue({ ...INSPECTION, assignmentStatus: 'ACCEPTED' });
+    mocks.list.mockResolvedValue([]);
 
     renderWithClient('permit');
 
     expect(await screen.findByText('Flight permit')).toBeTruthy();
+    expect(mocks.workflowState).toHaveBeenCalledWith('inspection-1');
     expect(screen.queryByRole('button', { name: 'Withdraw from assignment' })).toBeNull();
   });
 

@@ -222,6 +222,7 @@ export interface InspectionWorkflowState {
   status: InspectionStatus;
   findingsConfirmedAt: string | null;
   flightPermitVerificationStatus?: FlightPermitVerificationStatus | null;
+  canWithdrawAssignment?: boolean;
 }
 
 /**

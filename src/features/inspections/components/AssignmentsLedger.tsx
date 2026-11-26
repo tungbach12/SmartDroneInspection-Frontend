@@ -40,9 +40,12 @@ interface AssignmentsLedgerProps {
   onOpen: (inspectionId: string) => void;
 }
 
-type AssignmentBucket = 'PENDING' | 'ACCEPTED' | 'DECLINED';
+type AssignmentBucket = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CANCELLED';
 
 function classifyAssignment(row: InspectionListItem): AssignmentBucket {
+  if (row.status === 'CANCELLED') {
+    return 'CANCELLED';
+  }
   if (row.reassignmentRequired || row.assignmentStatus === 'DECLINED') {
     return 'DECLINED';
   }
@@ -179,7 +182,7 @@ export function AssignmentsLedger({
       const bucket = classifyAssignment(row);
       if (bucket === 'PENDING') pending += 1;
       else if (bucket === 'ACCEPTED') accepted += 1;
-      else declined += 1;
+      else if (bucket === 'DECLINED') declined += 1;
     }
     return { all: rows.length, pending, accepted, declined };
   }, [rows]);
@@ -221,6 +224,9 @@ export function AssignmentsLedger({
   };
 
   const renderAssignmentBadge = (bucket: AssignmentBucket) => {
+    if (bucket === 'CANCELLED') {
+      return <StatusChip status="CANCELLED" label={t('Cancelled')} tone="error" />;
+    }
     if (bucket === 'PENDING') {
       return <StatusChip status="PENDING" label={t('Pending acceptance')} tone="warning" />;
     }
@@ -434,9 +440,11 @@ export function AssignmentsLedger({
                   >
                     <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                       {renderAssignmentBadge(bucket)}
-                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                        {operationalLabel}
-                      </Typography>
+                      {bucket !== 'CANCELLED' && (
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                          {operationalLabel}
+                        </Typography>
+                      )}
                     </Stack>
                     {finance && (
                       <Typography
@@ -546,9 +554,11 @@ export function AssignmentsLedger({
                     <TableCell sx={{ py: 1.75, px: 2, whiteSpace: 'nowrap', borderBottom: '1px solid', borderColor: 'divider' }}>
                       <Stack spacing={0.35} sx={{ alignItems: 'flex-start' }}>
                         {renderAssignmentBadge(bucket)}
-                        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem', lineHeight: 1.35 }}>
-                          {operationalLabel}
-                        </Typography>
+                        {bucket !== 'CANCELLED' && (
+                          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem', lineHeight: 1.35 }}>
+                            {operationalLabel}
+                          </Typography>
+                        )}
                       </Stack>
                     </TableCell>
 
