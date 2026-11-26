@@ -29,6 +29,7 @@ import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { MutationProblemAlert } from '@/shared/ui/MutationProblemAlert';
 import { QueryState } from '@/shared/ui/QueryState';
 import { StatusChip } from '@/shared/ui/StatusChip';
+import { getSectionPath } from '@/app/permissions/accessPolicy';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import {
   useDeclineInspection,
@@ -529,7 +530,10 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
   const startSession = useStartFieldSession(inspectionId);
   const outcome = useFieldSessionOutcome(inspectionId);
   const uploadPermit = useUploadFlightPermit(inspectionId);
-  const declineInspection = useDeclineInspection?.(inspectionId);
+  const withdrawAssignment = useDeclineInspection(
+    inspectionId,
+    t('You withdrew from the assignment. The Manager has been notified.'),
+  );
   const isReinspection = inspection?.inspectionType === 'RE_INSPECTION';
   const verifications = useReinspectionVerifications?.(isReinspection ? inspectionId : '');
   const evidenceQuery = useInspectionEvidence?.(inspectionId);
@@ -541,8 +545,8 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
   const [permitValidToDraft, setPermitValidTo] = useState<string | null>(null);
   const [maxAltitudeDraft, setMaxAltitudeDraft] = useState<string | null>(null);
   const [permitFormError, setPermitFormError] = useState<string | null>(null);
-  const [declinePermitOpen, setDeclinePermitOpen] = useState(false);
-  const [declinePermitReason, setDeclinePermitReason] = useState('');
+  const [withdrawAssignmentOpen, setWithdrawAssignmentOpen] = useState(false);
+  const [withdrawReason, setWithdrawReason] = useState('');
   const [permitPreviewOpen, setPermitPreviewOpen] = useState(false);
   const [replacePermitOpen, setReplacePermitOpen] = useState(false);
   const [pendingPermitReplacePayload, setPendingPermitReplacePayload] = useState<{
@@ -721,6 +725,27 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
   const hasPermit = Boolean(inspection?.flightPermitFileName);
   const permitVerificationStatus = resolveFlightPermitVerificationStatus(inspection);
   const isPermitApproved = isFlightPermitVerified(inspection);
+  const showPermitForm =
+    inspection?.status === 'SCHEDULED' &&
+    !isManagerOrAdmin &&
+    (!hasPermit ||
+      permitVerificationStatus === 'REJECTED' ||
+      permitVerificationStatus === 'PENDING_REVIEW' ||
+      replacePermitOpen);
+  // Earlier assignments can leave closed sessions on this inspection.
+  const assignmentAcceptedAt = Date.parse(inspection?.assignmentAcceptedAt ?? '');
+  const canWithdrawAssignment =
+    roles.includes('INSPECTOR') &&
+    inspection?.status === 'SCHEDULED' &&
+    inspection.assignmentStatus === 'ACCEPTED' &&
+    !inspection.reassignmentRequired &&
+    sessions.isSuccess &&
+    !openSession &&
+    !items.some(
+      (session) =>
+        session.startedAt &&
+        (!Number.isFinite(assignmentAcceptedAt) || Date.parse(session.startedAt) >= assignmentAcceptedAt),
+    );
   const windowEndMs = inspection?.plannedEndAt ? new Date(inspection.plannedEndAt).getTime() : Number.NaN;
   const isWindowExpired = Number.isFinite(windowEndMs) && windowEndMs < nowMs;
   const canStart =
@@ -1044,6 +1069,20 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
   const showPreFlightStage = stage === 'pre-flight';
   const showFlightStage = !stage || stage === 'flight';
   const showPostFlightStage = stage === 'post-flight';
+  const withdrawAction = canWithdrawAssignment ? (
+    <Button
+      color="inherit"
+      disabled={uploadPermit.isPending}
+      onClick={() => {
+        withdrawAssignment.reset();
+        setWithdrawReason('');
+        setWithdrawAssignmentOpen(true);
+      }}
+      sx={{ alignSelf: 'flex-start', mr: { sm: 'auto' }, minHeight: 44, textTransform: 'none' }}
+    >
+      {t('Withdraw from assignment')}
+    </Button>
+  ) : null;
 
   return (
     <Box className="workspace-page workspace-page--inspections trace-ledger-workspace">
@@ -1150,12 +1189,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                   </Alert>
                 )}
 
-                {inspection.status === 'SCHEDULED' &&
-                  !isManagerOrAdmin &&
-                  (!hasPermit ||
-                    permitVerificationStatus === 'REJECTED' ||
-                    permitVerificationStatus === 'PENDING_REVIEW' ||
-                    replacePermitOpen) && (
+                {showPermitForm ? (
                   <Stack spacing={2}>
                     {replacePermitOpen && isPermitApproved && (
                       <Alert severity="warning" sx={{ borderRadius: '10px' }}>
@@ -1399,47 +1433,10 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                     />
 
                     <Stack
-                      direction={{ xs: 'column-reverse', sm: 'row' }}
+                      direction={{ xs: 'column', sm: 'row-reverse' }}
                       spacing={1.5}
-                      sx={{
-                        justifyContent:
-                          !isManagerOrAdmin &&
-                          !hasPermit &&
-                          !openSession &&
-                          Boolean(declineInspection)
-                            ? 'space-between'
-                            : 'flex-end',
-                        alignItems: { sm: 'center' },
-                      }}
+                      useFlexGap
                     >
-                      {!isManagerOrAdmin &&
-                        !hasPermit &&
-                        !openSession &&
-                        Boolean(declineInspection) && (
-                          <Button
-                            variant="outlined"
-                            color="warning"
-                            size="medium"
-                            onClick={() => {
-                              setDeclinePermitReason(
-                                restrictedAirspace
-                                  ? t('Unable to obtain restricted-airspace flight permit')
-                                  : '',
-                              );
-                              setDeclinePermitOpen(true);
-                            }}
-                            sx={{
-                              borderRadius: '8px',
-                              fontWeight: 600,
-                              textTransform: 'none',
-                            }}
-                          >
-                            {tr(
-                              'Không xin được phép bay / Từ chối',
-                              'Unable to obtain permit / Decline',
-                            )}
-                          </Button>
-                        )}
                       <LoadingButton
                         variant="contained"
                         size="medium"
@@ -1548,11 +1545,12 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                           fontWeight: 600,
                         }}
                       >
-                        {t('Submit flight permit for verification')}
+                        {t('Save flight permit')}
                       </LoadingButton>
+                      {withdrawAction}
                     </Stack>
                   </Stack>
-                )}
+                ) : withdrawAction}
               </Stack>
             </Paper>
           ) : inspection && inspection.status !== 'SCHEDULED' && !hasPermit ? (
@@ -1560,59 +1558,61 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
               {t('No flight document is recorded. Contact the inspection manager before starting field work.')}
             </Alert>
           ) : null}
-          {declineInspection && (
+          {withdrawAssignmentOpen && (
             <Dialog
-              open={declinePermitOpen}
-              onClose={() => !declineInspection.isPending && setDeclinePermitOpen(false)}
+              open
+              onClose={() => !withdrawAssignment.isPending && setWithdrawAssignmentOpen(false)}
+              aria-labelledby="withdraw-assignment-title"
+              aria-describedby="withdraw-assignment-description"
               maxWidth="xs"
               fullWidth
             >
-              <DialogTitle sx={{ fontWeight: 700 }}>
-                {tr('Không xin được giấy phép bay?', 'Unable to obtain flight permit?')}
+              <DialogTitle id="withdraw-assignment-title" sx={{ fontWeight: 700 }}>
+                {t('Withdraw from assignment?')}
               </DialogTitle>
               <DialogContent>
                 <Stack spacing={2} sx={{ mt: 1 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    {tr(
-                      'Từ chối nhiệm vụ sẽ trả lịch bay về cho Quản lý để phân công lại hoặc hủy chuyến bay.',
-                      'Declining returns this flight to the Manager so they can reassign it or cancel the flight.',
-                    )}
+                  <Typography id="withdraw-assignment-description" variant="body2" color="text.secondary">
+                    {t('The Manager will receive your reason and can reschedule or reassign this inspection.')}
                   </Typography>
                   <TextField
-                    label={t('Decline reason')}
+                    label={t('Reason for withdrawing')}
                     multiline
                     minRows={3}
                     required
-                    value={declinePermitReason}
-                    onChange={(e) => setDeclinePermitReason(e.target.value)}
-                    helperText={t('Explain why you cannot perform this inspection so the Manager can reassign it.')}
+                    disabled={withdrawAssignment.isPending}
+                    value={withdrawReason}
+                    onChange={(event) => setWithdrawReason(event.target.value)}
+                    slotProps={{ htmlInput: { maxLength: 2000 } }}
+                  />
+                  <MutationProblemAlert
+                    error={withdrawAssignment.error}
+                    isError={withdrawAssignment.isError}
+                    fallbackMessage={t('Could not withdraw from the assignment.')}
                   />
                 </Stack>
               </DialogContent>
               <DialogActions sx={{ px: 3, pb: 2.5 }}>
                 <Button
-                  onClick={() => setDeclinePermitOpen(false)}
-                  disabled={declineInspection.isPending}
+                  onClick={() => setWithdrawAssignmentOpen(false)}
+                  disabled={withdrawAssignment.isPending}
                 >
-                  {t('Cancel')}
+                  {t('Go back')}
                 </Button>
                 <LoadingButton
                   variant="contained"
-                  color="warning"
-                  loading={declineInspection.isPending}
-                  disabled={!declinePermitReason.trim()}
+                  color="error"
+                  loading={withdrawAssignment.isPending}
+                  disabled={!canWithdrawAssignment || !withdrawReason.trim()}
                   onClick={() => {
-                    const reason = declinePermitReason.trim();
-                    if (!reason) return;
-                    declineInspection.mutate(reason, {
+                    withdrawAssignment.mutate(withdrawReason.trim(), {
                       onSuccess: () => {
-                        setDeclinePermitOpen(false);
-                        setDeclinePermitReason('');
+                        navigate(getSectionPath('operations', 'inspections'), { replace: true });
                       },
                     });
                   }}
                 >
-                  {t('Confirm decline')}
+                  {t('Confirm withdrawal')}
                 </LoadingButton>
               </DialogActions>
             </Dialog>
