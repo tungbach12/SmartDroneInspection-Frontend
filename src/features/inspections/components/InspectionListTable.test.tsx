@@ -176,11 +176,13 @@ describe('InspectionListTable multi-day schedule formatting', () => {
       id: 'insp-roles',
       ownerCustomerId: 'cust-1',
       ownerCustomerName: 'Saigon Infrastructure Co.',
+      ownerCustomerAvatarUrl: 'https://cdn.example.com/customer.png',
       assetId: 'asset-1',
       assetName: 'Cau Nhat Tan - Tru Thap & Day Vang',
       assetCode: 'CNT-01',
       inspectorId: 'ins-1',
       inspectorName: 'Pham Van Bay',
+      inspectorAvatarUrl: 'https://cdn.example.com/inspector.png',
       managerName: 'Tran Minh Quan Ly',
       droneModel: 'DJI Matrice 350 RTK',
       droneSerialNumber: '1581F4B0C2301009',
@@ -215,6 +217,7 @@ describe('InspectionListTable multi-day schedule formatting', () => {
 
     expect(screen.getByText('Customer & Drone')).toBeTruthy();
     expect(screen.getByText('Saigon Infrastructure Co.')).toBeTruthy();
+    expect(document.querySelector('img[src="https://cdn.example.com/customer.png"]')).toBeTruthy();
     expect(screen.getByText('DJI Matrice 350 RTK · 1581F4B0C2301009')).toBeTruthy();
     expect(screen.getByText('Net Payout')).toBeTruthy();
     expect(screen.getByText('Eligible')).toBeTruthy();
@@ -235,6 +238,7 @@ describe('InspectionListTable multi-day schedule formatting', () => {
 
     expect(screen.getByText('Inspector & Drone')).toBeTruthy();
     expect(screen.getByText('Pham Van Bay')).toBeTruthy();
+    expect(document.querySelector('img[src="https://cdn.example.com/inspector.png"]')).toBeTruthy();
     expect(screen.getByText('Customer: Saigon Infrastructure Co.')).toBeTruthy();
     expect(screen.getByText('Platform Fee')).toBeTruthy();
 

@@ -883,6 +883,10 @@ export function InspectionListTable({
                       {(() => {
                         const primaryPerson =
                           isManager || isCustomer ? row.inspectorName : row.ownerCustomerName;
+                        const primaryAvatarUrl =
+                          isManager || isCustomer
+                            ? row.inspectorAvatarUrl
+                            : row.ownerCustomerAvatarUrl;
                         const secondaryLine = isCustomer
                           ? row.managerName
                             ? `${t('Manager')}: ${row.managerName}`
@@ -894,6 +898,7 @@ export function InspectionListTable({
                           <Stack direction="row" spacing={1} sx={{ alignItems: 'center', minWidth: 0 }}>
                             {primaryPerson && (
                               <Avatar
+                                src={primaryAvatarUrl ?? undefined}
                                 sx={{
                                   width: 28,
                                   height: 28,

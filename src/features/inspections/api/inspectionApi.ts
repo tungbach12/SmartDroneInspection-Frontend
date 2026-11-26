@@ -499,7 +499,9 @@ export interface InspectionListItem {
   assignmentAcceptedAt?: string | null;
   flightPermitVerificationStatus?: FlightPermitVerificationStatus | null;
   ownerCustomerName?: string | null;
+  ownerCustomerAvatarUrl?: string | null;
   inspectorName?: string | null;
+  inspectorAvatarUrl?: string | null;
   managerName?: string | null;
   droneModel?: string | null;
   droneSerialNumber?: string | null;
