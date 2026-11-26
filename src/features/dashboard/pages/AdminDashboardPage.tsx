@@ -200,7 +200,7 @@ export function AdminDashboardPage({
           title={tr('Hàng đợi thẩm định MF1', 'Pending MF1 Reviews')}
           emptyText={tr('Không còn hồ sơ chờ duyệt.', 'All MF1 applications reviewed.')}
           viewAllLink="/admin/onboarding-reviews"
-          viewAllLabel={tr('Mở thẩm định', 'Review queue')}
+          viewAllLabel={tr('Xem hàng đợi', 'View queue')}
           items={mf1PendingItems}
         />
         <AdminActionListCard

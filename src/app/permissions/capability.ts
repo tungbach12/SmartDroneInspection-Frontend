@@ -19,11 +19,11 @@ const CAPABILITY_ROLES: Record<Capability, readonly Role[]> = {
   'contracts.manage': ['MANAGER'],
   'inspections.capture': ['INSPECTOR'],
   'inspections.authorReport': ['INSPECTOR'],
-  // MF3-09: only Manager / Admin reviews and publishes reports. The backend separately
-  // enforces separation of duties against the report author.
-  'reports.review': ['ADMIN', 'MANAGER'],
-  'reports.publish': ['ADMIN', 'MANAGER'],
-  'findings.decide': ['CUSTOMER', 'ADMIN', 'MANAGER'],
+  // MF3-09: only Manager reviews and publishes reports. Admin is strictly read-only.
+  // The backend separately enforces separation of duties against the report author.
+  'reports.review': ['MANAGER'],
+  'reports.publish': ['MANAGER'],
+  'findings.decide': ['CUSTOMER', 'MANAGER'],
   'assets.review': ['CUSTOMER', 'ADMIN', 'MANAGER'],
 };
 

@@ -11,21 +11,6 @@ function unwrapMutation<T>(response: { data: T | { data: T } }): T {
   return unwrap(response);
 }
 
-export interface ProspectiveCustomerReview {
-  id: string;
-  userId: string;
-  organizationName: string;
-  organizationCode: string;
-  assetName: string;
-  assetCode: string;
-  airspaceClassification: string;
-  status: string;
-  reviewNote: string | null;
-  reviewedByUserId: string | null;
-  reviewedAt: string | null;
-  createdAt: string;
-}
-
 export interface DroneRegistrationApplication {
   id: string;
   inspectorUserId: string;
@@ -86,12 +71,6 @@ export interface DroneReviewQueueFilters {
 export const mf1ReviewApi = {
   droneEvidence: (id: string, type: string) =>
     api.get<Blob>(`/drone-registration-applications/${id}/evidence/${type}`, { responseType: 'blob' }).then((response) => response.data),
-  pendingCustomers: () =>
-    api.get<ProspectiveCustomerReview[] | { data: ProspectiveCustomerReview[] }>('/platform/customer-airspace-reviews/pending').then(unwrap),
-  approveCustomer: (id: string, reviewNote: string) =>
-    api.post<ProspectiveCustomerReview | { data: ProspectiveCustomerReview }>(`/platform/customer-airspace-reviews/${id}/approve`, { reviewNote }).then(unwrapMutation),
-  rejectCustomer: (id: string, reviewNote: string) =>
-    api.post<ProspectiveCustomerReview | { data: ProspectiveCustomerReview }>(`/platform/customer-airspace-reviews/${id}/reject`, { reviewNote }).then(unwrapMutation),
   droneQueue: (filters: DroneReviewQueueFilters) =>
     api
       .get<DroneRegistrationApplicationPage | { data: DroneRegistrationApplicationPage }>(

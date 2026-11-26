@@ -133,19 +133,19 @@ export function GoogleMapsLocationCard({
   const mapLang = locale === 'vi' ? 'vi' : 'en';
   const airspace = hasCoordinates ? evaluateAirspace(latitude, longitude) : null;
   const isNoFlyZone = airspace?.classification === 'NO_FLY_ZONE';
+  const isRestrictedZone = airspace?.classification === 'RESTRICTED_ZONE';
   const noFlyZoneNames =
     airspace?.matchingZones
       .filter((z) => z.zoneType === 'NO_FLY_ZONE')
       .map((z) => z.name)
       .join(', ') ?? '';
-
   return (
     <Box
       sx={{
         p: 2,
         borderRadius: '10px',
         border: '1px solid',
-        borderColor: isNoFlyZone ? 'error.main' : 'divider',
+        borderColor: isNoFlyZone ? 'error.main' : isRestrictedZone ? 'warning.main' : 'divider',
         bgcolor: 'action.hover',
       }}
     >
@@ -155,7 +155,12 @@ export function GoogleMapsLocationCard({
         sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.25, flexWrap: 'wrap', gap: 1 }}
       >
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-          <PlaceRounded sx={{ fontSize: 18, color: isNoFlyZone ? 'error.main' : 'primary.main' }} />
+          <PlaceRounded
+            sx={{
+              fontSize: 18,
+              color: isNoFlyZone ? 'error.main' : isRestrictedZone ? 'warning.main' : 'primary.main',
+            }}
+          />
           <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
             {t('Google Maps Location')}
           </Typography>
@@ -216,6 +221,15 @@ export function GoogleMapsLocationCard({
           {locale === 'vi'
             ? `⛔ Vị trí này nằm trong Vùng Cấm Bay (${noFlyZoneNames}). Không thể đăng ký hoặc cập nhật công trình tại khu vực cấm bay — vui lòng chọn vị trí khác.`
             : `⛔ This location falls inside a prohibited No-Fly Zone (${noFlyZoneNames}). Assets inside a no-fly zone are rejected — please pick another location.`}
+        </Alert>
+      )}
+
+      {isRestrictedZone && (
+        <Alert severity="warning" sx={{ mb: 1.25, borderRadius: '8px', fontSize: '0.8125rem' }}>
+          {t('Restricted airspace. You can use this location. Inspection flights require a permit.')}{' '}
+          <a href="https://cambay.mod.gov.vn" target="_blank" rel="noopener noreferrer">
+            {t('Airspace rules')}
+          </a>
         </Alert>
       )}
 
@@ -770,6 +784,7 @@ export function AssetLocationPickerModal({
 
   const pinAirspace = evaluateAirspace(pinLat, pinLon);
   const isPinNoFlyZone = pinAirspace.classification === 'NO_FLY_ZONE';
+  const isPinRestrictedZone = pinAirspace.classification === 'RESTRICTED_ZONE';
 
   const handleConfirm = () => {
     if (isPinNoFlyZone) return;
@@ -1185,6 +1200,15 @@ export function AssetLocationPickerModal({
               Google Maps
             </Box>
           </Box>
+
+          {isPinRestrictedZone && (
+            <Alert severity="warning" sx={{ borderRadius: '10px', fontSize: '0.8125rem' }}>
+              {t('Restricted airspace. You can use this location. Inspection flights require a permit.')}{' '}
+              <a href="https://cambay.mod.gov.vn" target="_blank" rel="noopener noreferrer">
+                {t('Airspace rules')}
+              </a>
+            </Alert>
+          )}
 
           {/* CURRENT PIN SUMMARY BOX */}
           <Paper

@@ -170,7 +170,7 @@ const SECTION_ROLE_ACCESS = {
     'platform-settings': ['ADMIN'],
     'onboarding-reviews': ['ADMIN'],
     'drone-registrations': ['ADMIN'],
-    'customer-airspace': ['ADMIN'],
+    'customer-airspace': [],
     'audit-logs': ['ADMIN'],
     'inspector-drones': [],
     notifications: ['ADMIN'],

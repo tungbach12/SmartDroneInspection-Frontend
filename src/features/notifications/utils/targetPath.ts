@@ -28,7 +28,6 @@ const SIMPLE_PORTAL_SECTIONS: readonly SectionId[] = [
   'messages',
   'onboarding-reviews',
   'drone-registrations',
-  'customer-airspace',
   'payout-settlements',
   'inspector-drones',
   'notifications',

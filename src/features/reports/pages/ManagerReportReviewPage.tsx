@@ -79,7 +79,9 @@ export default function ManagerReportReviewPage({
   const showToast = useToastStore((state) => state.showToast);
   const portal = (location.pathname.split('/').filter(Boolean)[0] ??
     PORTAL_IDS[0]) as PortalId;
+  const roles = useAuthStore((state) => state.roles) ?? [];
   const userId = useAuthStore((state) => state.userId);
+  const canReviewAndPublish = portal === 'manager' && roles.includes('MANAGER');
   const showAuditStage = stage === 'audit';
   const showReviewStage = !stage || stage === 'review';
   const showPayoutStage = stage === 'payout';
@@ -720,7 +722,7 @@ export default function ManagerReportReviewPage({
                             >
                               {t('Continue to Customer Settlement')}
                             </Button>
-                          ) : (
+                          ) : canReviewAndPublish ? (
                             <LoadingButton
                               variant="contained"
                               color="primary"
@@ -743,6 +745,10 @@ export default function ManagerReportReviewPage({
                             >
                               {publishReport.isPending ? t('Publishing…') : t('Publish to Customer')}
                             </LoadingButton>
+                          ) : (
+                            <Alert severity="info" variant="outlined" sx={{ width: '100%' }}>
+                              {t('Admin has read-only audit access; only Manager can settle payout and publish the report.')}
+                            </Alert>
                           )}
                         </Box>
                       </Stack>
@@ -753,44 +759,50 @@ export default function ManagerReportReviewPage({
             )}
 
             {showReviewStage && openVersion.status === 'SUBMITTED' && !isAuthor && (
-              <ReportReviewDecisionBar
-                isPending={review.isPending}
-                reportReadLoading={reportReadLoading}
-                hasReadError={Boolean(findings.error || evidence.error)}
-                showReturnBox={showReturnBox}
-                reviewReason={reviewReason}
-                onReviewReasonChange={setReviewReason}
-                onShowReturnBox={setShowReturnBox}
-                onApprove={() =>
-                  review.mutate(
-                    { versionId: openVersion.id },
-                    {
-                      onSuccess: () => {
-                        if (portal === 'manager') {
-                          navigate('../payout');
-                        }
+              canReviewAndPublish ? (
+                <ReportReviewDecisionBar
+                  isPending={review.isPending}
+                  reportReadLoading={reportReadLoading}
+                  hasReadError={Boolean(findings.error || evidence.error)}
+                  showReturnBox={showReturnBox}
+                  reviewReason={reviewReason}
+                  onReviewReasonChange={setReviewReason}
+                  onShowReturnBox={setShowReturnBox}
+                  onApprove={() =>
+                    review.mutate(
+                      { versionId: openVersion.id },
+                      {
+                        onSuccess: () => {
+                          if (portal === 'manager') {
+                            navigate('../payout');
+                          }
+                        },
                       },
-                    },
-                  )
-                }
-                onReturn={() =>
-                  review.mutate({
-                    versionId: openVersion.id,
-                    reason: reviewReason.trim(),
-                  })
-                }
-                reviewError={review.error}
-                isReviewError={review.isError}
-                approveLabel={portal === 'manager' ? t('Approve report') : undefined}
-                pendingApproveLabel={portal === 'manager' ? t('Approving…') : undefined}
-                confirmTitle={portal === 'manager' ? t('Approve report?') : undefined}
-                confirmMessage={
-                  portal === 'manager'
-                    ? t('Are you sure you want to approve this report? By approving, you confirm the inspection results are accurate and take responsibility for this decision.')
-                    : undefined
-                }
-                confirmLabel={portal === 'manager' ? t('Approve report') : undefined}
-              />
+                    )
+                  }
+                  onReturn={() =>
+                    review.mutate({
+                      versionId: openVersion.id,
+                      reason: reviewReason.trim(),
+                    })
+                  }
+                  reviewError={review.error}
+                  isReviewError={review.isError}
+                  approveLabel={portal === 'manager' ? t('Approve report') : undefined}
+                  pendingApproveLabel={portal === 'manager' ? t('Approving…') : undefined}
+                  confirmTitle={portal === 'manager' ? t('Approve report?') : undefined}
+                  confirmMessage={
+                    portal === 'manager'
+                      ? t('Are you sure you want to approve this report? By approving, you confirm the inspection results are accurate and take responsibility for this decision.')
+                      : undefined
+                  }
+                  confirmLabel={portal === 'manager' ? t('Approve report') : undefined}
+                />
+              ) : (
+                <Alert severity="info" variant="outlined" sx={{ borderRadius: '10px' }}>
+                  {t('Admin has read-only access to submitted reports; only Manager can approve or return them.')}
+                </Alert>
+              )
             )}
 
             {stage === 'review' && openVersion.status === 'PUBLISHED' && (

@@ -159,16 +159,17 @@ export default function RegisterPage() {
           ...values,
           ...deriveOrganizationFields(values),
         });
-        if (result.registrationStatus === 'PENDING_AIRSPACE_REVIEW') {
-          setRegistrationMessage(
-            result.reviewMessage ||
-              'Your location needs manual review. We will contact you after it has been assessed.',
-          );
-          return;
-        }
+        const restrictedWarning =
+          result.airspaceClassification &&
+          result.airspaceClassification !== 'CLEAR_ZONE'
+            ? result.reviewMessage || undefined
+            : undefined;
         navigate('/login?registered=1', {
           replace: true,
-          state: { email: values.email },
+          state: {
+            email: values.email,
+            ...(restrictedWarning ? { airspaceWarning: restrictedWarning } : {}),
+          },
         });
       } catch (error) {
         setErrorMessage(getAuthErrorMessage(error));
@@ -225,16 +226,17 @@ export default function RegisterPage() {
         otpCode: otpCode.trim(),
       });
       setOtpDialogOpen(false);
-      if (result.registrationStatus === 'PENDING_AIRSPACE_REVIEW') {
-        setRegistrationMessage(
-          result.reviewMessage ||
-            'Your location needs manual review. We will contact you after it has been assessed.',
-        );
-        return;
-      }
+      const restrictedWarning =
+        result.airspaceClassification &&
+        result.airspaceClassification !== 'CLEAR_ZONE'
+          ? result.reviewMessage || undefined
+          : undefined;
       navigate('/login?registered=1', {
         replace: true,
-        state: { email: pendingFormValues.email },
+        state: {
+          email: pendingFormValues.email,
+          ...(restrictedWarning ? { airspaceWarning: restrictedWarning } : {}),
+        },
       });
     } catch (err) {
       setOtpError(getAuthErrorMessage(err));

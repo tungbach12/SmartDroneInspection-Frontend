@@ -4,11 +4,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 const state = vi.hoisted(() => ({
   inspections: [] as Array<Record<string, unknown>>,
   checkpointsLocked: false,
+  role: 'CUSTOMER',
 }));
 
 vi.mock('@/features/auth/store/authStore', () => ({
   useAuthStore: (selector: (state: { roles: string[] }) => unknown) =>
-    selector({ roles: ['CUSTOMER'] }),
+    selector({ roles: [state.role] }),
 }));
 vi.mock('react-router-dom', () => ({
   useNavigate: () => vi.fn(),
@@ -46,11 +47,9 @@ vi.mock('../hooks/useAssets', () => ({
   useCreateAsset: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
   useUpdateAsset: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
   useRetireAsset: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
-  useUpdateAssetInspectionItems: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 vi.mock('../hooks/useCatalog', () => ({
   useCategories: () => ({ data: [] }),
-  useChecklistTemplates: () => ({ data: [] }),
 }));
 vi.mock('../hooks/useAssetDocuments', () => ({
   useAssetDocuments: () => ({ data: [], isLoading: false, error: null }),
@@ -113,28 +112,30 @@ async function openAssetDetail() {
   fireEvent.click(await screen.findByRole('button', { name: 'Detail' }));
 }
 
-describe('AssetsPage customer checkpoint management', () => {
+describe('AssetsPage checkpoint visibility', () => {
   afterEach(() => {
     cleanup();
     state.inspections = [];
     state.checkpointsLocked = false;
+    state.role = 'CUSTOMER';
   });
 
-  it('shows the checkpoint section and edit action to the owning Customer before inspection', async () => {
+  it.each([false, true])('hides checkpoints from Customers (locked: %s)', async (locked) => {
+    state.checkpointsLocked = locked;
+    await openAssetDetail();
+
+    expect(await screen.findByRole('dialog')).toBeTruthy();
+    expect(screen.queryByText('Inspection Checkpoints')).toBeNull();
+    expect(screen.queryByText('Checkpoints Configured')).toBeNull();
+    expect(screen.queryByText('Roof')).toBeNull();
+  });
+
+  it('keeps a read-only checkpoint list for staff', async () => {
+    state.role = 'MANAGER';
     await openAssetDetail();
 
     expect(await screen.findByText('Inspection Checkpoints')).toBeTruthy();
-    expect(screen.getByText('+ Add / Edit custom items')).toBeTruthy();
-  });
-
-  it('locks checkpoint editing after the first inspection', async () => {
-    state.checkpointsLocked = true;
-
-    await openAssetDetail();
-
-    expect(
-      await screen.findByText('Checkpoints are locked after the first inspection.'),
-    ).toBeTruthy();
+    expect(screen.getByText('Roof')).toBeTruthy();
     expect(screen.queryByText('+ Add / Edit custom items')).toBeNull();
   });
 });

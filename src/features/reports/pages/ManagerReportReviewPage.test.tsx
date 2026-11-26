@@ -24,8 +24,8 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/features/auth/store/authStore', () => ({
-  useAuthStore: (selector: (state: { userId: string }) => unknown) =>
-    selector({ userId: 'mgr-1' }),
+  useAuthStore: (selector: (state: { userId: string; roles: string[] }) => unknown) =>
+    selector({ userId: 'mgr-1', roles: ['MANAGER'] }),
 }));
 
 vi.mock('@/shared/ui/Toast', () => ({

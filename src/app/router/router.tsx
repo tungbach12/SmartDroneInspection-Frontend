@@ -135,7 +135,7 @@ const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
   'platform-settings': <PlatformSettingsHubPage />,
   'onboarding-reviews': <Mf1ReviewPage fixedQueue="inspectors" />,
   'drone-registrations': <Mf1ReviewPage fixedQueue="drones" />,
-  'customer-airspace': <Mf1ReviewPage fixedQueue="customers" />,
+  'customer-airspace': <Navigate to="../onboarding-reviews" replace />,
   'audit-logs': <AdminAuditLogPage />,
   'inspector-drones': <InspectorDroneRegistrationPage />,
   notifications: <NotificationsPage />,
