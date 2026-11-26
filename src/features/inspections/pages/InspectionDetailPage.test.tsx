@@ -571,7 +571,7 @@ describe('InspectionDetailPage', () => {
         children: [{ index: true, element: <InspectionStageTestOutlet /> }, { path: '*', element: <InspectionStageTestOutlet /> }],
       },
     ], { initialEntries: ['/operations/inspections/inspection-1/field-session'] })} />);
-    expect(stageNav.querySelector('a[aria-label="Defect Findings: Complete"] svg')).not.toBeNull();
+    expect(stageNav.querySelector('a[aria-label="Defect Findings: Complete"]')).toBeTruthy();
   });
 
   it('marks Flight Operation (Step 3) as Complete once flight record is present and user moves to Post-flight (Step 4)', () => {
@@ -606,7 +606,12 @@ describe('InspectionDetailPage', () => {
     renderInspectionPage({ route: '/operations/inspections/inspection-1/post-flight' });
 
     const stageNav = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
-    expect(stageNav.querySelector('a[aria-label="Flight Operation: Complete"] svg')).not.toBeNull();
+    const completedFlightSteps = stageNav.querySelectorAll('a[aria-label="Flight Operation: Complete"]');
+    expect(completedFlightSteps.length).toBeGreaterThan(0);
+    for (const step of completedFlightSteps) {
+      expect(step.textContent).toMatch(/^3/);
+      expect(step.querySelector('svg')).toBeNull();
+    }
     expect(stageNav.querySelector('a[aria-label="Post-flight & Items: In progress"]')).toBeTruthy();
   });
 

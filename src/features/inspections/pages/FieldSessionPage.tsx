@@ -515,7 +515,7 @@ export interface FieldSessionPageProps {
 
 /** Record a mission permit file and the Inspector's on-site session. */
 export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) {
-  const { locale, formatDateTime, t } = useLocale();
+  const { locale, formatDate, formatDateTime, t } = useLocale();
   const tr = (vi: string, en: string) => (locale === 'vi' ? vi : en);
   const { inspectionId = '' } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -574,9 +574,8 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
     () => searchParams.get('newSession') === '1',
   );
   const [selectedFlightId, setSelectedFlightId] = useState<string | null>(null);
-  const [addFlightOpen, setAddFlightOpen] = useState(false);
+  const [newFlightOpenedAt, setNewFlightOpenedAt] = useState<Date | null>(null);
   const [newFlightLabel, setNewFlightLabel] = useState('');
-  const [newFlightDate, setNewFlightDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [outcomeTarget, setOutcomeTarget] = useState<{
     session: FieldSession;
     kind: 'abort' | 'complete';
@@ -710,16 +709,30 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
     null;
 
   const createFlight = useMutation({
-    mutationFn: (payload: { flightLabel?: string | null; flightDate?: string | null }) =>
-      fieldSessionApi.createFlight(inspectionId, openSession!.id, payload),
+    mutationFn: ({ sessionId, flightLabel }: { sessionId: string; flightLabel: string | null }) =>
+      fieldSessionApi.createFlight(inspectionId, sessionId, {
+        flightLabel,
+        flightDate: toDateTimeLocalValue(new Date().toISOString()).slice(0, 10),
+      }),
     onSuccess: (created) => {
       setSelectedFlightId(created.id);
-      setAddFlightOpen(false);
-      setNewFlightLabel('');
+      setNewFlightOpenedAt(null);
       void queryClient.invalidateQueries({ queryKey: fieldSessionKeys.forInspection(inspectionId) });
       void queryClient.invalidateQueries({ queryKey: fieldSessionKeys.flightsForInspection(inspectionId) });
     },
   });
+  const flightTitle = (flight: FieldSessionFlight) => {
+    const label = flight.flightLabel?.trim();
+    const title = `${tr('Chuyến bay', 'Flight')} ${flight.flightNumber}`;
+    return label && !/^Flight\s+#?\d+$/i.test(label) ? `${title} · ${label}` : title;
+  };
+  const flightDateTime = (flight: FieldSessionFlight) => {
+    if (flight.startedAt) return formatDateTime(flight.startedAt);
+    if (flight.createdAt && toDateTimeLocalValue(flight.createdAt).slice(0, 10) === flight.flightDate) {
+      return formatDateTime(flight.createdAt);
+    }
+    return formatDate(`${flight.flightDate}T00:00:00`, { dateStyle: 'medium' });
+  };
   const latestSession = items.at(-1);
   const hasPermit = Boolean(inspection?.flightPermitFileName);
   const permitVerificationStatus = resolveFlightPermitVerificationStatus(inspection);
@@ -1141,7 +1154,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                   inspection={inspection}
                   onPreviewPermit={() => setPermitPreviewOpen(true)}
                   compact
-                  showAirspace
+                  showAirspace={false}
                   hideHeader
                   hideEmptyNotice
                 />
@@ -2784,30 +2797,18 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                         spacing={1}
                         sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between', mb: 1 }}
                       >
-                        <Box>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                            {tr('Chuyến bay trong phiên này', 'Flight sorties in this session')}
-                            {openSessionFlights.length > 0 ? ` (${openSessionFlights.length})` : ''}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {tr(
-                              'Ghi nhiều chuyến bay (đổi pin, khu vực khác hoặc ngày mới) mà không ghi đè dữ liệu trước đó.',
-                              'Record multiple flights (battery swaps, zones, or days) without overwriting earlier telemetry.',
-                            )}
-                          </Typography>
-                        </Box>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                          {tr('Chuyến bay trong phiên này', 'Flight sorties in this session')}
+                          {openSessionFlights.length > 0 ? ` (${openSessionFlights.length})` : ''}
+                        </Typography>
                         <Button
                           size="small"
                           variant="outlined"
                           startIcon={<AddRounded />}
                           onClick={() => {
-                            setNewFlightDate(
-                              openSession.sessionDate ?? new Date().toISOString().slice(0, 10),
-                            );
-                            setNewFlightLabel(
-                              `Flight #${openSessionFlights.length + 1}`,
-                            );
-                            setAddFlightOpen(true);
+                            createFlight.reset();
+                            setNewFlightLabel('');
+                            setNewFlightOpenedAt(new Date());
                           }}
                           sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px', flexShrink: 0 }}
                         >
@@ -2816,7 +2817,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                       </Stack>
 
                       {openSessionFlights.length > 0 && (
-                        <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', rowGap: 0.75 }}>
+                        <Stack direction="row" spacing={0.75} useFlexGap sx={{ flexWrap: 'wrap' }}>
                           {openSessionFlights.map((flight) => {
                             const selected = flight.id === activeSessionFlight?.id;
                             return (
@@ -2824,11 +2825,27 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                                 key={flight.id}
                                 size="small"
                                 clickable
+                                aria-pressed={selected}
                                 color={selected ? 'primary' : flight.hasFlightReport ? 'success' : 'default'}
                                 variant={selected ? 'filled' : 'outlined'}
                                 onClick={() => setSelectedFlightId(flight.id)}
-                                label={`#${flight.flightNumber} · ${flight.flightDate}${flight.flightLabel ? ` · ${flight.flightLabel}` : ''}${flight.hasFlightReport ? ' ✓' : ''}`}
-                                sx={{ fontWeight: selected ? 700 : 500 }}
+                                label={
+                                  <Stack component="span" sx={{ py: 0.5 }}>
+                                    <Typography component="span" variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontWeight: 700 }}>
+                                      {flightTitle(flight)}
+                                      {flight.hasFlightReport && (
+                                        <CheckCircleRounded
+                                          titleAccess={tr('Đã ghi nhận báo cáo chuyến bay', 'Flight report recorded')}
+                                          sx={{ fontSize: '1rem' }}
+                                        />
+                                      )}
+                                    </Typography>
+                                    <Typography component="span" variant="caption">
+                                      {flightDateTime(flight)}
+                                    </Typography>
+                                  </Stack>
+                                }
+                                sx={{ height: 'auto', borderRadius: 2, '& .MuiChip-label': { whiteSpace: 'normal' } }}
                               />
                             );
                           })}
@@ -2886,14 +2903,9 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                             flexWrap: 'wrap',
                           }}
                         >
-                          <Box>
-                            <Typography variant="subtitle2" sx={{ fontSize: '0.9375rem', fontWeight: 600, color: 'text.primary' }}>
-                              {t('Target Building Inspection Items')}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
-                              {t('Checkpoints to capture during flight.')}
-                            </Typography>
-                          </Box>
+                          <Typography variant="subtitle2" sx={{ fontSize: '0.9375rem', fontWeight: 600, color: 'text.primary' }}>
+                            {t('Target Building Inspection Items')}
+                          </Typography>
                           <Chip
                             size="small"
                             variant="outlined"
@@ -3186,7 +3198,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                             size="small"
                             variant="outlined"
                             color={f.hasFlightReport ? 'success' : 'default'}
-                            label={`#${f.flightNumber} ${f.flightDate} · ${f.flightLabel || 'Flight'}${f.flightDurationSeconds ? ` (${Math.round(f.flightDurationSeconds / 60)}m)` : ''}`}
+                            label={`${flightTitle(f)} · ${flightDateTime(f)}${f.flightDurationSeconds ? ` (${Math.round(f.flightDurationSeconds / 60)}m)` : ''}`}
                           />
                         ))}
                       </Stack>
@@ -3213,14 +3225,19 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
           </Box>
         )}
 
-        <Dialog open={addFlightOpen} onClose={() => setAddFlightOpen(false)} fullWidth maxWidth="xs">
+        <Dialog
+          open={newFlightOpenedAt !== null}
+          onClose={() => !createFlight.isPending && setNewFlightOpenedAt(null)}
+          fullWidth
+          maxWidth="xs"
+        >
           <form
             onSubmit={(event) => {
               event.preventDefault();
-              if (!openSession) return;
+              if (!openSession || createFlight.isPending) return;
               createFlight.mutate({
+                sessionId: openSession.id,
                 flightLabel: newFlightLabel.trim() || null,
-                flightDate: newFlightDate || null,
               });
             }}
           >
@@ -3230,13 +3247,11 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
             <DialogContent>
               <Stack spacing={2} sx={{ pt: 1 }}>
                 <TextField
-                  type="date"
                   size="small"
                   fullWidth
-                  label={tr('Ngày bay', 'Flight date')}
-                  value={newFlightDate}
-                  onChange={(e) => setNewFlightDate(e.target.value)}
-                  slotProps={{ inputLabel: { shrink: true } }}
+                  label={tr('Ngày giờ ghi nhận', 'Recording date and time')}
+                  value={newFlightOpenedAt ? formatDateTime(newFlightOpenedAt) : ''}
+                  slotProps={{ input: { readOnly: true }, inputLabel: { shrink: true } }}
                 />
                 <TextField
                   size="small"
@@ -3247,10 +3262,15 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                   value={newFlightLabel}
                   onChange={(e) => setNewFlightLabel(e.target.value)}
                 />
+                <MutationProblemAlert
+                  error={createFlight.error}
+                  isError={createFlight.isError}
+                  fallbackMessage={tr('Không thể tạo chuyến bay.', 'Could not add the flight.')}
+                />
               </Stack>
             </DialogContent>
             <DialogActions sx={{ px: 3, pb: 2 }}>
-              <Button onClick={() => setAddFlightOpen(false)}>{t('Cancel')}</Button>
+              <Button disabled={createFlight.isPending} onClick={() => setNewFlightOpenedAt(null)}>{t('Cancel')}</Button>
               <LoadingButton type="submit" variant="contained" loading={createFlight.isPending}>
                 {tr('Tạo chuyến bay', 'Add flight')}
               </LoadingButton>

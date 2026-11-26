@@ -52,6 +52,7 @@ export interface FieldSessionFlight {
   flightReportNote: string | null;
   flightVideoEvidenceId: string | null;
   hasFlightReport: boolean;
+  createdAt?: string | null;
 }
 
 export interface FieldSession {

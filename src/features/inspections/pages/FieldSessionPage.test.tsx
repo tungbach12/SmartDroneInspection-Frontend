@@ -7,6 +7,7 @@ import { useToastStore } from '@/shared/ui/Toast';
 
 const mocks = vi.hoisted(() => ({
   list: vi.fn(),
+  createFlight: vi.fn(),
   start: vi.fn(),
   complete: vi.fn(),
   postpone: vi.fn(),
@@ -27,6 +28,7 @@ vi.mock('../api/fieldSessionApi', async (importOriginal) => {
     fieldSessionApi: {
       ...actual.fieldSessionApi,
       list: mocks.list,
+      createFlight: mocks.createFlight,
       start: mocks.start,
       complete: mocks.complete,
       postpone: mocks.postpone,
@@ -160,6 +162,53 @@ describe('FieldSessionPage', () => {
     expect(screen.getByRole('button', { name: 'Complete session' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Postpone' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Abort session' })).toBeTruthy();
+  });
+
+  it('shows flight numbers once and records new sorties with the current date and time', async () => {
+    const olderFlight = {
+      id: 'flight-1',
+      fieldSessionId: SESSION.id,
+      flightNumber: 1,
+      flightDate: '2026-10-20',
+      flightLabel: 'Flight #1',
+      startedAt: new Date(2026, 9, 20, 9, 30).toISOString(),
+      hasFlightReport: false,
+    };
+    const now = new Date();
+    const today = new Intl.DateTimeFormat('sv-SE').format(now);
+    const newFlight = {
+      ...olderFlight,
+      id: 'flight-2',
+      flightNumber: 2,
+      flightDate: today,
+      flightLabel: 'Roof',
+      startedAt: null,
+      createdAt: now.toISOString(),
+    };
+    const session = { ...SESSION, sessionDate: olderFlight.flightDate, flights: [olderFlight] };
+    mocks.list.mockResolvedValue([session]);
+    mocks.createFlight.mockImplementation(async () => {
+      mocks.list.mockResolvedValue([{ ...session, flights: [olderFlight, newFlight] }]);
+      return newFlight;
+    });
+
+    renderWithClient('flight');
+
+    expect(await screen.findByText('Flight 1')).toBeTruthy();
+    expect(screen.queryByText('Flight #1')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Record new flight' }));
+    const recordTime = screen.getByRole<HTMLInputElement>('textbox', { name: 'Recording date and time' });
+    expect(recordTime.readOnly).toBe(true);
+    expect(recordTime.value).toMatch(/\d{1,2}:\d{2}/);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Flight label / zone' }), { target: { value: 'Roof' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add flight' }));
+
+    expect(await screen.findByText('Flight 2 · Roof')).toBeTruthy();
+    expect(screen.getByText(new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(now))).toBeTruthy();
+    expect(mocks.createFlight).toHaveBeenCalledWith('inspection-1', SESSION.id, {
+      flightLabel: 'Roof',
+      flightDate: today,
+    });
   });
 
   it('shows the permit upload action when inspection status is SCHEDULED', async () => {
@@ -698,7 +747,8 @@ describe('FieldSessionPage', () => {
 
     renderWithClient('permit');
 
-    expect(await screen.findByText(/VN-RES-SGN-SAIGON-RIVER/)).toBeTruthy();
+    expect(await screen.findByRole('button', { name: 'Choose permit file' })).toBeTruthy();
+    expect(screen.queryByText('Airspace:')).toBeNull();
 
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     const pdfFile = new File(['%PDF-1.4 test'], 'permit.pdf', { type: 'application/pdf' });

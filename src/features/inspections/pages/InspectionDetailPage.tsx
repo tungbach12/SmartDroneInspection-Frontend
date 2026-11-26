@@ -23,7 +23,6 @@ import {
 } from '@mui/material';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { getSectionPath } from '@/app/permissions/accessPolicy';
-import CheckRounded from '@mui/icons-material/CheckRounded';
 import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined';
 import FactCheckOutlined from '@mui/icons-material/FactCheckOutlined';
 import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
@@ -876,7 +875,6 @@ export default function InspectionDetailPage() {
   };
 
   const currentStep = visibleSteps.find((step) => step.value === tabValue);
-  const currentStepIndex = visibleSteps.findIndex((step) => step.value === tabValue);
   const currentStepState = currentStep ? readinessFor(currentStep) : 'pending';
 
   const windowEndMs = inspection?.plannedEndAt ? new Date(inspection.plannedEndAt).getTime() : Number.NaN;
@@ -1518,7 +1516,7 @@ export default function InspectionDetailPage() {
                     },
                   }}
                 >
-                  {/* Top horizontal connector track + N26 circle indicator */}
+                  {/* Connector and step number */}
                   <Box
                     sx={{
                       width: '100%',
@@ -1563,22 +1561,14 @@ export default function InspectionDetailPage() {
                             ? activePrimary
                             : 'background.paper',
                         color:
-                          isCompleted || isCurrent
-                            ? '#ffffff'
-                            : state === 'ready'
-                              ? 'text.primary'
-                              : 'text.secondary',
+                          isCompleted ? '#ffffff' : isCurrent ? 'primary.contrastText' : 'text.primary',
                         boxShadow: 'none',
-                        fontSize: '0.8rem',
+                        fontSize: '0.875rem',
                         fontWeight: 700,
                         transition: 'all 180ms ease',
                       }}
                     >
-                      {isCompleted ? (
-                        <CheckRounded sx={{ fontSize: 18 }} />
-                      ) : (
-                        idx + 1
-                      )}
+                      {idx + 1}
                     </Box>
                     <Box
                       aria-hidden="true"
@@ -1603,19 +1593,11 @@ export default function InspectionDetailPage() {
                       className="trace-stage-title"
                       sx={{
                         display: 'block',
-                        color: isCurrent
-                          ? isCompleted
-                            ? completeGreen
-                            : activePrimary
-                          : isCompleted
-                            ? 'text.primary'
-                            : 'text.secondary',
+                        color: isCurrent || isCompleted ? 'text.primary' : 'text.secondary',
                         fontSize: '0.875rem',
                         fontWeight: isCurrent ? 700 : isCompleted ? 600 : 500,
                         lineHeight: 1.25,
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
+                        overflowWrap: 'anywhere',
                       }}
                     >
                       {t(step.title)}
@@ -1650,7 +1632,7 @@ export default function InspectionDetailPage() {
               <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.25 }}>
                 <Typography sx={{ fontWeight: 700, color: 'text.primary' }}>{t(currentStep.title)}</Typography>
                 <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                  {t('Step')} {currentStepIndex + 1} / {visibleSteps.length} · {t(STEP_STATE_COPY[currentStepState])}
+                  {t(STEP_STATE_COPY[currentStepState])}
                 </Typography>
               </Stack>
               <Stack direction="row" sx={{ alignItems: 'center' }}>
@@ -1684,18 +1666,14 @@ export default function InspectionDetailPage() {
                             : isCurrent
                               ? activePrimary
                               : 'divider',
-                          bgcolor: isCompleted ? completeGreen : 'background.paper',
-                          color: isCompleted
-                            ? '#ffffff'
-                            : isCurrent
-                              ? activePrimary
-                              : 'text.secondary',
+                          bgcolor: isCompleted ? completeGreen : isCurrent ? activePrimary : 'background.paper',
+                          color: isCompleted ? '#ffffff' : isCurrent ? 'primary.contrastText' : 'text.primary',
                           boxShadow: isCurrent ? '0 0 0 3px rgba(55, 88, 249, 0.2)' : 'none',
                           fontWeight: 700,
-                          fontSize: '0.75rem',
+                          fontSize: '0.875rem',
                         }}
                       >
-                        {isCompleted ? <CheckRounded sx={{ fontSize: 16 }} /> : idx + 1}
+                        {idx + 1}
                       </ButtonBase>
                       {idx < visibleSteps.length - 1 && (
                         <Box
