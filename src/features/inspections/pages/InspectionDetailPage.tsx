@@ -1159,6 +1159,7 @@ export default function InspectionDetailPage() {
                     <RestrictedAirspaceChip
                       latitude={inspection.assetLatitude}
                       longitude={inspection.assetLongitude}
+                      showAltitude={!isInspectorRole}
                     />
                   </Stack>
 
@@ -1309,7 +1310,7 @@ export default function InspectionDetailPage() {
           );
         })()}
 
-        {inspection && (
+        {inspection && (!isInspectorRole || isPendingAcceptance) && (
           <RestrictedAirspaceAlert
             role={isCustomer ? 'CUSTOMER' : isReviewerAdmin ? 'MANAGER' : 'INSPECTOR'}
             latitude={inspection.assetLatitude}

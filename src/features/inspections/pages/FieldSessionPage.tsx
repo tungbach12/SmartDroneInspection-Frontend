@@ -1128,12 +1128,14 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                   </Stack>
                 </Stack>
 
-                <RestrictedAirspaceAlert
-                  role={isManagerOrAdmin ? 'MANAGER' : 'INSPECTOR'}
-                  latitude={inspection.assetLatitude}
-                  longitude={inspection.assetLongitude}
-                  sx={{ borderRadius: '10px' }}
-                />
+                {isManagerOrAdmin && (
+                  <RestrictedAirspaceAlert
+                    role="MANAGER"
+                    latitude={inspection.assetLatitude}
+                    longitude={inspection.assetLongitude}
+                    sx={{ borderRadius: '10px' }}
+                  />
+                )}
 
                 <FlightPermitVerificationPanel
                   inspection={inspection}

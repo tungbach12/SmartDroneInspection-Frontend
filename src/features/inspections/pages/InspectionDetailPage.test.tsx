@@ -1041,4 +1041,24 @@ describe('InspectionDetailPage', () => {
     const textbox = screen.getByLabelText(/Decline reason/) as HTMLInputElement;
     expect(textbox.value).toBe('Unable to obtain restricted-airspace flight permit');
   });
+
+  it('shows a compact restricted-zone badge after the Inspector accepts', async () => {
+    signInAs('INSPECTOR');
+    mocks.inspectionQuery = {
+      ...mocks.inspectionQuery,
+      data: {
+        ...mocks.inspectionQuery.data,
+        assetLatitude: 10.7789,
+        assetLongitude: 106.7082,
+        status: 'SCHEDULED',
+        assignmentStatus: 'ACCEPTED',
+      },
+    };
+
+    renderInspectionPage({ route: '/operations/inspections/inspection-1/permit' });
+
+    expect(await screen.findByText('Restricted Zone', { exact: true })).toBeTruthy();
+    expect(screen.queryByText(/confirm you can obtain the permit before accepting/i)).toBeNull();
+    expect(screen.queryByText(/restricted zone · max/i)).toBeNull();
+  });
 });
