@@ -278,7 +278,12 @@ describe('InspectionWorkDetailDialog', () => {
     expect(screen.getByRole('button', { name: /Service requests/i })).toBeTruthy();
   });
 
-  it('lets INSPECTOR decline a SCHEDULED mission with a required reason', () => {
+  it('lets INSPECTOR decline an unaccepted mission with a required reason', () => {
+    mockUseInspection.mockReturnValue({
+      data: { ...mockInspectionData, assignmentStatus: 'PENDING_ACCEPTANCE' },
+      isLoading: false,
+      isError: false,
+    });
     render(
       <InspectionWorkDetailDialog
         open={true}
@@ -297,6 +302,19 @@ describe('InspectionWorkDetailDialog', () => {
       'Schedule conflict with emergency work',
       expect.any(Object),
     );
+  });
+
+  it('omits the decline action from Overview after acceptance', () => {
+    mockUseInspection.mockReturnValue({
+      data: { ...mockInspectionData, assignmentStatus: 'ACCEPTED' },
+      isLoading: false,
+      isError: false,
+    });
+
+    render(<InspectionWorkDetailDialog open inspectionId="insp-12345678-abcd" onClose={vi.fn()} />);
+
+    expect(screen.getByRole('button', { name: 'Open full inspection workspace' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Decline mission' })).toBeNull();
   });
 
   it('shows reassignment required alert while keeping dispatch actions out of Overview', () => {

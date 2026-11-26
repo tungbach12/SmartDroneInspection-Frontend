@@ -10,16 +10,22 @@ import {
 interface RestrictedAirspaceChipProps {
   latitude?: number | null | undefined;
   longitude?: number | null | undefined;
+  showAltitude?: boolean;
   sx?: SxProps<Theme>;
 }
 
-export function RestrictedAirspaceChip({ latitude, longitude, sx }: RestrictedAirspaceChipProps) {
+export function RestrictedAirspaceChip({
+  latitude,
+  longitude,
+  showAltitude = true,
+  sx,
+}: RestrictedAirspaceChipProps) {
   const { locale } = useLocale();
   const restricted = getRestrictedAirspaceSummary(latitude, longitude);
   if (!restricted) return null;
 
   const label =
-    restricted.maxAltitudeMetersAgl > 0
+    showAltitude && restricted.maxAltitudeMetersAgl > 0
       ? locale === 'vi'
         ? `Vùng hạn chế · Trần ${restricted.maxAltitudeMetersAgl} m`
         : `Restricted Zone · Max ${restricted.maxAltitudeMetersAgl} m`

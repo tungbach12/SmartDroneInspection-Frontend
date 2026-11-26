@@ -1243,7 +1243,10 @@ export function useAcceptInspection(inspectionId: string | null) {
   });
 }
 
-export function useDeclineInspection(inspectionId: string | null) {
+export function useDeclineInspection(
+  inspectionId: string | null,
+  successMessage = 'Inspection declined; manager notified for reassignment',
+) {
   const client = useQueryClient();
   const showToast = useToastStore((s) => s.showToast);
   return useMutation({
@@ -1256,7 +1259,7 @@ export function useDeclineInspection(inspectionId: string | null) {
         void client.invalidateQueries({ queryKey: inspectionKeys.list({}) });
         void client.invalidateQueries({ queryKey: inspectionKeys.all });
       }
-      showToast('Inspection declined; manager notified for reassignment');
+      showToast(successMessage);
     },
     onError: (error) =>
       showToast(getErrorMessage(error, 'Could not decline inspection.'), 'error'),

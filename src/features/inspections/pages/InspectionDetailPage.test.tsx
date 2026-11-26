@@ -571,7 +571,7 @@ describe('InspectionDetailPage', () => {
         children: [{ index: true, element: <InspectionStageTestOutlet /> }, { path: '*', element: <InspectionStageTestOutlet /> }],
       },
     ], { initialEntries: ['/operations/inspections/inspection-1/field-session'] })} />);
-    expect(stageNav.querySelector('a[aria-label="Defect Findings: Complete"] svg')).not.toBeNull();
+    expect(stageNav.querySelector('a[aria-label="Defect Findings: Complete"]')).toBeTruthy();
   });
 
   it('marks Flight Operation (Step 3) as Complete once flight record is present and user moves to Post-flight (Step 4)', () => {
@@ -606,7 +606,12 @@ describe('InspectionDetailPage', () => {
     renderInspectionPage({ route: '/operations/inspections/inspection-1/post-flight' });
 
     const stageNav = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
-    expect(stageNav.querySelector('a[aria-label="Flight Operation: Complete"] svg')).not.toBeNull();
+    const completedFlightSteps = stageNav.querySelectorAll('a[aria-label="Flight Operation: Complete"]');
+    expect(completedFlightSteps.length).toBeGreaterThan(0);
+    for (const step of completedFlightSteps) {
+      expect(step.textContent).toMatch(/^3/);
+      expect(step.querySelector('svg')).toBeNull();
+    }
     expect(stageNav.querySelector('a[aria-label="Post-flight & Items: In progress"]')).toBeTruthy();
   });
 
@@ -1040,5 +1045,25 @@ describe('InspectionDetailPage', () => {
     fireEvent.click(chip);
     const textbox = screen.getByLabelText(/Decline reason/) as HTMLInputElement;
     expect(textbox.value).toBe('Unable to obtain restricted-airspace flight permit');
+  });
+
+  it('shows a compact restricted-zone badge after the Inspector accepts', async () => {
+    signInAs('INSPECTOR');
+    mocks.inspectionQuery = {
+      ...mocks.inspectionQuery,
+      data: {
+        ...mocks.inspectionQuery.data,
+        assetLatitude: 10.7789,
+        assetLongitude: 106.7082,
+        status: 'SCHEDULED',
+        assignmentStatus: 'ACCEPTED',
+      },
+    };
+
+    renderInspectionPage({ route: '/operations/inspections/inspection-1/permit' });
+
+    expect(await screen.findByText('Restricted Zone', { exact: true })).toBeTruthy();
+    expect(screen.queryByText(/confirm you can obtain the permit before accepting/i)).toBeNull();
+    expect(screen.queryByText(/restricted zone · max/i)).toBeNull();
   });
 });

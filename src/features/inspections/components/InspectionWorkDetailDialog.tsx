@@ -96,12 +96,6 @@ export function InspectionWorkDetailDialog({
     inspection?.status === 'SCHEDULED' &&
     !inspection?.reassignmentRequired &&
     inspection?.assignmentStatus === 'PENDING_ACCEPTANCE';
-  const canDecline =
-    !isManagerPortal &&
-    !isClientPortal &&
-    roles.includes('INSPECTOR') &&
-    inspection?.status === 'SCHEDULED' &&
-    !inspection?.reassignmentRequired;
   const navigateToInspectionRoute = (subpath = '') => {
     onClose();
     const base = `${getSectionPath(portal, 'inspections')}/${inspectionId}`;
@@ -557,7 +551,7 @@ export function InspectionWorkDetailDialog({
               {t('Accept mission')}
             </LoadingButton>
           )}
-          {canDecline && (
+          {isPendingAcceptance && (
             <Button
               variant="outlined"
               color="warning"

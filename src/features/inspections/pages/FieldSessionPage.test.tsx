@@ -3,14 +3,18 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthStore } from '@/features/auth/store/authStore';
+import { useToastStore } from '@/shared/ui/Toast';
 
 const mocks = vi.hoisted(() => ({
   list: vi.fn(),
+  createFlight: vi.fn(),
   start: vi.fn(),
   complete: vi.fn(),
   postpone: vi.fn(),
   abort: vi.fn(),
   getById: vi.fn(),
+  workflowState: vi.fn(),
+  decline: vi.fn(),
   uploadFlightPermit: vi.fn(),
   importFlightLog: vi.fn(),
   declareManualFlight: vi.fn(),
@@ -24,6 +28,7 @@ vi.mock('../api/fieldSessionApi', async (importOriginal) => {
     fieldSessionApi: {
       ...actual.fieldSessionApi,
       list: mocks.list,
+      createFlight: mocks.createFlight,
       start: mocks.start,
       complete: mocks.complete,
       postpone: mocks.postpone,
@@ -39,6 +44,8 @@ vi.mock('../api/inspectionApi', async (importOriginal) => {
     inspectionApi: {
       ...actual.inspectionApi,
       getById: mocks.getById,
+      workflowState: mocks.workflowState,
+      decline: mocks.decline,
       uploadFlightPermit: mocks.uploadFlightPermit,
     },
   };
@@ -96,6 +103,7 @@ function renderWithClient(stage?: 'permit' | 'pre-flight' | 'flight' | 'post-fli
             element={stage ? <FieldSessionPage stage={stage} /> : <FieldSessionPage />}
           />
           <Route path="/operations/inspections/:inspectionId" element={<div>inspection</div>} />
+          <Route path="/operations/inspections" element={<div>Inspection list</div>} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -106,6 +114,7 @@ describe('FieldSessionPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getById.mockResolvedValue(INSPECTION);
+    mocks.workflowState.mockResolvedValue({ status: 'SCHEDULED', canWithdrawAssignment: false });
     mocks.list.mockResolvedValue([SESSION]);
     mocks.start.mockResolvedValue(SESSION);
     mocks.complete.mockResolvedValue({
@@ -137,6 +146,7 @@ describe('FieldSessionPage', () => {
     sessionStorage.clear();
     localStorage.clear();
     useAuthStore.setState({ roles: [] });
+    useToastStore.setState({ open: false, message: '', severity: 'success' });
   });
 
   it('keeps the field-session screen focused on permit and session actions', async () => {
@@ -152,6 +162,53 @@ describe('FieldSessionPage', () => {
     expect(screen.getByRole('button', { name: 'Complete session' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Postpone' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Abort session' })).toBeTruthy();
+  });
+
+  it('shows flight numbers once and records new sorties with the current date and time', async () => {
+    const olderFlight = {
+      id: 'flight-1',
+      fieldSessionId: SESSION.id,
+      flightNumber: 1,
+      flightDate: '2026-10-20',
+      flightLabel: 'Flight #1',
+      startedAt: new Date(2026, 9, 20, 9, 30).toISOString(),
+      hasFlightReport: false,
+    };
+    const now = new Date();
+    const today = new Intl.DateTimeFormat('sv-SE').format(now);
+    const newFlight = {
+      ...olderFlight,
+      id: 'flight-2',
+      flightNumber: 2,
+      flightDate: today,
+      flightLabel: 'Roof',
+      startedAt: null,
+      createdAt: now.toISOString(),
+    };
+    const session = { ...SESSION, sessionDate: olderFlight.flightDate, flights: [olderFlight] };
+    mocks.list.mockResolvedValue([session]);
+    mocks.createFlight.mockImplementation(async () => {
+      mocks.list.mockResolvedValue([{ ...session, flights: [olderFlight, newFlight] }]);
+      return newFlight;
+    });
+
+    renderWithClient('flight');
+
+    expect(await screen.findByText('Flight 1')).toBeTruthy();
+    expect(screen.queryByText('Flight #1')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Record new flight' }));
+    const recordTime = screen.getByRole<HTMLInputElement>('textbox', { name: 'Recording date and time' });
+    expect(recordTime.readOnly).toBe(true);
+    expect(recordTime.value).toMatch(/\d{1,2}:\d{2}/);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Flight label / zone' }), { target: { value: 'Roof' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add flight' }));
+
+    expect(await screen.findByText('Flight 2 · Roof')).toBeTruthy();
+    expect(screen.getByText(new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(now))).toBeTruthy();
+    expect(mocks.createFlight).toHaveBeenCalledWith('inspection-1', SESSION.id, {
+      flightLabel: 'Roof',
+      flightDate: today,
+    });
   });
 
   it('shows the permit upload action when inspection status is SCHEDULED', async () => {
@@ -175,6 +232,59 @@ describe('FieldSessionPage', () => {
     ).toBe(true);
   });
 
+  it('requires a reason to withdraw, then notifies the Inspector and returns to the list', async () => {
+    useAuthStore.setState({ roles: ['INSPECTOR'] });
+    const assignedInspection = {
+      ...INSPECTION,
+      assignmentStatus: 'ACCEPTED',
+      flightPermitFileName: null,
+      flightPermitVerificationStatus: 'NOT_UPLOADED',
+    };
+    mocks.getById.mockResolvedValue(assignedInspection);
+    mocks.workflowState.mockResolvedValue({ status: 'SCHEDULED', canWithdrawAssignment: true });
+    mocks.list.mockResolvedValue([]);
+    mocks.decline.mockResolvedValue({ ...assignedInspection, assignmentStatus: 'DECLINED' });
+
+    renderWithClient('permit');
+
+    const withdraw = await screen.findByRole('button', { name: 'Withdraw from assignment' });
+    fireEvent.click(withdraw);
+    expect(screen.getByRole('dialog', { name: 'Withdraw from assignment?' })).toBeTruthy();
+    const confirm = screen.getByRole<HTMLButtonElement>('button', { name: 'Confirm withdrawal' });
+    const reason = screen.getByRole('textbox', { name: 'Reason for withdrawing' });
+    fireEvent.change(reason, { target: { value: '   ' } });
+    expect(confirm.disabled).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Go back' }));
+    expect(mocks.decline).not.toHaveBeenCalled();
+
+    fireEvent.click(withdraw);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Reason for withdrawing' }), {
+      target: { value: '  Permit will not be issued before the scheduled date.  ' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm withdrawal' }));
+
+    expect(await screen.findByText('Inspection list')).toBeTruthy();
+    expect(mocks.decline).toHaveBeenCalledWith(
+      'inspection-1',
+      'Permit will not be issued before the scheduled date.',
+    );
+    expect(useToastStore.getState().message).toBe(
+      'You withdrew from the assignment. The Manager has been notified.',
+    );
+  });
+
+  it('hides withdrawal when the backend does not allow it for an accepted assignment', async () => {
+    useAuthStore.setState({ roles: ['INSPECTOR'] });
+    mocks.getById.mockResolvedValue({ ...INSPECTION, assignmentStatus: 'ACCEPTED' });
+    mocks.list.mockResolvedValue([]);
+
+    renderWithClient('permit');
+
+    expect(await screen.findByText('Flight permit')).toBeTruthy();
+    expect(mocks.workflowState).toHaveBeenCalledWith('inspection-1');
+    expect(screen.queryByRole('button', { name: 'Withdraw from assignment' })).toBeNull();
+  });
+
   it('blocks starting a field session while flight permit verification is PENDING_REVIEW or REJECTED', async () => {
     mocks.getById.mockResolvedValue({
       ...INSPECTION,
@@ -188,7 +298,7 @@ describe('FieldSessionPage', () => {
     expect(
       await screen.findByText(/The drone or schedule changed/i),
     ).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Submit flight permit for verification' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Save flight permit' })).toBeTruthy();
     expect(
       (screen.getByRole('button', { name: 'Start session' }) as HTMLButtonElement).disabled,
     ).toBe(true);
@@ -466,7 +576,7 @@ describe('FieldSessionPage', () => {
     });
     fireEvent.change(fileInput, { target: { files: [replacementFile] } });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Submit flight permit for verification' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save flight permit' }));
 
     expect(await screen.findByText('Replace approved flight permit?')).toBeTruthy();
     expect(mocks.uploadFlightPermit).not.toHaveBeenCalled();
@@ -637,7 +747,8 @@ describe('FieldSessionPage', () => {
 
     renderWithClient('permit');
 
-    expect(await screen.findByText(/VN-RES-SGN-SAIGON-RIVER/)).toBeTruthy();
+    expect(await screen.findByRole('button', { name: 'Choose permit file' })).toBeTruthy();
+    expect(screen.queryByText('Airspace:')).toBeNull();
 
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     const pdfFile = new File(['%PDF-1.4 test'], 'permit.pdf', { type: 'application/pdf' });
@@ -658,7 +769,7 @@ describe('FieldSessionPage', () => {
 
     const maxAltInput = screen.getByLabelText(/Max altitude \(m\)/);
     fireEvent.change(maxAltInput, { target: { value: '150' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Submit flight permit for verification' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save flight permit' }));
 
     expect(
       await screen.findByText(/Permit max altitude \(150 m\) exceeds the restricted airspace ceiling \(120 m AGL\)/),
@@ -666,7 +777,7 @@ describe('FieldSessionPage', () => {
     expect(mocks.uploadFlightPermit).not.toHaveBeenCalled();
 
     fireEvent.change(maxAltInput, { target: { value: '120' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Submit flight permit for verification' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save flight permit' }));
 
     await waitFor(() =>
       expect(mocks.uploadFlightPermit).toHaveBeenCalledWith(

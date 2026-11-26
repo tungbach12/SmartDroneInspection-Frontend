@@ -48,6 +48,16 @@ describe('AssignmentsLedger', () => {
         updatedAt: '2026-11-01T00:00:00Z',
       },
     ];
+    rows.push({
+      ...rows[0]!,
+      id: 'insp-cancelled',
+      assetName: 'Cancelled inspection',
+      assetCode: 'BRIDGE-02',
+      plannedStartAt: '2026-12-21T01:00:00Z',
+      plannedEndAt: '2026-12-21T03:00:00Z',
+      status: 'CANCELLED',
+      assignmentStatus: 'DECLINED',
+    });
 
     const onAccept = vi.fn();
     const { container } = render(
@@ -62,13 +72,16 @@ describe('AssignmentsLedger', () => {
 
     expect(screen.getByText('Pending acceptance')).toBeTruthy();
     expect(screen.getByText('Accepted')).toBeTruthy();
+    expect(screen.getByText('Cancelled')).toBeTruthy();
     expect(screen.getAllByText('Scheduled')).toHaveLength(2);
     expect(screen.getByText(/Dec 26\s*[–-]\s*Dec 28,\s*2026/)).toBeTruthy();
 
-    // 2 asset code chips + 2 single assignment status chips = 4 chips total (no double status badges)
-    expect(container.querySelectorAll('.MuiChip-root')).toHaveLength(4);
+    expect(container.querySelectorAll('.MuiChip-root')).toHaveLength(6);
 
     fireEvent.click(screen.getByRole('button', { name: 'Accept' }));
     expect(onAccept).toHaveBeenCalledWith('insp-pending');
+
+    fireEvent.click(screen.getByRole('tab', { name: /Declined/ }));
+    expect(screen.queryByText('Cancelled inspection')).toBeNull();
   });
 });
