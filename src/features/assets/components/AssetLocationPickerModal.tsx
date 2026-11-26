@@ -139,10 +139,6 @@ export function GoogleMapsLocationCard({
       .filter((z) => z.zoneType === 'NO_FLY_ZONE')
       .map((z) => z.name)
       .join(', ') ?? '';
-  const restrictedZones =
-    airspace?.matchingZones.filter((z) => z.zoneType === 'RESTRICTED_ZONE') ?? [];
-  const restrictedPrimary = restrictedZones[0];
-
   return (
     <Box
       sx={{
@@ -228,22 +224,12 @@ export function GoogleMapsLocationCard({
         </Alert>
       )}
 
-      {isRestrictedZone && restrictedPrimary && (
+      {isRestrictedZone && (
         <Alert severity="warning" sx={{ mb: 1.25, borderRadius: '8px', fontSize: '0.8125rem' }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '0.8125rem' }}>
-            {locale === 'vi'
-              ? `Vùng hạn chế bay (MSG28) — ${restrictedPrimary.name}`
-              : `Restricted Airspace (MSG28) — ${restrictedPrimary.name}`}
-          </Typography>
-          <Typography variant="caption" sx={{ display: 'block', mt: 0.35, color: 'text.primary' }}>
-            {locale === 'vi'
-              ? `Công trình vẫn có thể đăng ký/lưu bình thường, nhưng khi bay kiểm định bắt buộc phải có giấy phép bay hợp lệ từ ${restrictedPrimary.authority} (trần bay tham khảo: ≤ ${restrictedPrimary.maxAltitudeMetersAgl} m AGL). Tra cứu thêm tại `
-              : `You can still register and save this asset normally, but inspection flights require a valid flight permit from ${restrictedPrimary.authority} (reference ceiling: ≤ ${restrictedPrimary.maxAltitudeMetersAgl} m AGL). Check current rules at `}
-            <a href="https://cambay.mod.gov.vn" target="_blank" rel="noopener noreferrer">
-              https://cambay.mod.gov.vn
-            </a>
-            .
-          </Typography>
+          {t('Restricted airspace. You can use this location. Inspection flights require a permit.')}{' '}
+          <a href="https://cambay.mod.gov.vn" target="_blank" rel="noopener noreferrer">
+            {t('Airspace rules')}
+          </a>
         </Alert>
       )}
 
@@ -366,7 +352,7 @@ export function AssetLocationPickerModal({
   initialLongitude,
   onApplyCoordinates,
 }: AssetLocationPickerModalProps) {
-  const { locale, t } = useLocale();
+  const { t } = useLocale();
 
   const [pinLat, setPinLat] = useState<number>(() => {
     return typeof initialLatitude === 'number' && !Number.isNaN(initialLatitude)
@@ -799,7 +785,6 @@ export function AssetLocationPickerModal({
   const pinAirspace = evaluateAirspace(pinLat, pinLon);
   const isPinNoFlyZone = pinAirspace.classification === 'NO_FLY_ZONE';
   const isPinRestrictedZone = pinAirspace.classification === 'RESTRICTED_ZONE';
-  const pinRestrictedPrimary = pinAirspace.matchingZones.find((z) => z.zoneType === 'RESTRICTED_ZONE');
 
   const handleConfirm = () => {
     if (isPinNoFlyZone) return;
@@ -1216,21 +1201,12 @@ export function AssetLocationPickerModal({
             </Box>
           </Box>
 
-          {isPinRestrictedZone && pinRestrictedPrimary && (
+          {isPinRestrictedZone && (
             <Alert severity="warning" sx={{ borderRadius: '10px', fontSize: '0.8125rem' }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '0.8125rem' }}>
-                {locale === 'vi'
-                  ? `Vùng hạn chế bay (MSG28) — ${pinRestrictedPrimary.name}`
-                  : `Restricted Airspace (MSG28) — ${pinRestrictedPrimary.name}`}
-              </Typography>
-              <Typography variant="caption" sx={{ display: 'block', mt: 0.25 }}>
-                {locale === 'vi'
-                  ? `Bạn vẫn có thể xác nhận vị trí này, nhưng khi bay kiểm định cần giấy phép từ ${pinRestrictedPrimary.authority} (≤ ${pinRestrictedPrimary.maxAltitudeMetersAgl} m AGL). `
-                  : `You can confirm this location normally; inspection flights require a permit from ${pinRestrictedPrimary.authority} (≤ ${pinRestrictedPrimary.maxAltitudeMetersAgl} m AGL). `}
-                <a href="https://cambay.mod.gov.vn" target="_blank" rel="noopener noreferrer">
-                  https://cambay.mod.gov.vn
-                </a>
-              </Typography>
+              {t('Restricted airspace. You can use this location. Inspection flights require a permit.')}{' '}
+              <a href="https://cambay.mod.gov.vn" target="_blank" rel="noopener noreferrer">
+                {t('Airspace rules')}
+              </a>
             </Alert>
           )}
 

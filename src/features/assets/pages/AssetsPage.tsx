@@ -58,9 +58,8 @@ import {
   useCreateAsset,
   useUpdateAsset,
   useRetireAsset,
-  useUpdateAssetInspectionItems,
 } from '../hooks/useAssets';
-import { useCategories, useChecklistTemplates } from '../hooks/useCatalog';
+import { useCategories } from '../hooks/useCatalog';
 import { useInspections } from '@/features/inspections/hooks/useInspections';
 import { InspectionWorkDetailDialog } from '@/features/inspections/components/InspectionWorkDetailDialog';
 import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
@@ -411,9 +410,6 @@ export function AssetsPage() {
   const totalCount = data?.allCount ?? data?.totalCount ?? items.length;
   const activeCount = data?.activeCount ?? items.filter((a) => a.status === 'ACTIVE').length;
   const pendingCount = items.filter((a) => a.status === 'PENDING_REVIEW').length;
-  const checkpointsConfiguredCount =
-    data?.checkpointsConfiguredCount ??
-    items.filter((a) => (a.inspectionItems?.length ?? 0) > 0).length;
   const normalizedQuery = trimmedQuery.toLowerCase();
   const filteredItems = items.filter((asset) => {
     if (asset.status !== statusFilter) return false;
@@ -478,12 +474,11 @@ export function AssetsPage() {
           { label: t('Assets') },
         ]}
       />
-      {/* 4 Lytic KPI Metric Cards */}
       {isClient && (
         <Box
           sx={{
             display: 'grid',
-            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' },
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
             gap: 2.5,
             mb: 3,
           }}
@@ -511,14 +506,6 @@ export function AssetsPage() {
             positive={pendingCount === 0}
             subtext="awaiting verification"
             iconType="alert"
-          />
-          <MetricCard
-            label={t('Checkpoints Configured')}
-            value={isLoading ? '…' : formatNumber(checkpointsConfiguredCount)}
-            change={checkpointsConfiguredCount > 0 ? t('Ready') : t('Standard')}
-            positive
-            subtext="assets with custom checkpoints"
-            iconType="shield"
           />
         </Box>
       )}
@@ -1211,160 +1198,8 @@ function CreateAssetDialog(props: CreateAssetDialogProps) {
   );
 }
 
-function InspectionItemsEditor({
-  asset,
-  onCancel,
-  onSaved,
-}: {
-  asset: Asset;
-  onCancel: () => void;
-  onSaved: (updated: Asset) => void;
-}) {
+function InspectionItemsSection({ items }: { items: string[] }) {
   const { t } = useLocale();
-  const [draftItems, setDraftItems] = useState<string[]>(asset.inspectionItems ?? []);
-  const [customInput, setCustomInput] = useState('');
-  const updateItemsMutation = useUpdateAssetInspectionItems();
-  const categoryTemplatesQuery = useChecklistTemplates(
-    { type: 'CATEGORY_INSPECTION_ITEM', categoryId: asset.categoryId },
-    Boolean(asset.categoryId),
-  );
-
-  const addCustomItem = () => {
-    const val = customInput.trim();
-    if (val && !draftItems.includes(val)) {
-      setDraftItems((prev) => [...prev, val]);
-      setCustomInput('');
-    }
-  };
-
-  const toggleItem = (label: string) => {
-    setDraftItems((prev) =>
-      prev.includes(label) ? prev.filter((x) => x !== label) : [...prev, label],
-    );
-  };
-
-  const handleSave = () => {
-    updateItemsMutation.mutate(
-      { assetId: asset.id, inspectionItems: draftItems },
-      {
-        onSuccess: (updated) => {
-          onSaved(updated);
-        },
-      },
-    );
-  };
-
-  const categorySuggestions = (categoryTemplatesQuery.data ?? [])
-    .filter((tpl) => tpl.active && !draftItems.includes(tpl.label))
-    .map((tpl) => tpl.label);
-
-  return (
-    <Stack spacing={1.5}>
-      {draftItems.length > 0 ? (
-        <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75 }}>
-          {draftItems.map((item, idx) => (
-            <Chip
-              key={idx}
-              label={item}
-              size="small"
-              color="primary"
-              variant="outlined"
-              onDelete={() => toggleItem(item)}
-            />
-          ))}
-        </Stack>
-      ) : (
-        <Typography variant="caption" color="text.secondary">
-          {t('No items selected yet. Add custom checkpoints or pick from category templates below.')}
-        </Typography>
-      )}
-
-      {categorySuggestions.length > 0 && (
-        <Box>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-            {t('Standard category items (click to add):')}
-          </Typography>
-          <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
-            {categorySuggestions.map((label) => (
-              <Chip
-                key={label}
-                label={`+ ${label}`}
-                size="small"
-                variant="outlined"
-                onClick={() => toggleItem(label)}
-                sx={{ cursor: 'pointer', fontSize: '0.72rem' }}
-              />
-            ))}
-          </Stack>
-        </Box>
-      )}
-
-      <Stack direction="row" spacing={1}>
-        <TextField
-          size="small"
-          fullWidth
-          placeholder={t('Add custom inspection item (e.g. West facade 18F crack)...')}
-          value={customInput}
-          onChange={(e) => setCustomInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              addCustomItem();
-            }
-          }}
-        />
-        <Button
-          size="small"
-          variant="outlined"
-          onClick={addCustomItem}
-          disabled={!customInput.trim()}
-          sx={{ textTransform: 'none', fontWeight: 600, flexShrink: 0 }}
-        >
-          {t('Add')}
-        </Button>
-      </Stack>
-
-      <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
-        <Button
-          size="small"
-          onClick={onCancel}
-          disabled={updateItemsMutation.isPending}
-          sx={{ textTransform: 'none' }}
-        >
-          {t('Cancel')}
-        </Button>
-        <Button
-          size="small"
-          variant="contained"
-          onClick={handleSave}
-          disabled={updateItemsMutation.isPending}
-          sx={{ textTransform: 'none', fontWeight: 600 }}
-        >
-          {updateItemsMutation.isPending ? t('Saving…') : t('Save checkpoints')}
-        </Button>
-      </Stack>
-    </Stack>
-  );
-}
-
-function InspectionItemsSection({
-  asset,
-  canEdit,
-  onAssetUpdated,
-}: {
-  asset: Asset;
-  canEdit: boolean;
-  onAssetUpdated?: ((updated: Asset) => void) | undefined;
-}) {
-  const { t } = useLocale();
-  const [editing, setEditing] = useState(false);
-  const editable = canEdit && asset.status !== 'RETIRED' && !asset.checkpointsLocked;
-
-  useEffect(() => {
-    setEditing(false);
-  }, [asset.id]);
-
-  const items = asset.inspectionItems ?? [];
 
   return (
     <Box
@@ -1377,48 +1212,19 @@ function InspectionItemsSection({
         borderColor: 'divider',
       }}
     >
-      <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.primary' }}>
-          {t('Inspection Checkpoints')}
-        </Typography>
-        {editable && !editing && (
-          <Button
-            size="small"
-            variant="text"
-            onClick={() => setEditing(true)}
-            sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', py: 0 }}
-          >
-            {t('+ Add / Edit custom items')}
-          </Button>
-        )}
-      </Stack>
-      {canEdit && asset.checkpointsLocked && (
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-          {t('Checkpoints are locked after the first inspection.')}
-        </Typography>
-      )}
-
-      {!editing ? (
-        items.length > 0 ? (
-          <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75 }}>
-            {items.map((item, idx) => (
-              <Chip key={idx} label={item} size="small" variant="outlined" />
-            ))}
-          </Stack>
-        ) : (
-          <Typography variant="body2" color="text.secondary">
-            {t('No inspection checkpoints defined for this asset.')}
-          </Typography>
-        )
+      <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+        {t('Inspection Checkpoints')}
+      </Typography>
+      {items.length > 0 ? (
+        <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75 }}>
+          {items.map((item, idx) => (
+            <Chip key={idx} label={item} size="small" variant="outlined" />
+          ))}
+        </Stack>
       ) : (
-        <InspectionItemsEditor
-          asset={asset}
-          onCancel={() => setEditing(false)}
-          onSaved={(updated) => {
-            setEditing(false);
-            onAssetUpdated?.(updated);
-          }}
-        />
+        <Typography variant="body2" color="text.secondary">
+          {t('No inspection checkpoints defined for this asset.')}
+        </Typography>
       )}
     </Box>
   );
@@ -1515,7 +1321,6 @@ function AssetDetailDrawer({
   const { locale, t } = useLocale();
   const roles = useAuthStore((state) => state.roles);
   const isClient = roles.includes('CUSTOMER');
-  const canEditInspectionItems = isClient;
   const updateMutation = useUpdateAsset();
   const retireMutation = useRetireAsset();
   const [confirmRetireOpen, setConfirmRetireOpen] = useState(false);
@@ -2491,12 +2296,8 @@ function AssetDetailDrawer({
                 )}
               </Paper>
 
-              {asset && (
-                <InspectionItemsSection
-                  asset={asset}
-                  canEdit={canEditInspectionItems && asset.status !== 'RETIRED'}
-                  onAssetUpdated={onAssetUpdated}
-                />
+              {asset && !isClient && (
+                <InspectionItemsSection items={asset.inspectionItems ?? []} />
               )}
 
               {asset && (
