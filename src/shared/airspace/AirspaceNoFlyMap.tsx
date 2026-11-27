@@ -1914,7 +1914,7 @@ export function AirspaceNoFlyMap({
                     label={
                       activeSelectedZone.zoneType === 'NO_FLY_ZONE'
                         ? 'CẤM BAY (NO-FLY)'
-                        : `HẠN CHẾ BAY (Trần <= ${activeSelectedZone.maxAltitudeMetersAgl}m AGL)`
+                        : 'HẠN CHẾ BAY (RESTRICTED)'
                     }
                     sx={{ fontWeight: 700, height: 22, fontSize: '0.7rem' }}
                   />

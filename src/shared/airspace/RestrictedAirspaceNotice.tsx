@@ -10,28 +10,19 @@ import {
 interface RestrictedAirspaceChipProps {
   latitude?: number | null | undefined;
   longitude?: number | null | undefined;
-  showAltitude?: boolean;
   sx?: SxProps<Theme>;
 }
 
 export function RestrictedAirspaceChip({
   latitude,
   longitude,
-  showAltitude = true,
   sx,
 }: RestrictedAirspaceChipProps) {
   const { locale } = useLocale();
   const restricted = getRestrictedAirspaceSummary(latitude, longitude);
   if (!restricted) return null;
 
-  const label =
-    showAltitude && restricted.maxAltitudeMetersAgl > 0
-      ? locale === 'vi'
-        ? `Vùng hạn chế · Trần ${restricted.maxAltitudeMetersAgl} m`
-        : `Restricted Zone · Max ${restricted.maxAltitudeMetersAgl} m`
-      : locale === 'vi'
-        ? 'Vùng hạn chế bay'
-        : 'Restricted Zone';
+  const label = locale === 'vi' ? 'Vùng hạn chế bay' : 'Restricted Zone';
 
   return (
     <Chip
@@ -86,8 +77,8 @@ export function RestrictedAirspaceAlert({
 
   const headline = restricted
     ? locale === 'vi'
-      ? `Vùng hạn chế bay: ${restricted.zoneName} (Trần bay ${restricted.maxAltitudeMetersAgl} m AGL)`
-      : `Restricted airspace: ${restricted.zoneName} (Max ceiling ${restricted.maxAltitudeMetersAgl} m AGL)`
+      ? `Vùng hạn chế bay: ${restricted.zoneName}`
+      : `Restricted airspace: ${restricted.zoneName}`
     : locale === 'vi'
       ? `Cảnh báo phạm vi giáp vùng cấm bay: ${footprintOverlap!.zoneName}`
       : `Perimeter overlap warning: ${footprintOverlap!.zoneName}`;
@@ -102,7 +93,7 @@ export function RestrictedAirspaceAlert({
           if (role === 'MANAGER') {
             return `Công trình nằm trong vùng hạn chế do ${restricted.authority} quản lý. Khi điều phối, Inspector sẽ chịu trách nhiệm xin giấy phép bay vùng hạn chế; nếu không xin được giấy phép, bạn có thể phân công lại hoặc hủy yêu cầu/chuyến bay.`;
           }
-          return `Công trình nằm trong vùng hạn chế do ${restricted.authority} quản lý. Vui lòng kiểm tra khả năng xin giấy phép bay (trần tối đa ${restricted.maxAltitudeMetersAgl} m): nếu xin được thì nhận nhiệm vụ và tải giấy phép, nếu không xin được hãy từ chối để Manager hủy hoặc phân công lại.`;
+          return `Công trình nằm trong vùng hạn chế do ${restricted.authority} quản lý. Vui lòng kiểm tra khả năng xin giấy phép bay: nếu xin được thì nhận nhiệm vụ và tải giấy phép, nếu không xin được hãy từ chối để Manager hủy hoặc phân công lại.`;
         }
         if (role === 'CUSTOMER') {
           return `This asset is allowed, but flights require aviation authorization from ${restricted.authority}. When you request an inspection, the Manager will assign an Inspector to obtain the restricted-zone permit; if a permit cannot be granted, the Manager may cancel the dispatch.`;
@@ -110,14 +101,14 @@ export function RestrictedAirspaceAlert({
         if (role === 'MANAGER') {
           return `This asset sits in restricted airspace overseen by ${restricted.authority}. When dispatched, the assigned Inspector must request the flight permit; if it cannot be obtained, you may reassign or cancel the request/flight.`;
         }
-        return `This asset sits in restricted airspace overseen by ${restricted.authority} (max ceiling ${restricted.maxAltitudeMetersAgl} m). Confirm you can obtain the permit before accepting; if not, decline the assignment so the Manager can reassign or cancel.`;
+        return `This asset sits in restricted airspace overseen by ${restricted.authority}. Confirm you can obtain the permit before accepting; if not, decline the assignment so the Manager can reassign or cancel.`;
       })();
 
   const heightWarning =
     exceedsCeiling && restricted
       ? locale === 'vi'
-        ? `Lưu ý: Chiều cao công trình (${structureHeightMeters} m) đang cao hơn trần bay vùng hạn chế (${restricted.maxAltitudeMetersAgl} m) — cần xin phép giới hạn độ cao đặc biệt.`
-        : `Note: Structure height (${structureHeightMeters} m) exceeds the restricted ceiling (${restricted.maxAltitudeMetersAgl} m) — special altitude clearance is required.`
+        ? `Lưu ý: Chiều cao công trình (${structureHeightMeters} m) vượt ngưỡng trần bay tiêu chuẩn của vùng hạn chế — cần xin phép giới hạn độ cao đặc biệt.`
+        : `Note: Structure height (${structureHeightMeters} m) exceeds the restricted zone's standard ceiling — special altitude clearance is required.`
       : null;
 
   const partialCoverageNote =
