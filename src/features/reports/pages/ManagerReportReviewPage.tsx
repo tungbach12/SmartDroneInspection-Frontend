@@ -49,6 +49,7 @@ import {
 import { FlightPermitPreviewDialog } from '@/features/inspections/components/FlightPermitPreviewDialog';
 import { FlightPermitVerificationPanel } from '@/features/inspections/components/FlightPermitVerificationPanel';
 import { PlatformSettlementInvoiceCard } from '@/features/inspections/components/PlatformSettlementInvoiceCard';
+import { VerdictExpiryBanner } from '@/features/inspections/components/VerdictExpiryBanner';
 import { resolveInspectorFinanceBreakdown } from '@/features/inspections/utils/inspectorFinance';
 import { FlightOperationsReportView } from '@/features/reports/components/FlightOperationsReportView';
 import { ReportDeliverableTabs } from '@/features/reports/components/ReportDeliverableTabs';
@@ -384,6 +385,9 @@ export default function ManagerReportReviewPage({
       >
         {openVersion && (
           <Stack spacing={3}>
+            {(showReviewStage || showPayoutStage) && (
+              <VerdictExpiryBanner verifications={reinspectionVerifications?.data} />
+            )}
             {showReviewStage && openVersion.status === 'PUBLISHED' && customerStatusNotice}
             {showReviewStage && openVersion.status === 'PUBLISHED' && (
               <InspectorRatingPromptCard inspectionId={inspectionId} />

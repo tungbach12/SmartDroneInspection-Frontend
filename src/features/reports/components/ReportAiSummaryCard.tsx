@@ -238,8 +238,9 @@ function groupDefectTypes(confirmed: Finding[], isVi: boolean) {
   >();
 
   for (const f of confirmed) {
-    const rawKey = f.defectLabel.trim().toLowerCase();
-    const descriptor = matchDescriptor(f.defectLabel);
+    const labelText = (f.defectLabel ?? '').trim();
+    const rawKey = labelText.toLowerCase() || 'unspecified';
+    const descriptor = matchDescriptor(labelText);
     const existing = groups.get(rawKey);
     const code = f.findingCode?.trim() || '';
 
