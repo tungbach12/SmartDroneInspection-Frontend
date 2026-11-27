@@ -142,7 +142,8 @@ describe('ManagerOccurrencesStep', () => {
     };
     renderOccurrencesStep(req);
 
-    expect(screen.getByText(/Max ceiling 120 m AGL/)).toBeTruthy();
+    expect(screen.getByText(/Restricted airspace: Hành Lang An Toàn Hàng Không/i)).toBeTruthy();
+    expect(screen.queryByText(/max ceiling|120\s*m/i)).toBeNull();
     const cancelBtn = screen.getByRole('button', { name: 'Cancel flight' });
     fireEvent.click(cancelBtn);
     expect(screen.getByText('Cancel scheduled flight?')).toBeTruthy();

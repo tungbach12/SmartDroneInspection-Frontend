@@ -1039,7 +1039,8 @@ describe('InspectionDetailPage', () => {
     };
 
     renderInspectionPage({ route: '/operations/inspections/inspection-1/permit' });
-    expect(await screen.findByText(/Max ceiling 120 m AGL/)).toBeTruthy();
+    expect(await screen.findByText(/Restricted airspace: Hành Lang An Toàn Hàng Không/i)).toBeTruthy();
+    expect(screen.queryByText(/max ceiling|120\s*m/i)).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Decline mission' }));
     const chip = await screen.findByText('Unable to obtain restricted-airspace flight permit');
     fireEvent.click(chip);

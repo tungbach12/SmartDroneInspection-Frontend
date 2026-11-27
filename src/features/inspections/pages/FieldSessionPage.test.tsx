@@ -730,7 +730,7 @@ describe('FieldSessionPage', () => {
     expect(await screen.findByRole('button', { name: 'Upload another log' })).toBeTruthy();
   });
 
-  it('validates restricted-zone permit max altitude ceiling before uploading flight permit', async () => {
+  it('allows uploading a valid restricted-zone flight permit without enforcing a 120m zone ceiling', async () => {
     useAuthStore.setState({ roles: ['INSPECTOR'] });
     mocks.getById.mockResolvedValue({
       id: 'inspection-1',
@@ -749,6 +749,7 @@ describe('FieldSessionPage', () => {
 
     expect(await screen.findByRole('button', { name: 'Choose permit file' })).toBeTruthy();
     expect(screen.queryByText('Airspace:')).toBeNull();
+    expect(screen.queryByText(/restricted ceiling/i)).toBeNull();
 
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     const pdfFile = new File(['%PDF-1.4 test'], 'permit.pdf', { type: 'application/pdf' });
@@ -771,20 +772,12 @@ describe('FieldSessionPage', () => {
     fireEvent.change(maxAltInput, { target: { value: '150' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save flight permit' }));
 
-    expect(
-      await screen.findByText(/Permit max altitude \(150 m\) exceeds the restricted airspace ceiling \(120 m AGL\)/),
-    ).toBeTruthy();
-    expect(mocks.uploadFlightPermit).not.toHaveBeenCalled();
-
-    fireEvent.change(maxAltInput, { target: { value: '120' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save flight permit' }));
-
     await waitFor(() =>
       expect(mocks.uploadFlightPermit).toHaveBeenCalledWith(
         'inspection-1',
         expect.objectContaining({
           permitNumber: 'CAAV-2026-009',
-          maxAltitudeM: 120,
+          maxAltitudeM: 150,
         }),
       ),
     );

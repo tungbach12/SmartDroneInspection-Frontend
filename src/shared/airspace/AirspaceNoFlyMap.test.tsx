@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AirspaceNoFlyMap } from './AirspaceNoFlyMap';
+import { RestrictedAirspaceAlert, RestrictedAirspaceChip } from './RestrictedAirspaceNotice';
 import {
   calculatePolygonPerimeterAndArea,
   evaluateAirspace,
@@ -326,5 +327,30 @@ describe('airspaceZones & AirspaceNoFlyMap', () => {
     expect(screen.getByText('Trụ cầu P1')).toBeTruthy();
     expect(screen.getByText('Dầm chính nhịp giữa')).toBeTruthy();
     expect(screen.getByText('Vết nứt bề mặt K1')).toBeTruthy();
+  });
+
+  it('renders restricted zone badges and alerts without 120m altitude labels', () => {
+    render(
+      <>
+        <RestrictedAirspaceChip latitude={10.7789} longitude={106.7082} />
+        <RestrictedAirspaceAlert
+          role="MANAGER"
+          latitude={10.7789}
+          longitude={106.7082}
+          structureHeightMeters={200}
+        />
+        <AirspaceNoFlyMap
+          assetName="Cầu Thủ Thiêm"
+          latitude={10.7789}
+          longitude={106.7082}
+        />
+      </>,
+    );
+
+    expect(screen.getByText('Restricted Zone', { exact: true })).toBeTruthy();
+    expect(screen.getByText('HẠN CHẾ BAY (RESTRICTED)', { exact: true })).toBeTruthy();
+    expect(screen.queryByText(/120\s*m/i)).toBeNull();
+    expect(screen.queryByText(/Trần <=/i)).toBeNull();
+    expect(screen.queryByText(/Max ceiling/i)).toBeNull();
   });
 });

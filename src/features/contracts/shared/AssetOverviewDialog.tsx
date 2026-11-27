@@ -221,7 +221,7 @@ function AssetOverviewDialogBody({
                   key={zone.code}
                   size="small"
                   variant="outlined"
-                  label={`${zone.name} (${zone.maxAltitudeMetersAgl} m AGL)`}
+                  label={zone.name}
                   sx={{ borderRadius: '6px' }}
                 />
               ))}

@@ -89,7 +89,7 @@ export const VIETNAM_AIRSPACE_ZONES: readonly AirspaceZone[] = [
     authority: 'Bộ Tư lệnh TP. Hồ Chí Minh',
     legalBasis: 'Nghị định 288/2025/NĐ-CP (Khu vực hạn chế bay đô thị)',
     description:
-      'Khu vực cầu Thủ Thiêm, cầu Ba Son và luồng tàu thủy sông Sài Gòn; giới hạn độ cao <= 120m AGL theo giấy phép.',
+      'Khu vực cầu Thủ Thiêm, cầu Ba Son và luồng tàu thủy sông Sài Gòn; yêu cầu giấy phép bay hợp lệ trước khi vận hành.',
   },
   {
     code: 'VN-RES-SGN-CATLAI-500KV',

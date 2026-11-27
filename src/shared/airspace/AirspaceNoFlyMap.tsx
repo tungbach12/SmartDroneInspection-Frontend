@@ -693,7 +693,7 @@ export function AirspaceNoFlyMap({
               {evaluation.classification === 'NO_FLY_ZONE'
                 ? 'Tọa độ công trình nằm trong Vùng Cấm Bay Tuyệt Đối. Không được phép cất cánh nếu chưa có văn bản cho phép đặc biệt của Cục Tác chiến - Bộ Tổng Tham mưu.'
                 : evaluation.classification === 'RESTRICTED_ZONE'
-                  ? `Công trình nằm trong ${evaluation.matchingZones.length} vùng hạn chế bay (${evaluation.matchingZones.map((z) => z.name).join('; ')}). Bắt buộc đối chiếu giới hạn độ cao và tải lên Giấy phép bay hợp lệ trước khi mở phiên bay.`
+                  ? `Công trình nằm trong ${evaluation.matchingZones.length} vùng hạn chế bay (${evaluation.matchingZones.map((z) => z.name).join('; ')}). Bắt buộc tải lên Giấy phép bay hợp lệ trước khi mở phiên bay.`
                   : 'Khu vực ngoài phạm vi vùng cấm tĩnh đã công bố. Kiểm định viên vẫn bắt buộc tải lên Giấy phép bay hợp lệ theo quy định.'}
             </Typography>
           </Alert>
@@ -1914,7 +1914,7 @@ export function AirspaceNoFlyMap({
                     label={
                       activeSelectedZone.zoneType === 'NO_FLY_ZONE'
                         ? 'CẤM BAY (NO-FLY)'
-                        : `HẠN CHẾ BAY (Trần <= ${activeSelectedZone.maxAltitudeMetersAgl}m AGL)`
+                        : 'HẠN CHẾ BAY (RESTRICTED)'
                     }
                     sx={{ fontWeight: 700, height: 22, fontSize: '0.7rem' }}
                   />

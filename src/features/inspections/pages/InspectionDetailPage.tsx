@@ -1157,7 +1157,6 @@ export default function InspectionDetailPage() {
                     <RestrictedAirspaceChip
                       latitude={inspection.assetLatitude}
                       longitude={inspection.assetLongitude}
-                      showAltitude={!isInspectorRole}
                     />
                   </Stack>
 
