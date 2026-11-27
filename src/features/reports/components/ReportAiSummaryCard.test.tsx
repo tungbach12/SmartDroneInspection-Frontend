@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { inspectionApi } from '@/features/inspections/api/inspectionApi';
-import { ReportAiSummaryCard } from './ReportAiSummaryCard';
+import { inspectionApi, type Finding } from '@/features/inspections/api/inspectionApi';
+import { getOrGeneratePersistedAiSummary, ReportAiSummaryCard } from './ReportAiSummaryCard';
 
 const mocks = vi.hoisted(() => ({
   knowledgeData: {
@@ -74,6 +74,31 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe('ReportAiSummaryCard matched knowledge footer', () => {
+  it('labels confirmed findings with missing or blank labels in the summary and details', () => {
+    const findings = [
+      { id: 'f1', status: 'CONFIRMED', defectLabel: null, severity: 'HIGH' },
+      { id: 'f2', status: 'CONFIRMED', defectLabel: '  ', severity: 'MEDIUM' },
+    ] as unknown as Finding[];
+    const { summaryData } = getOrGeneratePersistedAiSummary({
+      inspectionId: 'missing-labels',
+      findings,
+      persist: false,
+    });
+    expect(summaryData.keyHighlights).toHaveLength(2);
+    expect(summaryData.keyHighlights.every((highlight) => highlight.includes('Unspecified defect')))
+      .toBe(true);
+
+    render(
+      <ReportAiSummaryCard
+        inspectionId="missing-labels"
+        versionId="preview-missing-labels"
+        findings={findings}
+        defaultExpanded
+      />,
+    );
+    expect(screen.getAllByText(/Unspecified defect/i).length).toBeGreaterThan(1);
+  });
+
   it('shows crisp pill chips and reveals case/standard rows only on demand', async () => {
     render(<ReportAiSummaryCard inspectionId="i1" versionId="v1" />);
 

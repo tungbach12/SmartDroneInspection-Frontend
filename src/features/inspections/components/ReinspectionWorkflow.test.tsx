@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderWithRouter } from '@/test/renderWithRouter';
 import { TargetFlightShotList } from './TargetFlightShotList';
 import { ReinspectionVerificationSection } from './ReinspectionVerificationSection';
+import { VerdictExpiryBanner } from './VerdictExpiryBanner';
 import type { EvidenceItem, ReinspectionVerificationItem } from '../api/inspectionApi';
 
 vi.mock('@/shared/ui/AuthenticatedImage', () => ({
@@ -186,5 +187,27 @@ describe('Standalone Re-inspection components', () => {
     );
 
     expect(screen.getByText(/expired and must be re-verified|expired on/i)).toBeTruthy();
+  });
+
+  it('renders VerdictExpiryBanner for both staff (Inspector/Manager) and customer audiences', () => {
+    const expiredItem: ReinspectionVerificationItem = {
+      ...baseVerification,
+      newEvidenceId: 'ev-after-1',
+      validUntil: new Date(Date.now() - 60 * 1000).toISOString(),
+    };
+    const expiringSoonItem: ReinspectionVerificationItem = {
+      ...baseVerification,
+      newEvidenceId: 'ev-after-1',
+      validUntil: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+    };
+
+    const { rerender } = renderWithRouter(<VerdictExpiryBanner verifications={[expiredItem]} />);
+    expect(screen.getByText(/Re-verify those defects with fresh evidence/i)).toBeTruthy();
+
+    rerender(<VerdictExpiryBanner verifications={[expiredItem]} audience="customer" />);
+    expect(screen.getByText(/Service Payment on the original paid report/i)).toBeTruthy();
+
+    rerender(<VerdictExpiryBanner verifications={[expiringSoonItem]} audience="customer" />);
+    expect(screen.getByText(/1 RESOLVED re-inspection verdict\(s\) expire within 14 days\./i)).toBeTruthy();
   });
 });

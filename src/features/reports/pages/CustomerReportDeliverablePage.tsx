@@ -34,6 +34,7 @@ import {
   CustomerReportSettlementCard,
 } from '@/features/reports/components/CustomerReportSettlementCard';
 import { InspectorRatingPromptCard } from '@/features/inspections/components/InspectorRatingDialog';
+import { VerdictExpiryBanner } from '@/features/inspections/components/VerdictExpiryBanner';
 import { ReportDeliverableTabs } from '@/features/reports/components/ReportDeliverableTabs';
 import { SepayQrDialog } from '@/features/reports/components/SepayQrDialog';
 import { EmptyState } from '@/shared/ui/EmptyState';
@@ -343,6 +344,13 @@ export default function CustomerReportDeliverablePage({
                   'This is a re-inspection deliverable verifying confirmed target defects from the prior inspection.',
                 )}
               </Alert>
+            )}
+
+            {isReinspection && (showReportContent || showSettlementContent) && (
+              <VerdictExpiryBanner
+                verifications={reinspectionVerifications?.data}
+                audience="customer"
+              />
             )}
 
             {showReportContent && (
