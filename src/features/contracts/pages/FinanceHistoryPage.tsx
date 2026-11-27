@@ -899,6 +899,10 @@ export default function FinanceHistoryPage({
                                   <TableCell sx={{ maxWidth: 165, overflow: 'hidden' }}>
                                     <Stack direction="row" spacing={1} sx={{ alignItems: 'center', minWidth: 0 }}>
                                       <Avatar
+                                        src={item.customerId
+                                          ? managerHistoryQuery.data?.customerAvatarUrls?.[item.customerId]
+                                          : undefined}
+                                        aria-hidden="true"
                                         sx={{
                                           width: 28,
                                           height: 28,

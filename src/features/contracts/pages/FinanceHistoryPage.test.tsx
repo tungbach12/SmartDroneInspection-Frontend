@@ -145,6 +145,7 @@ describe('finance history page', () => {
         paymentStatus: 'PAID', paymentMethod: 'VNPAY', paymentReference: 'VN-1', paymentConfirmedAt: '2026-11-10T10:00:00Z',
         payoutStatus: 'PAID', payoutReference: 'PAYOUT-3', payoutRecordedAt: '2026-11-12T10:00:00Z',
       }],
+      customerAvatarUrls: { 'cust-1': 'data:image/png;base64,AAAA' },
       totalElements: 1, page: 0, size: 20,
     });
     mocks.getManagerDetail.mockResolvedValue({
@@ -158,6 +159,8 @@ describe('finance history page', () => {
     });
     renderPage();
     expect(await screen.findByText('Kho lanh VSIP II')).toBeTruthy();
+    const customerCell = screen.getByText('Customer Demo').closest('td');
+    expect(customerCell?.querySelector('img')?.getAttribute('src')).toBe('data:image/png;base64,AAAA');
     expect(screen.getByText('Commission earned')).toBeTruthy();
     fireEvent.click(screen.getByText('Kho lanh VSIP II'));
     expect(await screen.findByText('Platform finance details')).toBeTruthy();
@@ -281,6 +284,9 @@ describe('finance history page', () => {
     renderPage('revenue');
     expect(await screen.findByText('Solar Plant Alpha')).toBeTruthy();
     expect(screen.getByText('Saigon Tower B')).toBeTruthy();
+    const customerCell = screen.getByText('Alpha Energy').closest('td');
+    expect(customerCell?.textContent).toContain('AE');
+    expect(customerCell?.querySelector('img')).toBeNull();
     expect(screen.getByText('Showing 2 of 2')).toBeTruthy();
 
     fireEvent.change(screen.getByRole('textbox', { name: 'Search revenue' }), { target: { value: 'SEP-123' } });
