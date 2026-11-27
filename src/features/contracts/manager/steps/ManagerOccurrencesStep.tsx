@@ -319,9 +319,6 @@ function ManagerOccurrenceRow({
             ? t('Select partner Inspector and drone')
             : `${t('Select partner Inspector and drone')} · ${t('Occurrence')} ${occurrence.occurrenceIndex}`
         }
-        subtitle={t(
-          'Only eligible pairs that match the schedule and required capabilities are listed by default.',
-        )}
         backLabel={isOneTime ? t('Back to assignment') : t('Back to occurrence')}
         onBackToForm={() => setStepOpen(false)}
         onSelectPair={(candidate) => {

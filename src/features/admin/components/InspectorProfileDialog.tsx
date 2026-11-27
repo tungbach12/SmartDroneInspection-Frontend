@@ -57,7 +57,7 @@ interface InspectorProfileDialogProps {
 }
 
 export function InspectorProfileDialog({ open, onClose, inspectorId }: InspectorProfileDialogProps) {
-  const { locale } = useLocale();
+  const { locale, t, formatNumber } = useLocale();
   const tr = (vi: string, en: string) => (locale === 'vi' ? vi : en);
   const dateLocale = locale === 'vi' ? 'vi-VN' : 'en-US';
 
@@ -1567,14 +1567,21 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                       <CircularProgress size={24} />
                     </Box>
                   ) : ratingProfileQuery.data ? (
-                    <InspectorRatingsBreakdownPanel
-                      profile={ratingProfileQuery.data}
-                      portalBase={portalBase}
-                      onNavigate={(to) => {
-                        onClose();
-                        navigate(to);
-                      }}
-                    />
+                    <>
+                      {canApprovePartner && ratingProfileQuery.data.noShowCount != null && (
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                          {t('No-shows')}: {formatNumber(ratingProfileQuery.data.noShowCount)}
+                        </Typography>
+                      )}
+                      <InspectorRatingsBreakdownPanel
+                        profile={ratingProfileQuery.data}
+                        portalBase={portalBase}
+                        onNavigate={(to) => {
+                          onClose();
+                          navigate(to);
+                        }}
+                      />
+                    </>
                   ) : (
                     <Typography variant="body2" color="text.secondary">
                       {tr('Chưa có dữ liệu đánh giá.', 'No rating data available.')}

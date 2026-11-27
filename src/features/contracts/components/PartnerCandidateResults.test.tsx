@@ -186,11 +186,12 @@ describe('PartnerCandidateResults', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Filters/ }));
     fireEvent.mouseDown(screen.getAllByLabelText('Eligibility')[0]!);
     fireEvent.click(screen.getByRole('option', { name: 'All evaluated' }));
-    const blockedRow = screen.getByText('SDI-800').closest('tr');
+    const blockedRow = screen.getByText(/^SDI-800/).closest('tr');
     fireEvent.click(blockedRow!.querySelector('button[aria-label="Details"]')!);
 
-    expect(screen.getByText('Eligibility checks (FAIL)')).toBeTruthy();
-    expect(screen.getByText('Capability fit (MISMATCH)')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Eligibility checks (FAIL)', expanded: true })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Capability fit (MISMATCH)', expanded: true })).toBeTruthy();
+    expect(screen.getByText('License expires before planned start.')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Select pair' }).hasAttribute('disabled')).toBe(true);
 
     fireEvent.click(screen.getByRole('button', { name: 'Back to candidates' }));
@@ -198,7 +199,10 @@ describe('PartnerCandidateResults', () => {
     fireEvent.click(screen.getByRole('option', { name: 'Eligible only' }));
     fireEvent.click(screen.getByRole('button', { name: 'Details' }));
 
-    expect(screen.getByText('Eligibility checks (PASS)')).toBeTruthy();
+    const checks = screen.getByRole('button', { name: 'Eligibility checks (PASS)', expanded: false });
+    expect(screen.getByRole('button', { name: 'Capability fit (MATCH)', expanded: false })).toBeTruthy();
+    expect(screen.queryByText('License valid for planned start.')).toBeNull();
+    fireEvent.click(checks);
     expect(screen.getByText('License valid for planned start.')).toBeTruthy();
     const selectButton = screen.getByRole('button', { name: 'Select pair' });
     expect(selectButton.hasAttribute('disabled')).toBe(false);
@@ -230,7 +234,11 @@ describe('PartnerCandidateResults', () => {
     expect(
       screen.getByText('No eligible partner pairs.'),
     ).toBeTruthy();
-    expect(screen.getAllByRole('button', { name: 'Show 1 other pairs' }).length).toBeGreaterThan(0);
+    const disclosure = screen.getByRole('button', { name: 'Unavailable or unverified pairs (1)' });
+    expect(disclosure.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(disclosure);
+    expect(disclosure.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByText('License expires before planned start.')).toBeTruthy();
   });
 
   it('shows drone ceiling, structure height and footprint in the pair detail when known', () => {
@@ -278,7 +286,8 @@ describe('PartnerCandidateResults', () => {
     // Both eligible inspectors render by default.
     expect(screen.getByText('Tran Minh Quan')).toBeTruthy();
     expect(screen.getByText('Le Van Binh')).toBeTruthy();
-    expect(screen.getByText('2 / 2 pairs shown')).toBeTruthy();
+    expect(screen.getByText('Showing 1–2 of 2')).toBeTruthy();
+    expect(screen.queryByRole('navigation', { name: 'Candidate drones pagination' })).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: /^Filters/ }));
     fireEvent.mouseDown(screen.getAllByLabelText('Eligibility')[0]!);
@@ -329,7 +338,6 @@ describe('PartnerCandidateResults', () => {
     expect(table.querySelectorAll('.group-row')).toHaveLength(1);
     expect(table.querySelectorAll('.pair-row')).toHaveLength(2);
     expect(screen.getByText('Tran Minh Quan')).toBeTruthy();
-    expect(screen.getByText('2 drones')).toBeTruthy();
     fireEvent.click(screen.getAllByRole('button', { name: 'Select' })[0]!);
     expect(onSelectPair).toHaveBeenCalledWith(passingCandidate);
   });
@@ -465,7 +473,7 @@ describe('PartnerCandidateResults', () => {
     ).toBe(false);
   });
 
-  it('displays advisory reliability history chips when counts are positive', () => {
+  it('keeps no-show counts out of the candidate list and pair detail', () => {
     renderWithQuery(
       <PartnerCandidateResults
         candidates={[
@@ -483,8 +491,11 @@ describe('PartnerCandidateResults', () => {
     );
 
     expect(screen.getByText('Declines: 2')).toBeTruthy();
-    expect(screen.getByText('No-shows: 1')).toBeTruthy();
+    expect(screen.queryByText(/No-shows/)).toBeNull();
     expect(screen.getByText('Aborts: 1')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Select' }).hasAttribute('disabled')).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Details' }));
+    expect(screen.queryByText(/No-shows/)).toBeNull();
   });
 
   it('paginates partner drone candidates across pages and resets to page 1 on filter change', () => {
@@ -522,6 +533,33 @@ describe('PartnerCandidateResults', () => {
     });
     expect(screen.getByText('Showing 1–1 of 1')).toBeTruthy();
     expect(screen.getByText('Matrice Model 1')).toBeTruthy();
+    expect(screen.queryByRole('navigation', { name: 'Candidate drones pagination' })).toBeNull();
+  });
+
+  it('paginates unavailable pairs independently of eligible pairs', () => {
+    const unavailableCandidates = Array.from({ length: 6 }, (_, index) => ({
+      ...blockedCandidate,
+      droneId: `blocked-${index + 1}`,
+      droneSerialNumber: `BLOCKED-${index + 1}`,
+    }));
+
+    renderWithQuery(
+      <PartnerCandidateResults
+        candidates={[passingCandidate, ...unavailableCandidates]}
+        selectedInspectorId=""
+        selectedDroneId=""
+        onSelectPair={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Unavailable or unverified pairs (6)' }));
+    expect(screen.getByText('Showing 1–5 of 6')).toBeTruthy();
+    expect(screen.queryByText(/BLOCKED-6/)).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Go to page 2' }));
+    expect(screen.getByText('Showing 6–6 of 6')).toBeTruthy();
+    expect(screen.getByText(/BLOCKED-6/)).toBeTruthy();
+    expect(screen.getByText('Showing 1–1 of 1')).toBeTruthy();
   });
 
   it('filters and sorts partner candidates by Inspector rating', () => {

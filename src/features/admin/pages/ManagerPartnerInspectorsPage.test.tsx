@@ -2,6 +2,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useAuthStore } from '@/features/auth/store/authStore';
+import { ratingApi } from '@/features/inspections/api/ratingApi';
 
 const mocks = vi.hoisted(() => ({
   listUsers: vi.fn(),
@@ -162,9 +164,34 @@ describe('ManagerPartnerInspectorsPage', () => {
     expect(await screen.findByText('Do Thi Phi Cong')).toBeTruthy();
   });
 
-  it('opens the InspectorProfileDialog from Pilot profile button', async () => {
+  it('shows the no-show count only after opening the Inspector profile Ratings tab', async () => {
+    useAuthStore.setState({ roles: ['MANAGER'] });
+    const [profile] = await mocks.listInspectors();
+    mocks.getProfile.mockResolvedValue({ ...profile, hasLicenseScan: false, hasPartnerContract: false });
+    vi.spyOn(ratingApi, 'getInspectorRatings').mockResolvedValue({
+      summary: {
+        inspectorId: 'ins-1',
+        averageRating: null,
+        ratingCount: 0,
+        customerAverageRating: null,
+        customerRatingCount: 0,
+        managerAverageRating: null,
+        managerRatingCount: 0,
+        starDistribution: {},
+        customerCriteriaAverages: {},
+        managerCriteriaAverages: {},
+      },
+      ratings: [],
+      page: 0,
+      size: 10,
+      totalElements: 0,
+      totalPages: 0,
+      historyVisible: true,
+      noShowCount: 1,
+    });
     renderPage();
     expect(await screen.findByText('Pham Van Bay')).toBeTruthy();
+    expect(screen.queryByText(/No-shows/)).toBeNull();
 
     const profileButtons = screen.getAllByRole('button', { name: 'Pilot profile' });
     const targetButton = profileButtons[1];
@@ -175,5 +202,7 @@ describe('ManagerPartnerInspectorsPage', () => {
 
     expect(await screen.findByRole('dialog')).toBeTruthy();
     expect(mocks.getProfile).toHaveBeenCalledWith('ins-1');
+    fireEvent.click(await screen.findByRole('tab', { name: /Ratings/ }));
+    expect(await screen.findByText('No-shows: 1')).toBeTruthy();
   });
 });

@@ -1,11 +1,15 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useId, useState } from 'react';
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Avatar,
   Box,
   Button,
   Chip,
   Divider,
+  IconButton,
   InputAdornment,
   MenuItem,
   Pagination,
@@ -99,7 +103,6 @@ interface InspectorCandidateGroup {
   inspectorName: string;
   inspectorAvatarUrl: string | null;
   declineCount: number;
-  noShowCount: number;
   abortCount: number;
   averageRating: number | null;
   ratingCount: number;
@@ -118,7 +121,6 @@ function groupByInspector(items: PartnerCandidate[]): InspectorCandidateGroup[] 
         inspectorName: item.inspectorName,
         inspectorAvatarUrl: item.inspectorAvatarUrl,
         declineCount: item.declineCount ?? 0,
-        noShowCount: item.noShowCount ?? 0,
         abortCount: item.abortCount ?? 0,
         averageRating: item.averageRating ?? null,
         ratingCount: item.ratingCount ?? 0,
@@ -231,15 +233,6 @@ export function sortPartnerCandidates(
   });
 }
 
-export function filtersHaveAdvancedSelection(filters: CandidateFilters): boolean {
-  return (
-    filters.altitude !== 'ALL' ||
-    filters.capabilityCode !== 'ALL' ||
-    filters.minimumRating !== 'ALL' ||
-    filters.sortBy !== 'DEFAULT'
-  );
-}
-
 const pairKey = (candidate: PartnerCandidate) => `${candidate.inspectorId}:${candidate.droneId}`;
 const CANDIDATES_PER_PAGE = 6;
 const UNAVAILABLE_PER_PAGE = 5;
@@ -279,50 +272,34 @@ function CandidatePaginationFooter({
     >
       <Typography
         variant="body2"
-        sx={{ color: 'text.secondary', fontSize: '0.8125rem', fontVariantNumeric: 'tabular-nums' }}
+        aria-live="polite"
+        sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}
       >
         {`${t('Showing')} ${start}–${end} ${t('of')} ${totalCount}`}
       </Typography>
-      <Pagination
-        count={totalPages}
-        page={safePage}
-        onChange={(_event, nextPage) => onPageChange(nextPage)}
-        shape="rounded"
-        size="small"
-        siblingCount={1}
-        boundaryCount={1}
-        aria-label={ariaLabel}
-        sx={{
-          '& .MuiPaginationItem-root': {
-            borderRadius: '8px',
-            fontWeight: 600,
-            fontSize: '0.8125rem',
-            color: 'text.primary',
-          },
-          '& .MuiPaginationItem-page.Mui-selected': {
-            bgcolor: 'primary.main',
-            color: '#FFFFFF',
-            '&:hover': { bgcolor: 'primary.dark' },
-          },
-          '& .MuiPaginationItem-previousNext': {
-            border: '1px solid',
-            borderColor: 'divider',
-          },
-        }}
-      />
+      {totalPages > 1 && (
+        <Pagination
+          count={totalPages}
+          page={safePage}
+          onChange={(_event, nextPage) => onPageChange(nextPage)}
+          shape="rounded"
+          size="small"
+          color="primary"
+          siblingCount={0}
+          boundaryCount={1}
+          aria-label={ariaLabel}
+          sx={{
+            '& .MuiPaginationItem-root': {
+              borderRadius: '8px',
+              fontWeight: 600,
+              minWidth: 32,
+              height: 32,
+            },
+          }}
+        />
+      )}
     </Box>
   );
-}
-
-function formatAltitudeSummary(candidate: PartnerCandidate, t: (key: string) => string): string {
-  const parts: string[] = [];
-  if (candidate.droneMaxAltitudeMeters != null) {
-    parts.push(`${t('Drone ceiling')} ${candidate.droneMaxAltitudeMeters} m`);
-  }
-  if (candidate.structureHeightMeters != null) {
-    parts.push(`${t('Structure')} ${candidate.structureHeightMeters} m`);
-  }
-  return parts.join(' · ');
 }
 
 function disclaimerText(candidates: PartnerCandidate[]): string | null {
@@ -402,7 +379,6 @@ interface PartnerCandidateResultsProps {
   onBackToForm?: () => void;
   backLabel?: string;
   title?: string;
-  subtitle?: string;
 }
 
 export function PartnerCandidateResults({
@@ -419,10 +395,11 @@ export function PartnerCandidateResults({
   onBackToForm,
   backLabel,
   title,
-  subtitle,
 }: PartnerCandidateResultsProps) {
   const { locale, t } = useLocale();
   const capabilities = usePartnerCapabilities();
+  const filtersId = useId();
+  const unavailableId = useId();
   const [showUnavailable, setShowUnavailable] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [filters, setFilters] = useState<CandidateFilters>(DEFAULT_FILTERS);
@@ -446,8 +423,8 @@ export function PartnerCandidateResults({
   if (loading) {
     return (
       <Stack spacing={1.5} aria-label={t('Loading partner candidates')}>
-        {[0, 1, 2, 3].map((index) => (
-          <Skeleton key={index} variant="rectangular" height={220} sx={{ borderRadius: '12px' }} />
+        {[0, 1, 2].map((index) => (
+          <Skeleton key={index} variant="rounded" height={52} />
         ))}
       </Stack>
     );
@@ -461,9 +438,6 @@ export function PartnerCandidateResults({
     detailKey != null ? candidates.find((item) => pairKey(item) === detailKey) ?? null : null;
 
   const allEligibleCandidates = candidates.filter(isSelectablePartnerCandidate);
-  const allUnavailableCandidates = candidates.filter(
-    (candidate) => !isSelectablePartnerCandidate(candidate),
-  );
   const resultCandidates =
     filters.eligibility === 'ALL_EVALUATED' ? candidates : allEligibleCandidates;
   const visibleCandidates = sortPartnerCandidates(
@@ -471,7 +445,8 @@ export function PartnerCandidateResults({
     filters.sortBy,
   );
   const visibleUnavailable = sortPartnerCandidates(
-    allUnavailableCandidates.filter((candidate) =>
+    candidates.filter((candidate) =>
+      !isSelectablePartnerCandidate(candidate) &&
       candidateMatchesFilters(candidate, { ...filters, eligibility: 'ALL_EVALUATED' }),
     ),
     filters.sortBy,
@@ -494,7 +469,6 @@ export function PartnerCandidateResults({
   );
   const capabilityOptions = capabilities.data ?? [];
 
-  const advancedFiltersActive = filtersHaveAdvancedSelection(filters);
   const noResultsForFilters = resultCandidates.length > 0 && visibleCandidates.length === 0;
 
   const isStep = variant === 'step';
@@ -517,12 +491,10 @@ export function PartnerCandidateResults({
   const activeAdvancedFilterCount = [
     filters.eligibility !== DEFAULT_FILTERS.eligibility,
     filters.altitude !== DEFAULT_FILTERS.altitude,
-    filters.minimumCeilingMeters !== DEFAULT_FILTERS.minimumCeilingMeters,
     filters.capabilityCode !== DEFAULT_FILTERS.capabilityCode,
     filters.minimumRating !== DEFAULT_FILTERS.minimumRating,
     filters.sortBy !== DEFAULT_FILTERS.sortBy,
   ].filter(Boolean).length;
-
 
   if (activeDetailCandidate) {
     const selectable = isSelectablePartnerCandidate(activeDetailCandidate) && !stale;
@@ -628,7 +600,6 @@ export function PartnerCandidateResults({
                 </Typography>
                 {((activeDetailCandidate.ratingCount ?? 0) > 0 ||
                   (activeDetailCandidate.declineCount ?? 0) > 0 ||
-                  (activeDetailCandidate.noShowCount ?? 0) > 0 ||
                   (activeDetailCandidate.abortCount ?? 0) > 0) && (
                   <Stack direction="row" spacing={0.5} sx={{ mt: 0.75, flexWrap: 'wrap', gap: 0.5 }}>
                     <InspectorRatingSummaryBadge
@@ -641,15 +612,6 @@ export function PartnerCandidateResults({
                         color="warning"
                         variant="outlined"
                         label={`${t('Declines')}: ${activeDetailCandidate.declineCount}`}
-                        sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600 }}
-                      />
-                    )}
-                    {(activeDetailCandidate.noShowCount ?? 0) > 0 && (
-                      <Chip
-                        size="small"
-                        color="error"
-                        variant="outlined"
-                        label={`${t('No-shows')}: ${activeDetailCandidate.noShowCount}`}
                         sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600 }}
                       />
                     )}
@@ -744,93 +706,91 @@ export function PartnerCandidateResults({
             </Stack>
           </Box>
 
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
-              gap: 2.5,
-              pt: 2.5,
-            }}
-          >
-            <Box>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.25 }}>
-                {t('Eligibility checks')} ({activeDetailCandidate.eligibility})
-              </Typography>
-              <Stack spacing={1} divider={<Divider flexItem />}>
-                {activeDetailCandidate.hardGates.map((check) => (
-                  <Stack
-                    key={check.code}
-                    direction="row"
-                    spacing={1.25}
-                    sx={{ alignItems: 'flex-start', justifyContent: 'space-between' }}
-                  >
-                    <Typography variant="body2" color="text.primary">
-                      {t(check.explanation)}
-                    </Typography>
-                    <Chip
-                      size="small"
-                      label={check.status}
-                      color={statusChipColor(check.status)}
-                      variant="outlined"
-                      sx={{
-                        height: 22,
-                        fontSize: '0.75rem',
-                        fontWeight: 700,
-                        borderRadius: '6px',
-                        flexShrink: 0,
-                      }}
-                    />
-                  </Stack>
-                ))}
-              </Stack>
-            </Box>
-
-            <Box>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.25 }}>
-                {t('Capability fit')} ({activeDetailCandidate.capabilityFit})
-              </Typography>
-              <Stack spacing={1} divider={<Divider flexItem />}>
-                {activeDetailCandidate.capabilityChecks.map((check) => (
-                  <Stack
-                    key={check.code}
-                    direction="row"
-                    spacing={1.25}
-                    sx={{ alignItems: 'flex-start', justifyContent: 'space-between' }}
-                  >
-                    <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {check.code === 'NO_CAPABILITY_REQUIREMENTS'
-                          ? t('Standard inspection')
-                          : check.code.replaceAll('_', ' ')}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {t(check.explanation)}
-                      </Typography>
-                    </Box>
-                    <Chip
-                      size="small"
-                      label={check.status}
-                      color={statusChipColor(check.status)}
-                      variant="outlined"
-                      sx={{
-                        height: 22,
-                        fontSize: '0.75rem',
-                        fontWeight: 700,
-                        borderRadius: '6px',
-                        flexShrink: 0,
-                      }}
-                    />
-                  </Stack>
-                ))}
-              </Stack>
-            </Box>
-          </Box>
+          {[
+            {
+              id: 'eligibility',
+              title: t('Eligibility checks'),
+              status: activeDetailCandidate.eligibility,
+              checks: activeDetailCandidate.hardGates,
+              showCapability: false,
+            },
+            {
+              id: 'capability',
+              title: t('Capability fit'),
+              status: activeDetailCandidate.capabilityFit,
+              checks: activeDetailCandidate.capabilityChecks,
+              showCapability: true,
+            },
+          ].map(({ id, title: checkTitle, status, checks, showCapability }) => (
+            <Accordion
+              key={id}
+              defaultExpanded={status !== 'PASS' && status !== 'MATCH'}
+              disableGutters
+              elevation={0}
+              slotProps={{ transition: { unmountOnExit: true } }}
+              sx={{
+                bgcolor: 'transparent',
+                borderBottom: '1px solid',
+                borderColor: 'divider',
+                '&::before': { display: 'none' },
+              }}
+            >
+              <AccordionSummary
+                id={filtersId + '-detail-' + id}
+                aria-controls={filtersId + '-detail-' + id + '-content'}
+                expandIcon={<KeyboardArrowDownRoundedIcon />}
+                sx={{ minHeight: 44, px: 0.5 }}
+              >
+                <Typography component="span" variant="subtitle2" sx={{ fontWeight: 600 }}>
+                  {checkTitle} ({status})
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ px: 0.5, pt: 0, pb: 1.5 }}>
+                <Stack spacing={1} divider={<Divider flexItem />}>
+                  {checks.map((check) => (
+                    <Stack
+                      key={check.code}
+                      direction="row"
+                      spacing={1}
+                      sx={{ alignItems: 'flex-start', justifyContent: 'space-between' }}
+                    >
+                      <Box sx={{ minWidth: 0 }}>
+                        {showCapability && (
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            {check.code === 'NO_CAPABILITY_REQUIREMENTS'
+                              ? t('Standard inspection')
+                              : check.code === 'DRONE_MAX_ALTITUDE'
+                                ? t('Drone max altitude')
+                                : check.code.replaceAll('_', ' ')}
+                          </Typography>
+                        )}
+                        <Typography
+                          variant={showCapability ? 'caption' : 'body2'}
+                          color={showCapability ? 'text.secondary' : 'text.primary'}
+                          sx={{ overflowWrap: 'anywhere' }}
+                        >
+                          {t(check.explanation)}
+                        </Typography>
+                      </Box>
+                      <Chip
+                        size="small"
+                        label={check.status}
+                        color={statusChipColor(check.status)}
+                        variant="outlined"
+                        sx={{ height: 22, fontWeight: 600, borderRadius: '6px', flexShrink: 0 }}
+                      />
+                    </Stack>
+                  ))}
+                </Stack>
+              </AccordionDetails>
+            </Accordion>
+          ))}
 
           {disclaimerText(candidates) && (
             <Typography
               variant="caption"
               color="text.secondary"
-              sx={{ display: 'block', mt: 2, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}
+              sx={{ display: 'block', mt: 1.5 }}
             >
               {t(disclaimerText(candidates) ?? '')}
             </Typography>
@@ -842,152 +802,71 @@ export function PartnerCandidateResults({
 
   return (
     <Box sx={containerSx}>
-      {title && (
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          spacing={1.5}
-          sx={{
-            p: embedded ? 0 : { xs: 2, sm: isStep ? 3 : 2 },
-            pb: isStep ? 2.25 : 2,
-            borderBottom: '1px solid',
-            borderColor: 'divider',
-            justifyContent: 'space-between',
-            alignItems: { sm: 'flex-start' },
-          }}
-        >
-          <Box sx={{ minWidth: 0 }}>
+      <Box sx={{ p: embedded ? 0 : { xs: 1.5, sm: isStep ? 2.5 : 2 } }}>
+        {(onBackToForm || title || windowSummary || Boolean(requiredCapabilities?.length)) && (
+          <Stack spacing={1} sx={{ mb: 2 }}>
             {onBackToForm && (
               <Button
                 size="small"
-                variant="text"
                 startIcon={<ArrowBackRoundedIcon fontSize="small" />}
                 onClick={onBackToForm}
                 sx={{
-                  ml: -1,
-                  mb: 1,
-                  px: 1,
+                  alignSelf: 'flex-start',
+                  ml: -0.75,
+                  px: 0.75,
                   color: 'text.secondary',
                   textTransform: 'none',
                   fontWeight: 600,
-                  borderRadius: '8px',
                 }}
               >
                 {backLabel ?? t('Back')}
               </Button>
             )}
             {title && (
-              <Typography
-                variant={isStep ? 'h5' : 'h6'}
-                component="h2"
-                sx={{ fontWeight: 700, letterSpacing: '-0.015em', lineHeight: 1.25 }}
-              >
+              <Typography variant={isStep ? 'h5' : 'h6'} component="h2" sx={{ fontWeight: 700 }}>
                 {title}
               </Typography>
             )}
-            {subtitle && (
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ mt: 0.5, maxWidth: '68ch' }}
-              >
-                {subtitle}
-              </Typography>
+            {(windowSummary || Boolean(requiredCapabilities?.length)) && (
+              <Stack direction="row" sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 1.5 }}>
+                {windowSummary && (
+                  <Typography variant="body2" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                    <Box component="span" sx={{ color: 'text.secondary', mr: 1 }}>
+                      {t('Flight window')}
+                    </Box>
+                    {windowSummary}
+                  </Typography>
+                )}
+                {Boolean(requiredCapabilities?.length) && (
+                  <Stack direction="row" sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      {t('Capabilities')}
+                    </Typography>
+                    {requiredCapabilities?.map((code) => {
+                      const capability = capabilityOptions.find((option) => option.code === code);
+                      const label = capability
+                        ? locale === 'vi' ? capability.nameVi : capability.nameEn
+                        : code.replaceAll('_', ' ');
+                      return (
+                        <Chip
+                          key={code}
+                          size="small"
+                          variant="outlined"
+                          label={label}
+                          sx={{ borderRadius: '6px' }}
+                        />
+                      );
+                    })}
+                  </Stack>
+                )}
+              </Stack>
             )}
-          </Box>
-          <Typography
-            variant="caption"
-            sx={{
-              color: 'text.secondary',
-              fontWeight: 600,
-              fontVariantNumeric: 'tabular-nums',
-              whiteSpace: 'nowrap',
-              alignSelf: { xs: 'flex-start', sm: 'center' },
-            }}
-          >
-            {visibleCandidates.length} / {resultCandidates.length} {t('pairs shown')}
-          </Typography>
-        </Stack>
-      )}
-
-      <Box sx={{ p: embedded ? 0 : { xs: 2, sm: isStep ? 3 : 2 }, pt: onBackToForm || title ? (isStep ? 2.5 : 2) : 0 }}>
-        {(windowSummary || (requiredCapabilities && requiredCapabilities.length > 0)) && (
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            spacing={1}
-            sx={{
-              mb: isStep ? 2.5 : 2,
-              ...(isStep
-                ? { pb: 1.75, borderBottom: '1px solid', borderColor: 'divider' }
-                : {
-                    p: 1.25,
-                    borderRadius: '8px',
-                    bgcolor: 'background.default',
-                    border: '1px solid',
-                    borderColor: 'divider',
-                  }),
-              alignItems: { sm: 'center' },
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-            }}
-          >
-            {windowSummary && (
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}
-              >
-                {t('Evaluated window')}: {windowSummary}
-              </Typography>
-            )}
-            <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}>
-              <Typography variant="caption" color="text.secondary">
-                {t('Capabilities')}:
-              </Typography>
-              {requiredCapabilities && requiredCapabilities.length > 0 ? (
-                requiredCapabilities.map((code) => (
-                  <Chip
-                    key={code}
-                    size="small"
-                    label={code.replaceAll('_', ' ')}
-                    color="primary"
-                    variant="outlined"
-                    sx={{ height: 20, fontSize: '0.75rem', fontWeight: 600, borderRadius: '6px' }}
-                  />
-                ))
-              ) : (
-                <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                  {t('Standard inspection')}
-                </Typography>
-              )}
-            </Stack>
           </Stack>
         )}
 
         {candidates.length > 0 && (
-          <Box
-            sx={{
-              mb: 2,
-              ...(isStep
-                ? {}
-                : {
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    borderRadius: '12px',
-                    bgcolor: 'background.paper',
-                    overflow: 'hidden',
-                  }),
-            }}
-          >
-            <Box
-              sx={{
-                p: isStep ? 0 : 1.5,
-                pb: isStep ? 1.5 : 1.5,
-                display: 'flex',
-                flexDirection: { xs: 'column', md: 'row' },
-                gap: 1.5,
-                alignItems: { md: 'center' },
-              }}
-            >
+          <Stack spacing={1.5} sx={{ mb: 2 }}>
+            <Stack direction="row" sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
               <TextField
                 fullWidth
                 size="small"
@@ -995,6 +874,7 @@ export function PartnerCandidateResults({
                 value={filters.query}
                 onChange={(event) => updateFilter('query', event.target.value)}
                 slotProps={{
+                  htmlInput: { 'aria-label': t('Search Inspector, drone model, or serial number...') },
                   input: {
                     startAdornment: (
                       <InputAdornment position="start">
@@ -1004,24 +884,26 @@ export function PartnerCandidateResults({
                   },
                 }}
                 sx={{
-                  flex: 1,
-                  maxWidth: { md: 460 },
+                  flex: '1 1 240px',
+                  maxWidth: 460,
+                  minWidth: 0,
                   '& .MuiOutlinedInput-root': { borderRadius: '8px', bgcolor: 'background.paper' },
                 }}
               />
               <Stack
                 direction="row"
-                spacing={0.5}
-                sx={{ alignItems: 'center', flexShrink: 0, flexWrap: 'wrap', gap: 0.5 }}
+                sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}
               >
                 <Button
                   size="small"
-                  variant="text"
+                  variant={showAdvancedFilters ? 'contained' : 'outlined'}
+                  color={showAdvancedFilters || activeAdvancedFilterCount > 0 ? 'primary' : 'inherit'}
+                  disableElevation
                   startIcon={<TuneRoundedIcon fontSize="small" />}
                   aria-expanded={showAdvancedFilters}
+                  aria-controls={showAdvancedFilters ? filtersId : undefined}
                   onClick={() => setShowAdvancedFilters((value) => !value)}
                   sx={{
-                    color: advancedFiltersActive ? 'primary.main' : 'text.secondary',
                     textTransform: 'none',
                     fontWeight: 600,
                     borderRadius: '8px',
@@ -1031,7 +913,7 @@ export function PartnerCandidateResults({
                   {t('Filters')}
                   {activeAdvancedFilterCount > 0 ? ` · ${activeAdvancedFilterCount}` : ''}
                 </Button>
-                {(filters.query.trim() || advancedFiltersActive) && (
+                {(filters.query.trim() || activeAdvancedFilterCount > 0) && (
                   <Button
                     size="small"
                     variant="text"
@@ -1047,121 +929,109 @@ export function PartnerCandidateResults({
                   </Button>
                 )}
               </Stack>
-            </Box>
+            </Stack>
 
             {showAdvancedFilters && (
-              <Box sx={{ px: 1.5, pb: 1.5, pt: 0.25 }}>
-                <Box
-                  sx={{
-                    pt: 1.5,
-                    borderTop: '1px solid',
-                    borderColor: 'divider',
-                    display: 'grid',
-                    gridTemplateColumns: {
-                      xs: '1fr',
-                      sm: 'repeat(2, minmax(0, 1fr))',
-                      lg: 'repeat(3, minmax(0, 1fr))',
-                    },
-                    gap: 1.5,
-                  }}
+              <Box
+                id={filtersId}
+                sx={{
+                  p: 1.5,
+                  borderRadius: '8px',
+                  bgcolor: 'background.default',
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+                  gap: 1.5,
+                }}
+              >
+                <TextField
+                  select
+                  size="small"
+                  label={t('Eligibility')}
+                  value={filters.eligibility}
+                  onChange={(event) =>
+                    updateFilter('eligibility', event.target.value as EligibilityFilter)
+                  }
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
                 >
-                  <TextField
-                    select
-                    size="small"
-                    label={t('Eligibility')}
-                    value={filters.eligibility}
-                    onChange={(event) =>
-                      updateFilter('eligibility', event.target.value as EligibilityFilter)
-                    }
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
-                  >
-                    <MenuItem value="ELIGIBLE_ONLY">{t('Eligible only')}</MenuItem>
-                    <MenuItem value="ALL_EVALUATED">{t('All evaluated')}</MenuItem>
-                  </TextField>
+                  <MenuItem value="ELIGIBLE_ONLY">{t('Eligible only')}</MenuItem>
+                  <MenuItem value="ALL_EVALUATED">{t('All evaluated')}</MenuItem>
+                </TextField>
 
-                  <TextField
-                    select
-                    size="small"
-                    label={t('Altitude')}
-                    value={filters.altitude}
-                    onChange={(event) =>
-                      updateFilter('altitude', event.target.value as AltitudeFilter)
-                    }
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
-                  >
-                    <MenuItem value="ALL">{t('Any altitude')}</MenuItem>
-                    <MenuItem value="COVERS_STRUCTURE">{t('Meets structure height')}</MenuItem>
-                    <MenuItem value="MINIMUM_CEILING">{t('Minimum ceiling')}</MenuItem>
-                  </TextField>
-
-                  {filters.altitude === 'MINIMUM_CEILING' && (
-                    <TextField
-                      size="small"
-                      type="number"
-                      label={t('Minimum ceiling (m)')}
-                      value={filters.minimumCeilingMeters}
-                      onChange={(event) => updateFilter('minimumCeilingMeters', event.target.value)}
-                      slotProps={{ htmlInput: { min: 0, step: 1 } }}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
-                    />
-                  )}
-
-                  <TextField
-                    select
-                    size="small"
-                    label={t('Capability')}
-                    value={filters.capabilityCode}
-                    onChange={(event) => updateFilter('capabilityCode', event.target.value)}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
-                  >
-                    <MenuItem value="ALL">{t('All capabilities')}</MenuItem>
-                    {capabilityOptions.map((option) => (
-                      <MenuItem key={option.code} value={option.code}>
-                        {locale === 'vi' ? option.nameVi : option.nameEn}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-
-                  <TextField
-                    select
-                    size="small"
-                    label={t('Rating')}
-                    value={filters.minimumRating}
-                    onChange={(event) =>
-                      updateFilter('minimumRating', event.target.value as RatingFilter)
-                    }
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
-                  >
-                    <MenuItem value="ALL">{t('All ratings')}</MenuItem>
-                    <MenuItem value="RATED_ONLY">{t('Has ratings')}</MenuItem>
-                    <MenuItem value="MIN_4">{t('4+ stars')}</MenuItem>
-                    <MenuItem value="MIN_3">{t('3+ stars')}</MenuItem>
-                  </TextField>
-
-                  <TextField
-                    select
-                    size="small"
-                    label={t('Sort by')}
-                    value={filters.sortBy}
-                    onChange={(event) =>
-                      updateFilter('sortBy', event.target.value as CandidateSort)
-                    }
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
-                  >
-                    <MenuItem value="DEFAULT">{t('Default (eligibility & name)')}</MenuItem>
-                    <MenuItem value="RATING_DESC">{t('Highest rated first')}</MenuItem>
-                  </TextField>
-                </Box>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ display: 'block', mt: 1, textAlign: { sm: 'right' }, fontWeight: 600 }}
+                <TextField
+                  select
+                  size="small"
+                  label={t('Altitude')}
+                  value={filters.altitude}
+                  onChange={(event) =>
+                    updateFilter('altitude', event.target.value as AltitudeFilter)
+                  }
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
                 >
-                  {visibleCandidates.length} / {resultCandidates.length} {t('shown')}
-                </Typography>
+                  <MenuItem value="ALL">{t('Any altitude')}</MenuItem>
+                  <MenuItem value="COVERS_STRUCTURE">{t('Meets structure height')}</MenuItem>
+                  <MenuItem value="MINIMUM_CEILING">{t('Minimum ceiling')}</MenuItem>
+                </TextField>
+
+                {filters.altitude === 'MINIMUM_CEILING' && (
+                  <TextField
+                    size="small"
+                    type="number"
+                    label={t('Minimum ceiling (m)')}
+                    value={filters.minimumCeilingMeters}
+                    onChange={(event) => updateFilter('minimumCeilingMeters', event.target.value)}
+                    slotProps={{ htmlInput: { min: 0, step: 1 } }}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+                  />
+                )}
+
+                <TextField
+                  select
+                  size="small"
+                  label={t('Capability')}
+                  value={filters.capabilityCode}
+                  onChange={(event) => updateFilter('capabilityCode', event.target.value)}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+                >
+                  <MenuItem value="ALL">{t('All capabilities')}</MenuItem>
+                  {capabilityOptions.map((option) => (
+                    <MenuItem key={option.code} value={option.code}>
+                      {locale === 'vi' ? option.nameVi : option.nameEn}
+                    </MenuItem>
+                  ))}
+                </TextField>
+
+                <TextField
+                  select
+                  size="small"
+                  label={t('Rating')}
+                  value={filters.minimumRating}
+                  onChange={(event) =>
+                    updateFilter('minimumRating', event.target.value as RatingFilter)
+                  }
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+                >
+                  <MenuItem value="ALL">{t('All ratings')}</MenuItem>
+                  <MenuItem value="RATED_ONLY">{t('Has ratings')}</MenuItem>
+                  <MenuItem value="MIN_4">{t('4+ stars')}</MenuItem>
+                  <MenuItem value="MIN_3">{t('3+ stars')}</MenuItem>
+                </TextField>
+
+                <TextField
+                  select
+                  size="small"
+                  label={t('Sort by')}
+                  value={filters.sortBy}
+                  onChange={(event) =>
+                    updateFilter('sortBy', event.target.value as CandidateSort)
+                  }
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+                >
+                  <MenuItem value="DEFAULT">{t('Default order')}</MenuItem>
+                  <MenuItem value="RATING_DESC">{t('Highest rated first')}</MenuItem>
+                </TextField>
               </Box>
             )}
-          </Box>
+          </Stack>
         )}
 
         {stale && (
@@ -1171,22 +1041,12 @@ export function PartnerCandidateResults({
         )}
 
         {candidates.length === 0 ? (
-          <EmptyState title={t('No partner pairs registered.')} body="" />
+          <EmptyState title={t('No partner pairs registered.')} />
         ) : allEligibleCandidates.length === 0 && filters.eligibility === 'ELIGIBLE_ONLY' ? (
-          <EmptyState
-            title={t('No eligible partner pairs.')}
-            body=""
-            {...(allUnavailableCandidates.length > 0 && !showUnavailable
-              ? {
-                  action: `${t('Show')} ${allUnavailableCandidates.length} ${t('other pairs')}`,
-                  onAction: () => setShowUnavailable(true),
-                }
-              : {})}
-          />
+          <EmptyState title={t('No eligible partner pairs.')} />
         ) : noResultsForFilters ? (
           <EmptyState
             title={t('No partner pairs match.')}
-            body=""
             action={t('Clear filters')}
             onAction={resetFilters}
           />
@@ -1198,53 +1058,53 @@ export function PartnerCandidateResults({
               borderRadius: '10px',
               bgcolor: 'background.paper',
               overflow: 'hidden',
+              containerType: 'inline-size',
               '& table': { width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' },
               '& th': {
-                px: 1.5, py: 1, borderBottom: '1px solid', borderColor: 'divider',
-                bgcolor: 'background.default', color: 'text.secondary', textAlign: 'left',
-                fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase',
+                px: 1.5, py: 1.25, borderBottom: '1px solid', borderColor: 'divider',
+                color: 'text.secondary', textAlign: 'left', typography: 'body2', fontWeight: 600,
               },
-              '& .group-row td': { px: 1.5, py: 0.75, borderTop: '1px solid', borderColor: 'divider' },
-              '& .group-row:first-child td': { borderTop: 0 },
-              '& .pair-row td': { px: 1.5, py: 0.75, borderTop: '1px solid', borderColor: 'divider' },
-              '& .pair-row:hover td': { bgcolor: 'action.hover' },
-              '& .pair-row[aria-selected="true"] td': { bgcolor: 'action.selected' },
-              '& .mobile-details': { display: 'inline-flex' },
-              '@media (max-width: 767px)': {
+              '& .group-row td': {
+                px: 1.5, py: 0.75, bgcolor: 'background.default',
+                borderTop: '1px solid', borderColor: 'divider',
+              },
+              '& tbody:first-of-type .group-row td': { borderTop: 0 },
+              '& .pair-row td': { px: 1.5, py: 1, borderTop: '1px solid', borderColor: 'divider' },
+              '& .pair-row:hover': { bgcolor: 'action.hover' },
+              '& .pair-row[aria-selected="true"]': { bgcolor: 'action.selected' },
+              '@container (max-width: 600px)': {
                 '& thead': { display: 'none' },
-                '& tbody': { display: 'block', width: '100%' },
-                '& .group-row': { display: 'block', width: '100%' },
-                '& .group-row td': { display: 'block', width: '100%', px: 1.25, py: 1 },
+                '& table, & tbody, & .group-row, & .group-row td': { display: 'block', width: '100%' },
                 '& .pair-row': {
-                  display: 'flex',
-                  width: '100%',
+                  display: 'grid',
+                  gridTemplateColumns: 'minmax(0, 1fr) auto',
+                  gridTemplateAreas: '"drone actions" "status status"',
                   alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 1,
-                  px: 1.25,
-                  py: 0.75,
+                  gap: 0.75,
+                  px: 1.5,
+                  py: 1,
+                  borderTop: '1px solid',
+                  borderColor: 'divider',
                 },
                 '& .pair-row td': { display: 'block', width: 'auto', px: 0, py: 0, border: 0 },
-                '& .pair-row td:first-child': { flex: '1 1 0', minWidth: 0 },
-                '& .pair-row .desktop-only': { display: 'none' },
-                '& .pair-row .unavailable-pair': { gridColumn: '1 / -1' },
-                '& .pair-row .unavailable-pair ~ td': { display: 'none' },
-                '& .pair-row .mobile-status': { display: 'inline-flex' },
-                '& .pair-row td:last-child': { flex: '0 0 auto' },
+                '& .pair-row td:first-child': { gridArea: 'drone', minWidth: 0 },
+                '& .pair-row td:nth-child(2)': { gridArea: 'status', minWidth: 0 },
+                '& .pair-row td:last-child': { gridArea: 'actions' },
               },
             }}
           >
             <table aria-label={t('Eligible partner pairs')}>
-              <thead><tr>
-                <th style={{ width: '52%' }}>{t('Inspector and drone')}</th>
-                <th style={{ width: '16%' }}>{t('Eligibility')}</th>
-                <th style={{ width: '13%' }}>{t('Drone tier')}</th>
-                <th style={{ width: '19%', textAlign: 'right' }}>{t('Actions')}</th>
-              </tr></thead>
+              <thead>
+                <tr>
+                  <th scope="col" style={{ width: '54%' }}>{t('Inspector and drone')}</th>
+                  <th scope="col" style={{ width: '24%' }}>{t('Eligibility')}</th>
+                  <th scope="col" style={{ width: '22%', textAlign: 'right' }}>{t('Actions')}</th>
+                </tr>
+              </thead>
               {candidateGroups.map((group) => (
                 <tbody key={group.inspectorId}>
-                  <tr className="group-row"><td colSpan={4}>
-                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center', minWidth: 0, flexWrap: 'wrap' }}>
+                  <tr className="group-row"><td colSpan={3}>
+                    <Stack direction="row" sx={{ alignItems: 'center', minWidth: 0, flexWrap: 'wrap', gap: 0.75 }}>
                       <Avatar src={group.inspectorAvatarUrl ?? undefined} alt={group.inspectorName}
                         sx={{
                           width: 30,
@@ -1257,48 +1117,43 @@ export function PartnerCandidateResults({
                         }}>
                         {getInspectorInitials(group.inspectorName)}
                       </Avatar>
-                      <Typography variant="body2" sx={{ minWidth: 0, fontWeight: 700 }} noWrap>{group.inspectorName}</Typography>
+                      <Typography variant="body2" sx={{ minWidth: 0, fontWeight: 700, overflowWrap: 'anywhere' }}>
+                        {group.inspectorName}
+                      </Typography>
                       <InspectorRatingSummaryBadge
                         averageRating={group.averageRating}
                         ratingCount={group.ratingCount}
                       />
-                      {group.declineCount > 0 && (
-                        <Chip
-                          size="small"
-                          color="warning"
-                          variant="outlined"
-                          label={`${t('Declines')}: ${group.declineCount}`}
-                          sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600 }}
-                        />
-                      )}
-                      {group.noShowCount > 0 && (
-                        <Chip
-                          size="small"
-                          color="error"
-                          variant="outlined"
-                          label={`${t('No-shows')}: ${group.noShowCount}`}
-                          sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600 }}
-                        />
-                      )}
-                      {group.abortCount > 0 && (
-                        <Chip
-                          size="small"
-                          color="warning"
-                          variant="outlined"
-                          label={`${t('Aborts')}: ${group.abortCount}`}
-                          sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600 }}
-                        />
-                      )}
-                      <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto', whiteSpace: 'nowrap' }}>
-                        {group.items.length === 1 ? t('1 drone') : `${group.items.length} ${t('drones')}`}
-                      </Typography>
+                      {[
+                        { label: 'Declines', count: group.declineCount },
+                        { label: 'Aborts', count: group.abortCount },
+                      ]
+                        .filter(({ count }) => count > 0)
+                        .map(({ label, count }) => (
+                          <Typography
+                            key={label}
+                            component="span"
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ fontVariantNumeric: 'tabular-nums' }}
+                          >
+                            {t(label)}: {count}
+                          </Typography>
+                        ))}
                     </Stack>
                   </td></tr>
                   {group.items.map((candidate) => {
                     const selectable = isSelectablePartnerCandidate(candidate);
                     const isSelected = selectable && selectedInspectorId === candidate.inspectorId && selectedDroneId === candidate.droneId;
                     const tier = formatDroneTierSummary(candidate.droneModel, locale);
-                    const altitudeSummary = formatAltitudeSummary(candidate, t);
+                    const tierLabel = (tier.shortLabel.split('(')[0] ?? tier.shortLabel).trim();
+                    const droneSpecs = [
+                      candidate.droneSerialNumber,
+                      tierLabel,
+                      candidate.droneMaxAltitudeMeters != null
+                        ? `${t('Drone ceiling')} ${candidate.droneMaxAltitudeMeters} m`
+                        : null,
+                    ].filter(Boolean).join(' · ');
                     return (
                       <tr key={pairKey(candidate)} className="pair-row" aria-selected={isSelected}>
                         <td>
@@ -1307,22 +1162,20 @@ export function PartnerCandidateResults({
                               <LazyDroneImage candidate={candidate} maxHeight={42} />
                             </Box>
                             <Box sx={{ minWidth: 0 }}>
-                              <Typography variant="body2" sx={{ fontWeight: 650 }} noWrap>
+                              <Typography variant="body2" sx={{ fontWeight: 650, overflowWrap: 'anywhere' }}>
                                 {candidate.droneModel ?? t('Partner drone')}
                               </Typography>
                               <Typography
                                 variant="caption"
                                 color="text.secondary"
-                                sx={{ display: 'block', fontVariantNumeric: 'tabular-nums' }}
-                                noWrap
+                                sx={{ display: 'block', fontVariantNumeric: 'tabular-nums', overflowWrap: 'anywhere' }}
                               >
-                                {candidate.droneSerialNumber}
-                                {altitudeSummary ? ` · ${altitudeSummary}` : ''}
+                                {droneSpecs}
                               </Typography>
                             </Box>
                           </Stack>
                         </td>
-                        <td className="desktop-only">
+                        <td>
                           {selectable ? (
                             <Chip
                               size="small"
@@ -1343,19 +1196,12 @@ export function PartnerCandidateResults({
                               sx={{
                                 display: 'block',
                                 fontWeight: 600,
-                                maxWidth: 220,
+                                overflowWrap: 'anywhere',
                               }}
-                              noWrap
-                              title={getPrimaryBlockerReason(candidate, t)}
                             >
                               {getPrimaryBlockerReason(candidate, t)}
                             </Typography>
                           )}
-                        </td>
-                        <td className="desktop-only">
-                          <Typography variant="caption" color="text.secondary" noWrap>
-                            {(tier.shortLabel.split('(')[0] ?? tier.shortLabel).trim()}
-                          </Typography>
                         </td>
                         <td>
                           <Stack
@@ -1363,29 +1209,20 @@ export function PartnerCandidateResults({
                             spacing={0.75}
                             sx={{ alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'nowrap' }}
                           >
-                            <Button
-                              className="mobile-details"
+                            <IconButton
                               size="small"
-                              variant="text"
                               aria-label={t('Details')}
                               title={t('Details')}
-                              startIcon={<VisibilityOutlinedIcon fontSize="small" />}
                               onClick={() => setDetailKey(pairKey(candidate))}
                               sx={{
-                                minWidth: 32,
-                                minHeight: { xs: 40, sm: 32 },
-                                px: 0.75,
+                                width: 36,
+                                height: 36,
                                 color: 'text.secondary',
-                                textTransform: 'none',
-                                fontWeight: 600,
                                 borderRadius: '8px',
-                                '& .MuiButton-startIcon': { mr: 0 },
                               }}
                             >
-                              <Box component="span" sx={{ display: 'none' }}>
-                                {t('Details')}
-                              </Box>
-                            </Button>
+                              <VisibilityOutlinedIcon fontSize="small" />
+                            </IconButton>
                             <Button
                               size="small"
                               variant={isSelected ? 'contained' : 'outlined'}
@@ -1393,8 +1230,8 @@ export function PartnerCandidateResults({
                               onClick={() => onSelectPair(candidate)}
                               startIcon={isSelected ? <CheckRoundedIcon fontSize="small" /> : undefined}
                               sx={{
-                                minWidth: 72,
-                                px: 1,
+                                minHeight: 36,
+                                px: 1.25,
                                 textTransform: 'none',
                                 fontWeight: 600,
                                 borderRadius: '8px',
@@ -1423,139 +1260,120 @@ export function PartnerCandidateResults({
           </Box>
         )}
 
-        {filters.eligibility === 'ELIGIBLE_ONLY' && allUnavailableCandidates.length > 0 && (
-          <Box sx={{ mt: 2.5, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
-            <Stack
-              direction={{ xs: 'column', sm: 'row' }}
-              spacing={1}
+        {filters.eligibility === 'ELIGIBLE_ONLY' && visibleUnavailable.length > 0 && (
+          <Box sx={{ mt: 1.5 }}>
+            <Button
+              size="small"
+              color="inherit"
+              endIcon={showUnavailable ? <KeyboardArrowUpRoundedIcon /> : <KeyboardArrowDownRoundedIcon />}
+              aria-expanded={showUnavailable}
+              aria-controls={showUnavailable ? unavailableId : undefined}
+              onClick={() => setShowUnavailable((prev) => !prev)}
               sx={{
+                width: '100%',
                 justifyContent: 'space-between',
-                alignItems: { sm: 'center' },
-                mb: showUnavailable ? 1.5 : 0,
+                bgcolor: 'background.default',
+                textTransform: 'none',
+                textAlign: 'left',
+                fontWeight: 600,
+                borderRadius: '8px',
+                minHeight: 40,
+                px: 1.5,
               }}
             >
-              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                {t('Unavailable or unverified pairs')}
-              </Typography>
-              <Button
-                size="small"
-                variant="text"
-                color="inherit"
-                endIcon={
-                  showUnavailable ? <KeyboardArrowUpRoundedIcon /> : <KeyboardArrowDownRoundedIcon />
-                }
-                onClick={() => setShowUnavailable((prev) => !prev)}
-                sx={{
-                  textTransform: 'none',
-                  fontWeight: 600,
-                  color: 'text.secondary',
-                  borderRadius: '8px',
-                }}
-              >
-                {showUnavailable
-                  ? `${t('Hide')} ${allUnavailableCandidates.length} ${t('other pairs')}`
-                  : `${t('Show')} ${allUnavailableCandidates.length} ${t('other pairs')}`}
-              </Button>
-            </Stack>
+              {t('Unavailable or unverified pairs')} ({visibleUnavailable.length})
+            </Button>
 
             {showUnavailable && (
-              <Stack spacing={0} divider={<Divider flexItem />}>
-                {visibleUnavailable.length === 0 ? (
-                  <Typography variant="body2" color="text.secondary" sx={{ py: 1.5 }}>
-                    {t('No unavailable pairs match these filters.')}
-                  </Typography>
-                ) : (
-                  pagedUnavailable.map((candidate) => {
-                    const isBlocked =
-                      candidate.eligibility === 'FAIL' || candidate.capabilityFit === 'MISMATCH';
-                    const rowDescId = `unavail-desc-${candidate.inspectorId}-${candidate.droneId}`;
-                    return (
+              <Stack id={unavailableId} divider={<Divider flexItem />}>
+                {pagedUnavailable.map((candidate) => {
+                  const isBlocked =
+                    candidate.eligibility === 'FAIL' || candidate.capabilityFit === 'MISMATCH';
+                  const rowDescId = `${unavailableId}-${pairKey(candidate)}`;
+                  return (
+                    <Stack
+                      key={pairKey(candidate)}
+                      direction={{ xs: 'column', sm: 'row' }}
+                      spacing={1.5}
+                      sx={{
+                        py: 1.5,
+                        px: 1,
+                        alignItems: { sm: 'center' },
+                        justifyContent: 'space-between',
+                      }}
+                    >
                       <Stack
-                        key={pairKey(candidate)}
-                        direction={{ xs: 'column', sm: 'row' }}
+                        direction="row"
                         spacing={1.5}
-                        sx={{
-                          py: 1.5,
-                          px: 1,
-                          alignItems: { sm: 'center' },
-                          justifyContent: 'space-between',
-                          opacity: 0.88,
-                        }}
+                        sx={{ alignItems: 'center', minWidth: 0 }}
                       >
-                        <Stack
-                          direction="row"
-                          spacing={1.5}
-                          sx={{ alignItems: 'center', minWidth: 0 }}
-                        >
-                          <Avatar
-                            src={candidate.inspectorAvatarUrl ?? undefined}
-                            alt={candidate.inspectorName}
-                            sx={{
-                              width: 36,
-                              height: 36,
-                              bgcolor: 'action.hover',
-                              color: 'text.secondary',
-                              fontWeight: 700,
-                              fontSize: '0.75rem',
-                            }}
-                          >
-                            {getInspectorInitials(candidate.inspectorName)}
-                          </Avatar>
-                          <Box id={rowDescId} sx={{ minWidth: 0 }}>
-                            <Stack
-                              direction="row"
-                              spacing={1}
-                              sx={{ alignItems: 'center', flexWrap: 'wrap' }}
-                            >
-                              <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                                {candidate.inspectorName} · {candidate.droneModel} (
-                                {candidate.droneSerialNumber})
-                              </Typography>
-                              <Chip
-                                size="small"
-                                icon={
-                                  isBlocked ? (
-                                    <ErrorOutlineRoundedIcon sx={{ fontSize: 14 }} />
-                                  ) : (
-                                    <HelpOutlineRoundedIcon sx={{ fontSize: 14 }} />
-                                  )
-                                }
-                                label={isBlocked ? t('Blocked') : t('Unverified')}
-                                color={isBlocked ? 'error' : 'warning'}
-                                variant="outlined"
-                                sx={{
-                                  height: 22,
-                                  fontSize: '0.75rem',
-                                  fontWeight: 700,
-                                  borderRadius: '6px',
-                                }}
-                              />
-                            </Stack>
-                            <Typography variant="caption" color="text.secondary">
-                              {getPrimaryBlockerReason(candidate, t)}
-                            </Typography>
-                          </Box>
-                        </Stack>
-
-                        <Button
-                          size="small"
-                          variant="text"
-                          aria-describedby={rowDescId}
-                          startIcon={<VisibilityOutlinedIcon fontSize="small" />}
-                          onClick={() => setDetailKey(pairKey(candidate))}
+                        <Avatar
+                          src={candidate.inspectorAvatarUrl ?? undefined}
+                          alt={candidate.inspectorName}
                           sx={{
-                            textTransform: 'none',
-                            fontWeight: 600,
-                            borderRadius: '8px',
-                            alignSelf: { xs: 'flex-start', sm: 'center' },
+                            width: 36,
+                            height: 36,
+                            bgcolor: 'action.hover',
+                            color: 'text.secondary',
+                            fontWeight: 700,
+                            fontSize: '0.75rem',
                           }}
                         >
-                          {t('Details')}
-                        </Button>
+                          {getInspectorInitials(candidate.inspectorName)}
+                        </Avatar>
+                        <Box id={rowDescId} sx={{ minWidth: 0 }}>
+                          <Stack
+                            direction="row"
+                            sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}
+                          >
+                            <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                              {candidate.inspectorName} · {candidate.droneModel} (
+                              {candidate.droneSerialNumber})
+                            </Typography>
+                            <Chip
+                              size="small"
+                              icon={
+                                isBlocked ? (
+                                  <ErrorOutlineRoundedIcon sx={{ fontSize: 14 }} />
+                                ) : (
+                                  <HelpOutlineRoundedIcon sx={{ fontSize: 14 }} />
+                                )
+                              }
+                              label={isBlocked ? t('Blocked') : t('Unverified')}
+                              color={isBlocked ? 'error' : 'warning'}
+                              variant="outlined"
+                              sx={{
+                                height: 22,
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                borderRadius: '6px',
+                              }}
+                            />
+                          </Stack>
+                          <Typography variant="caption" color="text.secondary">
+                            {getPrimaryBlockerReason(candidate, t)}
+                          </Typography>
+                        </Box>
                       </Stack>
-                    );
-                  })
-                )}
+
+                      <Button
+                        size="small"
+                        variant="text"
+                        aria-describedby={rowDescId}
+                        startIcon={<VisibilityOutlinedIcon fontSize="small" />}
+                        onClick={() => setDetailKey(pairKey(candidate))}
+                        sx={{
+                          textTransform: 'none',
+                          fontWeight: 600,
+                          borderRadius: '8px',
+                          alignSelf: { xs: 'flex-start', sm: 'center' },
+                        }}
+                      >
+                        {t('Details')}
+                      </Button>
+                    </Stack>
+                  );
+                })}
                 {visibleUnavailable.length > UNAVAILABLE_PER_PAGE && (
                   <CandidatePaginationFooter
                     page={safeUnavailablePage}
@@ -1569,12 +1387,6 @@ export function PartnerCandidateResults({
             )}
           </Box>
         )}
-
-        {disclaimerText(candidates) && (
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
-            {t(disclaimerText(candidates) ?? '')}
-          </Typography>
-        )}
       </Box>
     </Box>
   );
@@ -1582,12 +1394,10 @@ export function PartnerCandidateResults({
 
 function EmptyState({
   title,
-  body,
   action,
   onAction,
 }: {
   title: string;
-  body: string;
   action?: string;
   onAction?: () => void;
 }) {
@@ -1596,11 +1406,6 @@ function EmptyState({
       <Typography variant="body2" sx={{ fontWeight: 650 }}>
         {title}
       </Typography>
-      {body && (
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-          {body}
-        </Typography>
-      )}
       {action && onAction && (
         <Button
           size="small"
