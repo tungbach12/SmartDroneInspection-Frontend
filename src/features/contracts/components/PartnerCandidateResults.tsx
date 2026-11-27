@@ -131,6 +131,8 @@ function groupByInspector(items: PartnerCandidate[]): InspectorCandidateGroup[] 
 
 type EligibilityFilter = 'ELIGIBLE_ONLY' | 'ALL_EVALUATED';
 type AltitudeFilter = 'ALL' | 'COVERS_STRUCTURE' | 'MINIMUM_CEILING';
+type RatingFilter = 'ALL' | 'RATED_ONLY' | 'MIN_4' | 'MIN_3';
+type CandidateSort = 'DEFAULT' | 'RATING_DESC';
 
 interface CandidateFilters {
   query: string;
@@ -138,6 +140,8 @@ interface CandidateFilters {
   altitude: AltitudeFilter;
   minimumCeilingMeters: string;
   capabilityCode: string;
+  minimumRating: RatingFilter;
+  sortBy: CandidateSort;
 }
 
 export const DEFAULT_FILTERS: CandidateFilters = {
@@ -146,6 +150,8 @@ export const DEFAULT_FILTERS: CandidateFilters = {
   altitude: 'ALL',
   minimumCeilingMeters: '',
   capabilityCode: 'ALL',
+  minimumRating: 'ALL',
+  sortBy: 'DEFAULT',
 };
 
 export function candidateMatchesFilters(
@@ -177,12 +183,61 @@ export function candidateMatchesFilters(
       droneCeiling >= minimumCeiling);
   const matchesCapability =
     filters.capabilityCode === 'ALL' || candidate.droneFeatureCodes.includes(filters.capabilityCode);
+  const ratingCount = candidate.ratingCount ?? 0;
+  const averageRating = candidate.averageRating ?? null;
+  const matchesRating =
+    filters.minimumRating === 'ALL' ||
+    (filters.minimumRating === 'RATED_ONLY' && ratingCount > 0 && averageRating != null) ||
+    (filters.minimumRating === 'MIN_4' && ratingCount > 0 && (averageRating ?? 0) >= 4) ||
+    (filters.minimumRating === 'MIN_3' && ratingCount > 0 && (averageRating ?? 0) >= 3);
 
-  return matchesQuery && matchesEligibility && matchesAltitude && matchesCapability;
+  return (
+    matchesQuery &&
+    matchesEligibility &&
+    matchesAltitude &&
+    matchesCapability &&
+    matchesRating
+  );
+}
+
+export function sortPartnerCandidates(
+  items: PartnerCandidate[],
+  sortBy: CandidateSort,
+): PartnerCandidate[] {
+  if (sortBy === 'DEFAULT') {
+    return items;
+  }
+  return [...items].sort((left, right) => {
+    const leftHasRating = (left.ratingCount ?? 0) > 0 && left.averageRating != null;
+    const rightHasRating = (right.ratingCount ?? 0) > 0 && right.averageRating != null;
+    if (leftHasRating !== rightHasRating) {
+      return leftHasRating ? -1 : 1;
+    }
+    if (leftHasRating && rightHasRating) {
+      const scoreDiff = (right.averageRating ?? 0) - (left.averageRating ?? 0);
+      if (Math.abs(scoreDiff) > 0.0001) {
+        return scoreDiff;
+      }
+      const countDiff = (right.ratingCount ?? 0) - (left.ratingCount ?? 0);
+      if (countDiff !== 0) {
+        return countDiff;
+      }
+    }
+    const nameCompare = left.inspectorName.localeCompare(right.inspectorName);
+    if (nameCompare !== 0) {
+      return nameCompare;
+    }
+    return left.droneSerialNumber.localeCompare(right.droneSerialNumber);
+  });
 }
 
 export function filtersHaveAdvancedSelection(filters: CandidateFilters): boolean {
-  return filters.altitude !== 'ALL' || filters.capabilityCode !== 'ALL';
+  return (
+    filters.altitude !== 'ALL' ||
+    filters.capabilityCode !== 'ALL' ||
+    filters.minimumRating !== 'ALL' ||
+    filters.sortBy !== 'DEFAULT'
+  );
 }
 
 const pairKey = (candidate: PartnerCandidate) => `${candidate.inspectorId}:${candidate.droneId}`;
@@ -411,11 +466,15 @@ export function PartnerCandidateResults({
   );
   const resultCandidates =
     filters.eligibility === 'ALL_EVALUATED' ? candidates : allEligibleCandidates;
-  const visibleCandidates = resultCandidates.filter((candidate) =>
-    candidateMatchesFilters(candidate, filters),
+  const visibleCandidates = sortPartnerCandidates(
+    resultCandidates.filter((candidate) => candidateMatchesFilters(candidate, filters)),
+    filters.sortBy,
   );
-  const visibleUnavailable = allUnavailableCandidates.filter((candidate) =>
-    candidateMatchesFilters(candidate, { ...filters, eligibility: 'ALL_EVALUATED' }),
+  const visibleUnavailable = sortPartnerCandidates(
+    allUnavailableCandidates.filter((candidate) =>
+      candidateMatchesFilters(candidate, { ...filters, eligibility: 'ALL_EVALUATED' }),
+    ),
+    filters.sortBy,
   );
   const totalCandidatePages = Math.max(1, Math.ceil(visibleCandidates.length / CANDIDATES_PER_PAGE));
   const safePage = Math.min(page, totalCandidatePages);
@@ -460,6 +519,8 @@ export function PartnerCandidateResults({
     filters.altitude !== DEFAULT_FILTERS.altitude,
     filters.minimumCeilingMeters !== DEFAULT_FILTERS.minimumCeilingMeters,
     filters.capabilityCode !== DEFAULT_FILTERS.capabilityCode,
+    filters.minimumRating !== DEFAULT_FILTERS.minimumRating,
+    filters.sortBy !== DEFAULT_FILTERS.sortBy,
   ].filter(Boolean).length;
 
 
@@ -1059,6 +1120,36 @@ export function PartnerCandidateResults({
                         {locale === 'vi' ? option.nameVi : option.nameEn}
                       </MenuItem>
                     ))}
+                  </TextField>
+
+                  <TextField
+                    select
+                    size="small"
+                    label={t('Rating')}
+                    value={filters.minimumRating}
+                    onChange={(event) =>
+                      updateFilter('minimumRating', event.target.value as RatingFilter)
+                    }
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+                  >
+                    <MenuItem value="ALL">{t('All ratings')}</MenuItem>
+                    <MenuItem value="RATED_ONLY">{t('Has ratings')}</MenuItem>
+                    <MenuItem value="MIN_4">{t('4+ stars')}</MenuItem>
+                    <MenuItem value="MIN_3">{t('3+ stars')}</MenuItem>
+                  </TextField>
+
+                  <TextField
+                    select
+                    size="small"
+                    label={t('Sort by')}
+                    value={filters.sortBy}
+                    onChange={(event) =>
+                      updateFilter('sortBy', event.target.value as CandidateSort)
+                    }
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+                  >
+                    <MenuItem value="DEFAULT">{t('Default (eligibility & name)')}</MenuItem>
+                    <MenuItem value="RATING_DESC">{t('Highest rated first')}</MenuItem>
                   </TextField>
                 </Box>
                 <Typography

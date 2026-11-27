@@ -3,7 +3,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '@/shared/api/client';
 import { usePartnerCapabilities } from '../hooks/useContracts';
-import { PartnerCandidateResults, candidateMatchesFilters, DEFAULT_FILTERS } from './PartnerCandidateResults';
+import {
+  PartnerCandidateResults,
+  candidateMatchesFilters,
+  DEFAULT_FILTERS,
+  sortPartnerCandidates,
+} from './PartnerCandidateResults';
 import type { PartnerCandidate } from '../api/contractApi';
 
 vi.mock('@/shared/api/client', () => ({
@@ -517,5 +522,69 @@ describe('PartnerCandidateResults', () => {
     });
     expect(screen.getByText('Showing 1–1 of 1')).toBeTruthy();
     expect(screen.getByText('Matrice Model 1')).toBeTruthy();
+  });
+
+  it('filters and sorts partner candidates by Inspector rating', () => {
+    const highRated: PartnerCandidate = {
+      ...passingCandidate,
+      inspectorId: 'insp-high',
+      droneId: 'drone-high',
+      inspectorName: 'Zoe High Rated',
+      droneSerialNumber: 'SDI-901',
+      averageRating: 4.8,
+      ratingCount: 5,
+    };
+    const midRated: PartnerCandidate = {
+      ...passingCandidate,
+      inspectorId: 'insp-mid',
+      droneId: 'drone-mid',
+      inspectorName: 'Alex Mid Rated',
+      droneSerialNumber: 'SDI-902',
+      averageRating: 3.5,
+      ratingCount: 2,
+    };
+    const unrated: PartnerCandidate = {
+      ...passingCandidate,
+      inspectorId: 'insp-unrated',
+      droneId: 'drone-unrated',
+      inspectorName: 'Ben Unrated',
+      droneSerialNumber: 'SDI-903',
+      averageRating: null,
+      ratingCount: 0,
+    };
+
+    expect(
+      candidateMatchesFilters(highRated, { ...DEFAULT_FILTERS, minimumRating: 'MIN_4' }),
+    ).toBe(true);
+    expect(
+      candidateMatchesFilters(midRated, { ...DEFAULT_FILTERS, minimumRating: 'MIN_4' }),
+    ).toBe(false);
+    expect(
+      candidateMatchesFilters(unrated, { ...DEFAULT_FILTERS, minimumRating: 'RATED_ONLY' }),
+    ).toBe(false);
+
+    const sorted = sortPartnerCandidates([midRated, unrated, highRated], 'RATING_DESC');
+    expect(sorted.map((item) => item.inspectorId)).toEqual([
+      'insp-high',
+      'insp-mid',
+      'insp-unrated',
+    ]);
+
+    renderWithQuery(
+      <PartnerCandidateResults
+        candidates={[midRated, unrated, highRated]}
+        selectedInspectorId=""
+        selectedDroneId=""
+        onSelectPair={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Filters/i }));
+    fireEvent.mouseDown(screen.getByLabelText('Rating'));
+    fireEvent.click(screen.getByRole('option', { name: '4+ stars' }));
+
+    expect(screen.getByText('Zoe High Rated')).toBeTruthy();
+    expect(screen.queryByText('Alex Mid Rated')).toBeNull();
+    expect(screen.queryByText('Ben Unrated')).toBeNull();
   });
 });
