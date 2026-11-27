@@ -37,6 +37,7 @@ export interface CalendarDateFieldProps {
   value: string;
   minDate: string;
   maxDate?: string | undefined;
+  leadDays?: number | undefined;
   locale: string;
   helperText?: string | undefined;
   blockedMessageText?: string | undefined;
@@ -48,6 +49,7 @@ export function CalendarDateField({
   value,
   minDate,
   maxDate,
+  leadDays = 20,
   locale,
   helperText,
   blockedMessageText,
@@ -85,7 +87,10 @@ export function CalendarDateField({
     if (dateString < minDate) {
       setBlockedMessage(
         blockedMessageText ??
-          t('For scheduling and preparation, choose a date at least 20 days from today.'),
+          t('For scheduling and preparation, choose a date at least {days} days from today.').replace(
+            '{days}',
+            String(leadDays),
+          ),
       );
       return;
     }
@@ -117,7 +122,10 @@ export function CalendarDateField({
         value={value ? formatCalendarIsoDate(value, locale) : ''}
         helperText={
           helperText ??
-          `${t('Select a date at least 20 days from today. Earliest date')}: ${formatCalendarIsoDate(minDate, locale)}`
+          `${t('Select a date at least {days} days from today. Earliest date').replace(
+            '{days}',
+            String(leadDays),
+          )}: ${formatCalendarIsoDate(minDate, locale)}`
         }
         onClick={(event) => openPicker(event.currentTarget)}
         onKeyDown={(event) => {
