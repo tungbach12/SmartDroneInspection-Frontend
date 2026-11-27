@@ -2,6 +2,30 @@ import { describe, expect, it } from 'vitest';
 import { matchRoutes } from 'react-router-dom';
 import { router } from './router';
 
+describe('public role landing routes', () => {
+  it.each(['/customer', '/inspector', '/staff'])('exposes %s', (path) => {
+    expect(matchRoutes(router.routes, path)?.at(-1)?.route.path).toBe(path.slice(1));
+  });
+
+  it.each([
+    ['smartdroneinspection-admin.example.test', '/staff'],
+    ['smartdroneinspection-operations.example.test', '/inspector'],
+    ['smartdroneinspection.example.test', null],
+  ])('routes the root of %s to the matching audience', async (host, expected) => {
+    const loader = matchRoutes(router.routes, '/')?.at(-1)?.route.loader;
+    if (typeof loader !== 'function') throw new Error('Root landing loader is missing');
+    const url = new URL(`https://${host}/`);
+    const result = await loader({ request: new Request(url), url, pattern: '/', params: {}, context: undefined });
+
+    if (expected) {
+      expect(result).toBeInstanceOf(Response);
+      expect((result as Response).headers.get('Location')).toBe(expected);
+    } else {
+      expect(result).toBeNull();
+    }
+  });
+});
+
 describe('retired provider routes', () => {
   it.each(['/register-provider', '/activate-provider', '/operations/team'])(
     'does not match the retired route %s',

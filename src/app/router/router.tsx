@@ -3,6 +3,7 @@ import {
   createBrowserRouter,
   Navigate,
   Outlet,
+  redirect,
   RouterProvider,
 } from 'react-router-dom';
 import { BrandLoadingScreen } from '@/shared/components/BrandLoadingScreen';
@@ -27,6 +28,7 @@ import {
 } from '@/features/auth/components/AuthSessionBootstrapper';
 import AccessDeniedPage from '@/features/auth/pages/AccessDeniedPage';
 import LandingPage from '@/features/landing/pages/LandingPage';
+import { getDedicatedLandingAudience, LANDING_PATHS, type LandingAudience } from '@/features/landing/landingAudience';
 import { MotionLabPage } from '@/features/landing/pages/MotionLabPage';
 import PortalSelectionPage from '@/app/pages/PortalSelectionPage';
 import { useAuthStore } from '@/features/auth/store/authStore';
@@ -34,6 +36,7 @@ import { ToastHost } from '@/shared/ui/Toast';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'));
+const RoleLandingPage = lazy(() => import('@/features/landing/pages/RoleLandingPage'));
 const OAuthCallbackPage = lazy(() => import('@/features/auth/pages/OAuthCallbackPage'));
 const RegisterPage = lazy(() => import('@/features/auth/pages/RegisterPage'));
 const InspectorRegisterPage = lazy(
@@ -375,6 +378,13 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
   };
 });
 
+function redirectToDedicatedLanding(request: Request, audience: LandingAudience) {
+  const dedicatedAudience = getDedicatedLandingAudience(new URL(request.url).hostname);
+  return dedicatedAudience && dedicatedAudience !== audience
+    ? redirect(LANDING_PATHS[dedicatedAudience])
+    : null;
+}
+
 export const router = createBrowserRouter([
   {
     path: '/',
@@ -383,16 +393,22 @@ export const router = createBrowserRouter([
       {
         index: true,
         element: <LandingPage />,
-        loader: () => {
-          const host = window.location.hostname;
-          if (host.startsWith('smartdroneinspection-admin')) {
-            return new Response(null, { status: 302, headers: { Location: '/login' } });
-          }
-          if (host.startsWith('smartdroneinspection-operations')) {
-            return new Response(null, { status: 302, headers: { Location: '/inspector/login' } });
-          }
-          return null;
-        },
+        loader: ({ request }) => redirectToDedicatedLanding(request, 'customer'),
+      },
+      {
+        path: 'customer',
+        element: <LandingPage />,
+        loader: ({ request }) => redirectToDedicatedLanding(request, 'customer'),
+      },
+      {
+        path: 'inspector',
+        element: <RoleLandingPage audience="inspector" />,
+        loader: ({ request }) => redirectToDedicatedLanding(request, 'inspector'),
+      },
+      {
+        path: 'staff',
+        element: <RoleLandingPage audience="staff" />,
+        loader: ({ request }) => redirectToDedicatedLanding(request, 'staff'),
       },
       {
         path: 'motion-lab',
