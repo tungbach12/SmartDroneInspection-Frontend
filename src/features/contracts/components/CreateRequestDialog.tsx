@@ -33,7 +33,10 @@ import {
   enumerateMonthlySchedule,
   MINIMUM_INSPECTION_LEAD_DAYS,
 } from '../api/recurrenceSchedule';
-import { useCreateServiceRequest } from '../hooks/useContracts';
+import {
+  useCreateServiceRequest,
+  useServiceRequestSchedulingPolicy,
+} from '../hooks/useContracts';
 
 interface CreateRequestDialogProps {
   open: boolean;
@@ -109,11 +112,19 @@ interface CalendarDateFieldProps {
   label: string;
   value: string;
   minDate: string;
+  leadDays: number;
   locale: string;
   onChange: (value: string) => void;
 }
 
-function CalendarDateField({ label, value, minDate, locale, onChange }: CalendarDateFieldProps) {
+function CalendarDateField({
+  label,
+  value,
+  minDate,
+  leadDays,
+  locale,
+  onChange,
+}: CalendarDateFieldProps) {
   const { t } = useLocale();
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [blockedMessage, setBlockedMessage] = useState('');
@@ -148,7 +159,10 @@ function CalendarDateField({ label, value, minDate, locale, onChange }: Calendar
     const dateString = toIsoDate(visibleYear, visibleMonth, day);
     if (dateString < minDate) {
       setBlockedMessage(
-        t('For scheduling and preparation, choose a date at least 20 days from today.'),
+        t('For scheduling and preparation, choose a date at least {days} days from today.').replace(
+          '{days}',
+          String(leadDays),
+        ),
       );
       return;
     }
@@ -172,7 +186,10 @@ function CalendarDateField({ label, value, minDate, locale, onChange }: Calendar
         size="small"
         label={label}
         value={value ? formatDate(value, locale) : ''}
-        helperText={`${t('Select a date at least 20 days from today. Earliest date')}: ${formatDate(minDate, locale)}`}
+        helperText={`${t('Select a date at least {days} days from today. Earliest date').replace(
+          '{days}',
+          String(leadDays),
+        )}: ${formatDate(minDate, locale)}`}
         onClick={(event) => openPicker(event.currentTarget)}
         onKeyDown={(event) => {
           if (event.key === 'Enter' || event.key === ' ') {
@@ -278,6 +295,8 @@ export function CreateRequestDialog({
 }: CreateRequestDialogProps) {
   const { locale, t } = useLocale();
   const create = useCreateServiceRequest();
+  const schedulingPolicy = useServiceRequestSchedulingPolicy(open);
+  const minimumLeadDays = schedulingPolicy?.data?.minimumLeadDays ?? MINIMUM_LEAD_DAYS;
   const [assetId, setAssetId] = useState(initialAssetId ?? '');
   const [from, setFrom] = useState('');
   const [requestType, setRequestType] = useState<'ONE_TIME' | 'RECURRING'>('ONE_TIME');
@@ -288,7 +307,7 @@ export function CreateRequestDialog({
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
   const [validationError, setValidationError] = useState('');
   const timezone = 'Asia/Ho_Chi_Minh';
-  const minStartDate = addCalendarDays(dateInZone(timezone), MINIMUM_LEAD_DAYS);
+  const minStartDate = addCalendarDays(dateInZone(timezone), minimumLeadDays);
 
   const activeAssetIds = useMemo(() => {
     const blocked = new Set<string>();
@@ -338,7 +357,10 @@ export function CreateRequestDialog({
     }
     if (!from || from < minStartDate) {
       setValidationError(
-        t('The first inspection date must be at least 20 days from today.'),
+        t('The first inspection date must be at least {days} days from today.').replace(
+          '{days}',
+          String(minimumLeadDays),
+        ),
       );
       return;
     }
@@ -603,6 +625,7 @@ export function CreateRequestDialog({
             label={requestType === 'ONE_TIME' ? t('Inspection date') : t('First expected inspection date')}
             value={from}
             minDate={minStartDate}
+            leadDays={minimumLeadDays}
             locale={locale}
             onChange={changeStartDate}
           />

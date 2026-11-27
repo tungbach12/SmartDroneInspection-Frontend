@@ -478,15 +478,27 @@ export interface PartnerDrone {
   hasImage: boolean;
 }
 
+export interface ServiceRequestSchedulingPolicy {
+  minimumLeadDays: number;
+}
+
 export const contractQueryKeys = {
   all: ['contracts'] as const,
   requests: () => [...contractQueryKeys.all, 'requests'] as const,
   request: (id: string) => [...contractQueryKeys.requests(), id] as const,
+  schedulingPolicy: () => [...contractQueryKeys.all, 'scheduling-policy'] as const,
   partners: () => [...contractQueryKeys.all, 'partners'] as const,
   serviceManagers: () => [...contractQueryKeys.all, 'service-managers'] as const,
 };
 
 export const contractApi = {
+  async getSchedulingPolicy(): Promise<ServiceRequestSchedulingPolicy> {
+    const { data } = await api.get<ServiceRequestSchedulingPolicy>(
+      '/contracts/requests/scheduling-policy',
+    );
+    return data;
+  },
+
   async listRequests(): Promise<ServiceRequest[]> {
     const { data } = await api.get<ServiceRequest[]>('/contracts/requests');
     return data;

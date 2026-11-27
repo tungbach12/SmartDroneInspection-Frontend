@@ -23,6 +23,15 @@ import {
   type ServiceManagerOption,
 } from '../api/contractApi';
 
+export function useServiceRequestSchedulingPolicy(enabled = true) {
+  return useQuery({
+    queryKey: contractQueryKeys.schedulingPolicy(),
+    queryFn: contractApi.getSchedulingPolicy,
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
 export function useServiceRequests(enabled = true, realtime = true) {
   return useQuery({
     queryKey: contractQueryKeys.requests(),

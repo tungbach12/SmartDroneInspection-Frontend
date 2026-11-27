@@ -1525,4 +1525,32 @@ describe('ContractsPage', () => {
     expect(screen.getByText('Inspection Request 11')).toBeTruthy();
     expect(screen.queryByText('Inspection Request 01')).toBeNull();
   });
+
+  it('uses Admin-configured minimumLeadDays in CreateRequestDialog when scheduling policy returns a custom value', () => {
+    vi.spyOn(contractsHook, 'useServiceRequests').mockReturnValue({
+      data: [],
+      isPending: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    } as any);
+    vi.spyOn(contractsHook, 'useServiceRequest').mockReturnValue({
+      data: undefined,
+      isFetching: false,
+    } as any);
+    vi.spyOn(contractsHook, 'useCreateServiceRequest').mockReturnValue({
+      mutateAsync: vi.fn(),
+      isPending: false,
+    } as any);
+    vi.spyOn(contractsHook, 'useServiceRequestSchedulingPolicy').mockReturnValue({
+      data: { minimumLeadDays: 10 },
+      isPending: false,
+      isError: false,
+    } as any);
+
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'New service request' }));
+    expect(screen.getByRole('dialog', { name: 'Create inspection request' })).toBeTruthy();
+    expect(screen.getByText(/Select a date at least 10 days from today\. Earliest date:/)).toBeTruthy();
+  });
 });
