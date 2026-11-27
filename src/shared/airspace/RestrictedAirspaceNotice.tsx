@@ -52,7 +52,6 @@ export function RestrictedAirspaceAlert({
   role,
   latitude,
   longitude,
-  structureHeightMeters,
   footprintAreaSquareMeters,
   sx,
 }: RestrictedAirspaceAlertProps) {
@@ -68,12 +67,6 @@ export function RestrictedAirspaceAlert({
   const footprintRadiusMeters = Math.round(
     estimateFootprintRadiusMeters(footprintAreaSquareMeters),
   );
-  const exceedsCeiling =
-    restricted != null &&
-    typeof structureHeightMeters === 'number' &&
-    !Number.isNaN(structureHeightMeters) &&
-    restricted.maxAltitudeMetersAgl > 0 &&
-    structureHeightMeters > restricted.maxAltitudeMetersAgl;
 
   const headline = restricted
     ? locale === 'vi'
@@ -104,13 +97,6 @@ export function RestrictedAirspaceAlert({
         return `This asset sits in restricted airspace overseen by ${restricted.authority}. Confirm you can obtain the permit before accepting; if not, decline the assignment so the Manager can reassign or cancel.`;
       })();
 
-  const heightWarning =
-    exceedsCeiling && restricted
-      ? locale === 'vi'
-        ? `Lưu ý: Chiều cao công trình (${structureHeightMeters} m) vượt ngưỡng trần bay tiêu chuẩn của vùng hạn chế — cần xin phép giới hạn độ cao đặc biệt.`
-        : `Note: Structure height (${structureHeightMeters} m) exceeds the restricted zone's standard ceiling — special altitude clearance is required.`
-      : null;
-
   const partialCoverageNote =
     restricted && footprintRadiusMeters > 0
       ? locale === 'vi'
@@ -137,11 +123,6 @@ export function RestrictedAirspaceAlert({
         {partialCoverageNote && (
           <Typography variant="body2" sx={{ fontWeight: 600 }}>
             {partialCoverageNote}
-          </Typography>
-        )}
-        {heightWarning && (
-          <Typography variant="caption" sx={{ fontWeight: 700, color: 'warning.dark' }}>
-            {heightWarning}
           </Typography>
         )}
         {overlapWarning && (
