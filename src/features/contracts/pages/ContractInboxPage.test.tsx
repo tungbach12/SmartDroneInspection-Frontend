@@ -322,19 +322,18 @@ describe('ContractInboxPage', () => {
     });
   });
 
-  it('renders the assigned service manager avatar for Customer request threads', () => {
+  it.each([
+    { role: 'CUSTOMER', route: '/client/messages', userId: 'cust-1' },
+    { role: 'MANAGER', route: '/manager/messages', userId: 'mgr-1' },
+  ] as const)('renders both Order Chat avatars for the $role counterpart', ({ role, route, userId }) => {
     useAuthStore.setState({
       status: 'authenticated',
-      roles: ['CUSTOMER'],
+      roles: [role],
       user: {
-        id: 'cust-1',
-        email: 'customer@test.local',
-        fullName: 'Saigon Customer',
-        roles: ['CUSTOMER'],
+        id: userId,
+        roles: [role],
       } as any,
-      userId: 'cust-1',
-      userName: 'Saigon Customer',
-      email: 'customer@test.local',
+      userId,
     });
 
     vi.spyOn(contractsHook, 'useServiceRequests').mockReturnValue({
@@ -342,6 +341,8 @@ describe('ContractInboxPage', () => {
         {
           id: 'req-cust-1',
           ownerCustomerId: 'cust-1',
+          ownerCustomerName: 'Saigon Customer',
+          ownerCustomerAvatarUrl: 'data:image/jpeg;base64,CUSTOMERAVATAR',
           assetId: 'asset-1',
           description: 'Solar farm survey',
           requestedFrom: '2026-12-10',
@@ -402,12 +403,12 @@ describe('ContractInboxPage', () => {
       refetch: vi.fn(),
     } as any);
 
-    renderInbox(['/client/messages']);
+    renderInbox([route]);
 
-    const svcManagerAvatars = document.querySelectorAll(
-      'img[src="data:image/jpeg;base64,SVCMGRAVATAR"]',
-    );
-    expect(svcManagerAvatars.length).toBe(2);
+    const counterpartAvatar = role === 'CUSTOMER' ? 'SVCMGRAVATAR' : 'CUSTOMERAVATAR';
+    expect(
+      document.querySelectorAll(`img[src="data:image/jpeg;base64,${counterpartAvatar}"]`),
+    ).toHaveLength(2);
   });
 
   it('groups multiple inspections per counterpart into one chat and lets user switch attached context', async () => {

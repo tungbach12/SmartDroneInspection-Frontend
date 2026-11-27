@@ -311,6 +311,7 @@ export interface ServiceRequest {
   id: string;
   ownerCustomerId: string;
   ownerCustomerName?: string | null;
+  ownerCustomerAvatarUrl?: string | null;
   assetId: string;
   assetName?: string | null;
   assetCode?: string | null;
