@@ -27,6 +27,7 @@ import { useAssetDocuments } from '@/features/assets/hooks/useAssetDocuments';
 import { useCategories } from '@/features/assets/hooks/useCatalog';
 import { evaluateAirspace } from '@/shared/airspace/airspaceZones';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import { AuthenticatedImage } from '@/shared/ui/AuthenticatedImage';
 import { formatLocationLabel } from '@/shared/ui/formatLocation';
 
 interface AssetOverviewDialogProps {
@@ -113,6 +114,9 @@ function AssetOverviewDialogBody({
   ];
 
   const documents = documentsQuery.data ?? [];
+  const imageDocuments = documents.filter((doc) =>
+    doc.contentType?.toLowerCase().startsWith('image/'),
+  );
 
   return (
     <Stack spacing={2.25}>
@@ -202,33 +206,28 @@ function AssetOverviewDialogBody({
           </Typography>
         )}
         {airspace && (
-          <Stack spacing={0.75} sx={{ mt: 1.25 }}>
-            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+          <Stack direction="row" sx={{ mt: 1.25, gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+            <Chip
+              size="small"
+              color={
+                airspace.classification === 'NO_FLY_ZONE'
+                  ? 'error'
+                  : airspace.classification === 'RESTRICTED_ZONE'
+                    ? 'warning'
+                    : 'success'
+              }
+              label={airspace.classification}
+              sx={{ borderRadius: '6px', fontWeight: 700 }}
+            />
+            {airspace.matchingZones.map((zone) => (
               <Chip
+                key={zone.code}
                 size="small"
-                color={
-                  airspace.classification === 'NO_FLY_ZONE'
-                    ? 'error'
-                    : airspace.classification === 'RESTRICTED_ZONE'
-                      ? 'warning'
-                      : 'success'
-                }
-                label={airspace.classification}
-                sx={{ borderRadius: '6px', fontWeight: 700 }}
+                variant="outlined"
+                label={zone.name}
+                sx={{ borderRadius: '6px' }}
               />
-              {airspace.matchingZones.map((zone) => (
-                <Chip
-                  key={zone.code}
-                  size="small"
-                  variant="outlined"
-                  label={zone.name}
-                  sx={{ borderRadius: '6px' }}
-                />
-              ))}
-            </Stack>
-            <Typography variant="caption" color="text.secondary">
-              {airspace.advisoryMessage}
-            </Typography>
+            ))}
           </Stack>
         )}
       </Box>
@@ -266,6 +265,29 @@ function AssetOverviewDialogBody({
           </Typography>
         ) : (
           <Stack spacing={1}>
+            {imageDocuments.length > 0 && (
+              <Box
+                sx={{
+                  display: 'grid',
+                  gap: 1,
+                  gridTemplateColumns: {
+                    xs: 'minmax(0, 1fr)',
+                    sm: imageDocuments.length === 1 ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))',
+                  },
+                }}
+              >
+                {imageDocuments.map((doc) => (
+                  <Box key={doc.id} sx={{ minWidth: 0, overflow: 'hidden', borderRadius: '8px' }}>
+                    <AuthenticatedImage
+                      src={`/assets/${assetId}/documents/${doc.id}/content`}
+                      alt={doc.fileName}
+                      maxHeight={260}
+                      sx={{ width: '100%', height: 260, bgcolor: 'background.default' }}
+                    />
+                  </Box>
+                ))}
+              </Box>
+            )}
             {documents.map((doc) => (
               <Stack
                 key={doc.id}
