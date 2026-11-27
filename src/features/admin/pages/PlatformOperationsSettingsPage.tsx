@@ -3,6 +3,7 @@ import {
   Alert,
   Box,
   Button,
+  Divider,
   Paper,
   Stack,
   TextField,
@@ -12,10 +13,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import { contractQueryKeys } from '@/features/contracts/api/contractApi';
 import { operationsSettingsApi } from '../api/operationsSettingsApi';
 
 const MIN_TIMEOUT_HOURS = 1;
 const MAX_TIMEOUT_HOURS = 720;
+const MIN_LEAD_DAYS = 0;
+const MAX_LEAD_DAYS = 365;
+const DEFAULT_LEAD_DAYS = 20;
 
 interface PlatformOperationsSettingsPageProps {
   /** Rendered inside the Platform settings hub, which owns the page header. */
@@ -34,13 +39,16 @@ export default function PlatformOperationsSettingsPage({
   });
 
   const updateMutation = useMutation({
-    mutationFn: operationsSettingsApi.updateSettings,
+    mutationFn: (payload: Parameters<typeof operationsSettingsApi.updateSettings>[0]) =>
+      operationsSettingsApi.updateSettings(payload),
     onSuccess: (updated) => {
       queryClient.setQueryData(['admin', 'operations-settings'], updated);
+      void queryClient.invalidateQueries({ queryKey: contractQueryKeys.schedulingPolicy() });
     },
   });
 
   const [hoursInput, setHoursInput] = useState<string | null>(null);
+  const [leadDaysInput, setLeadDaysInput] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -51,12 +59,28 @@ export default function PlatformOperationsSettingsPage({
         ? String(settingsQuery.data.assignmentAcceptanceTimeoutHours)
         : '24';
 
+  const effectiveLeadDaysValue =
+    leadDaysInput !== null
+      ? leadDaysInput
+      : settingsQuery.data?.serviceRequestLeadDays != null
+        ? String(settingsQuery.data.serviceRequestLeadDays)
+        : String(DEFAULT_LEAD_DAYS);
+
   const parsedHours = Number(effectiveValue);
-  const isInvalid =
+  const isHoursInvalid =
     effectiveValue.trim() !== '' &&
     (!Number.isInteger(parsedHours) ||
       parsedHours < MIN_TIMEOUT_HOURS ||
       parsedHours > MAX_TIMEOUT_HOURS);
+
+  const parsedLeadDays = Number(effectiveLeadDaysValue);
+  const isLeadDaysInvalid =
+    effectiveLeadDaysValue.trim() !== '' &&
+    (!Number.isInteger(parsedLeadDays) ||
+      parsedLeadDays < MIN_LEAD_DAYS ||
+      parsedLeadDays > MAX_LEAD_DAYS);
+
+  const isInvalid = isHoursInvalid || isLeadDaysInvalid;
 
   const handleSave = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -77,8 +101,26 @@ export default function PlatformOperationsSettingsPage({
       return;
     }
 
-    await updateMutation.mutateAsync({ assignmentAcceptanceTimeoutHours: parsedHours });
+    if (
+      effectiveLeadDaysValue.trim() === '' ||
+      !Number.isInteger(parsedLeadDays) ||
+      parsedLeadDays < MIN_LEAD_DAYS ||
+      parsedLeadDays > MAX_LEAD_DAYS
+    ) {
+      setValidationError(
+        locale === 'vi'
+          ? `Số ngày đặt lịch trước tối thiểu phải là số nguyên từ ${MIN_LEAD_DAYS} đến ${MAX_LEAD_DAYS} ngày.`
+          : `Minimum service request lead time must be a whole number between ${MIN_LEAD_DAYS} and ${MAX_LEAD_DAYS} days.`,
+      );
+      return;
+    }
+
+    await updateMutation.mutateAsync({
+      assignmentAcceptanceTimeoutHours: parsedHours,
+      serviceRequestLeadDays: parsedLeadDays,
+    });
     setHoursInput(String(parsedHours));
+    setLeadDaysInput(String(parsedLeadDays));
     setSaveSuccess(true);
   };
 
@@ -124,26 +166,26 @@ export default function PlatformOperationsSettingsPage({
               <Box>
                 <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                   {locale === 'vi'
-                    ? 'Thời hạn xác nhận phân công ở Bước 4 (Step 4)'
-                    : 'Step 4 Dispatch Assignment Acceptance Window'}
+                    ? 'Thời hạn xác nhận phân công'
+                    : 'Assignment acceptance window'}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                   {locale === 'vi'
-                    ? 'Nếu Inspector được phân công không bấm Chấp nhận (Accept) trong khoảng thời gian này, hệ thống sẽ tự động hủy phân công do quá hạn, giải phóng lịch cho đội bay cũ, gửi thông báo cho Manager phụ trách và đưa đợt kiểm tra về trạng thái chờ phân công lại.'
-                    : 'If an assigned Inspector does not accept within this window, the system automatically cancels the assignment due to timeout, releases the team schedule, notifies the owning Manager, and returns the occurrence to pending assignment.'}
+                    ? 'Tự động hủy phân công và báo lại cho Manager nếu Inspector không xác nhận kịp thời hạn.'
+                    : 'Auto-cancels an assignment and notifies the Manager if the Inspector does not accept in time.'}
                 </Typography>
               </Box>
 
               <TextField
                 label={
                   locale === 'vi'
-                    ? 'Thời hạn xác nhận phân công (giờ)'
+                    ? 'Thời hạn xác nhận (giờ)'
                     : 'Assignment acceptance timeout (hours)'
                 }
                 type="number"
                 value={effectiveValue}
                 onChange={(e) => setHoursInput(e.target.value)}
-                error={isInvalid}
+                error={isHoursInvalid}
                 helperText={
                   locale === 'vi'
                     ? `Giá trị hợp lệ: ${MIN_TIMEOUT_HOURS}–${MAX_TIMEOUT_HOURS} giờ (mặc định 24 giờ).`
@@ -153,6 +195,46 @@ export default function PlatformOperationsSettingsPage({
                   htmlInput: {
                     min: MIN_TIMEOUT_HOURS,
                     max: MAX_TIMEOUT_HOURS,
+                    step: 1,
+                  },
+                }}
+                sx={{ maxWidth: 360 }}
+              />
+
+              <Divider />
+
+              <Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                  {locale === 'vi'
+                    ? 'Thời gian đặt lịch trước tối thiểu'
+                    : 'Service request scheduling lead time'}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                  {locale === 'vi'
+                    ? 'Số ngày tối thiểu tính từ hôm nay cho ngày kiểm định đầu tiên khi Customer tạo yêu cầu.'
+                    : 'Minimum days from today before a Customer’s first requested inspection date.'}
+                </Typography>
+              </Box>
+
+              <TextField
+                label={
+                  locale === 'vi'
+                    ? 'Số ngày đặt trước tối thiểu (ngày)'
+                    : 'Minimum scheduling lead time (days)'
+                }
+                type="number"
+                value={effectiveLeadDaysValue}
+                onChange={(e) => setLeadDaysInput(e.target.value)}
+                error={isLeadDaysInvalid}
+                helperText={
+                  locale === 'vi'
+                    ? `Giá trị hợp lệ: ${MIN_LEAD_DAYS}–${MAX_LEAD_DAYS} ngày (mặc định ${DEFAULT_LEAD_DAYS} ngày).`
+                    : `Allowed range: ${MIN_LEAD_DAYS}–${MAX_LEAD_DAYS} days (default ${DEFAULT_LEAD_DAYS} days).`
+                }
+                slotProps={{
+                  htmlInput: {
+                    min: MIN_LEAD_DAYS,
+                    max: MAX_LEAD_DAYS,
                     step: 1,
                   },
                 }}
