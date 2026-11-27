@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
 import { useToastStore } from '@/shared/ui/Toast';
 import { getErrorMessage } from '@/shared/api/errorMessage';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 import {
   fieldSessionApi,
   fieldSessionKeys,
@@ -269,18 +270,19 @@ export function useCreateInspection() {
 
 export function useUploadFlightPermit(inspectionId: string | null) {
   const client = useQueryClient();
+  const { t } = useLocale();
   const showToast = useToastStore((state) => state.showToast);
   return useMutation({
     mutationFn: (input: UploadFlightPermitInput) =>
       inspectionApi.uploadFlightPermit(inspectionId!, input),
     onSuccess: (_data, input) => {
-      showToast('Flight permit submitted for manager verification');
+      showToast(t('Flight permit saved.'));
       if (!inspectionId) return;
       cacheUploadedFlightPermit(inspectionId, input.file);
       void client.invalidateQueries({ queryKey: [...inspectionKeys.all, 'detail', inspectionId] });
       void client.invalidateQueries({ queryKey: inspectionKeys.all });
     },
-    onError: (error) => showToast(getErrorMessage(error, 'Could not upload flight permit.'), 'error'),
+    onError: (error) => showToast(getErrorMessage(error, t('Could not upload flight permit.')), 'error'),
   });
 }
 

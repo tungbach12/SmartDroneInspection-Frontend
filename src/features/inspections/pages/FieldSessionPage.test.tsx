@@ -545,7 +545,7 @@ describe('FieldSessionPage', () => {
     ).toBe(true);
   });
 
-  it('warns and requires confirmation before replacing an already approved flight permit', async () => {
+  it('requires Inspector self-attestation before replacing a flight permit and keeps the existing permit on cancel', async () => {
     mocks.getById.mockResolvedValue({
       ...INSPECTION,
       status: 'SCHEDULED',
@@ -558,7 +558,7 @@ describe('FieldSessionPage', () => {
     mocks.list.mockResolvedValue([]);
     mocks.uploadFlightPermit.mockResolvedValue({
       ...INSPECTION,
-      flightPermitVerificationStatus: 'PENDING_REVIEW',
+      flightPermitVerificationStatus: 'APPROVED',
     });
 
     renderWithClient();
@@ -566,7 +566,7 @@ describe('FieldSessionPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Replace permit' }));
     expect(
       screen.getByText(
-        /Replacing the permit records the new document immediately; you remain responsible for its validity\./i,
+        'The current permit stays on file until you save its replacement.',
       ),
     ).toBeTruthy();
 
@@ -578,10 +578,16 @@ describe('FieldSessionPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Save flight permit' }));
 
-    expect(await screen.findByText('Replace approved flight permit?')).toBeTruthy();
+    expect(await screen.findByText('Confirm flight permit replacement')).toBeTruthy();
+    expect(screen.getByText(/I take responsibility for the document and the details provided/i)).toBeTruthy();
     expect(mocks.uploadFlightPermit).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Replace & resubmit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(mocks.uploadFlightPermit).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save flight permit' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm & replace' }));
 
     await waitFor(() => expect(mocks.uploadFlightPermit).toHaveBeenCalledTimes(1));
   });
@@ -770,6 +776,11 @@ describe('FieldSessionPage', () => {
 
     expect(screen.queryByLabelText(/Max altitude \(m\)/)).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Save flight permit' }));
+    expect(await screen.findByText('Confirm flight permit')).toBeTruthy();
+    expect(screen.getByText(/I take responsibility for the document and the details provided/i)).toBeTruthy();
+    expect(mocks.uploadFlightPermit).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm & save' }));
 
     await waitFor(() =>
       expect(mocks.uploadFlightPermit).toHaveBeenCalledWith(

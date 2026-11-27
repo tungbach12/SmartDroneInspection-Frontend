@@ -286,7 +286,7 @@ export function resolveOverviewGuidance(
     case 'SCHEDULED':
       if (permitStatus === 'APPROVED') {
         return {
-          tip: t('Flight permit verified by Manager. Complete the pre-flight safety checklist to start flight operation.'),
+          tip: t('Flight permit recorded and self-confirmed. Complete the pre-flight safety checklist.'),
           actionLabel: t('Open pre-flight check'),
           subpath: 'pre-flight',
         };
@@ -296,19 +296,19 @@ export function resolveOverviewGuidance(
           tip: t(
             'The drone or schedule changed. The assigned Inspector must upload an updated permit before pre-flight.',
           ),
-          actionLabel: t('Review permit status'),
+          actionLabel: t('Upload updated permit'),
           subpath: 'permit',
         };
       }
       if (permitStatus === 'REJECTED') {
         return {
-          tip: t('Flight permit was rejected by the Manager. Upload a corrected permit to unlock pre-flight checks.'),
+          tip: t('The recorded permit is no longer usable. Upload a replacement in Step 1 before starting the session.'),
           actionLabel: t('Upload replacement permit'),
           subpath: 'permit',
         };
       }
       return {
-        tip: t('This inspection is scheduled. Upload the regulatory flight permit and submit it for manager verification.'),
+        tip: t('Upload and confirm your flight permit in Step 1 before starting pre-flight checks.'),
         actionLabel: t('Upload flight permit'),
         subpath: 'permit',
       };

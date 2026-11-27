@@ -42,6 +42,7 @@ import {
   useReinspectionVerifications,
   useStartFieldSession,
   useUploadFlightPermit,
+  type UploadFlightPermitInput,
 } from '../hooks/useInspections';
 import { TargetFlightShotList } from '../components/TargetFlightShotList';
 import { SmartDroneHubTelemetryPanel } from '../components/SmartDroneHubTelemetryPanel';
@@ -551,13 +552,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
   const [withdrawReason, setWithdrawReason] = useState('');
   const [permitPreviewOpen, setPermitPreviewOpen] = useState(false);
   const [replacePermitOpen, setReplacePermitOpen] = useState(false);
-  const [pendingPermitReplacePayload, setPendingPermitReplacePayload] = useState<{
-    file: File;
-    permitNumber: string;
-    issuingAuthority: string;
-    validFrom: string;
-    validTo: string;
-  } | null>(null);
+  const [pendingPermitPayload, setPendingPermitPayload] = useState<UploadFlightPermitInput | null>(null);
   const [startOpen, setStartOpen] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
   useEffect(() => {
@@ -760,22 +755,6 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
   const permitValidTo =
     permitValidToDraft ??
     toDateTimeLocalValue(inspection?.flightPermitValidTo ?? inspection?.plannedEndAt);
-  const submitPermitUpload = (payload: {
-    file: File;
-    permitNumber: string;
-    issuingAuthority: string;
-    validFrom: string;
-    validTo: string;
-  }) => {
-    uploadPermit.mutate(payload, {
-      onSuccess: () => {
-        setPermitFile(null);
-        setReplacePermitOpen(false);
-        setPendingPermitReplacePayload(null);
-      },
-    });
-  };
-
   const canContinueToEvidence =
     !openSession &&
     (inspection?.status === 'FIELD_COMPLETED' ||
@@ -1115,7 +1094,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                             setReplacePermitOpen((prev) => !prev);
                             setPermitFile(null);
                             setPermitFormError(null);
-                            setPendingPermitReplacePayload(null);
+                            setPendingPermitPayload(null);
                           }}
                           sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
                         >
@@ -1145,7 +1124,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                     {replacePermitOpen && isPermitApproved && (
                       <Alert severity="warning" sx={{ borderRadius: '10px' }}>
                         {t(
-                          'Replacing the permit records the new document immediately; you remain responsible for its validity.',
+                          'The current permit stays on file until you save its replacement.',
                         )}
                       </Alert>
                     )}
@@ -1410,18 +1389,13 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                             }
                           }
                           setPermitFormError(null);
-                          const payload = {
+                          setPendingPermitPayload({
                             file: permitFile,
                             permitNumber: trimmedNum,
                             issuingAuthority: trimmedAuth,
                             validFrom: fromDate.toISOString(),
                             validTo: toDate.toISOString(),
-                          };
-                          if (isPermitApproved) {
-                            setPendingPermitReplacePayload(payload);
-                            return;
-                          }
-                          submitPermitUpload(payload);
+                          });
                         }}
                         sx={{
                           borderRadius: '8px',
@@ -1548,20 +1522,25 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
             />
           )}
           <ConfirmDialog
-            open={Boolean(pendingPermitReplacePayload)}
-            severity="warning"
-            title={t('Replace approved flight permit?')}
+            open={Boolean(pendingPermitPayload)}
+            title={hasPermit ? t('Confirm flight permit replacement') : t('Confirm flight permit')}
             message={t(
-              'Replacing this approved permit will revoke the current Manager approval and lock pre-flight checks until the new permit is verified again.',
+              'I confirm this permit is valid for the assigned drone, site, and scheduled flight window. I take responsibility for the document and the details provided.',
             )}
-            confirmLabel={t('Replace & resubmit')}
+            confirmLabel={hasPermit ? t('Confirm & replace') : t('Confirm & save')}
             cancelLabel={t('Cancel')}
             loading={uploadPermit.isPending}
-            onCancel={() => setPendingPermitReplacePayload(null)}
+            onCancel={() => setPendingPermitPayload(null)}
             onConfirm={() => {
-              if (pendingPermitReplacePayload) {
-                submitPermitUpload(pendingPermitReplacePayload);
-              }
+              if (!pendingPermitPayload) return;
+              uploadPermit.mutate(pendingPermitPayload, {
+                onSuccess: () => {
+                  setPermitFile(null);
+                  setReplacePermitOpen(false);
+                  setPendingPermitPayload(null);
+                },
+                onError: () => setPendingPermitPayload(null),
+              });
             }}
           />
         </QueryState>
@@ -1720,13 +1699,13 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                             size="small"
                             sx={{ whiteSpace: 'nowrap' }}
                           >
-                            {t('View permit')}
+                            {t('Upload replacement permit')}
                           </Button>
                         }
                       >
                         {permitVerificationStatus === 'REJECTED'
-                          ? t('Flight permit was rejected by the Manager. Upload a replacement permit in Step 1 before starting the session.')
-                          : t('Flight permit is pending Manager verification. You can prepare the checklist below, and session start will unlock once the permit is approved.')}
+                          ? t('Upload a replacement flight permit before starting the pre-flight checklist.')
+                          : t('Upload an updated flight permit in Step 1 before starting the session.')}
                       </Alert>
                     )}
 

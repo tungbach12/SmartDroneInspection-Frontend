@@ -228,7 +228,7 @@ function buildCases(): MutationCase[] {
           validFrom: '2026-11-15T00:00:00Z',
           validTo: '2026-11-16T00:00:00Z',
         }),
-      successMessage: 'Flight permit submitted for manager verification',
+      successMessage: 'Flight permit saved.',
     },
     {
       name: 'findings confirmation',
