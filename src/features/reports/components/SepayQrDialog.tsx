@@ -3,6 +3,7 @@ import {
   Box,
   Button,
   Chip,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -25,6 +26,7 @@ interface SepayQrDialogProps {
   amountVnd?: string | undefined;
   checking?: boolean;
   onCheckNow?: () => void;
+  onMockPay?: (() => Promise<void>) | undefined;
   onClose: () => void;
 }
 
@@ -61,11 +63,13 @@ export function SepayQrDialog({
   amountVnd,
   checking = false,
   onCheckNow,
+  onMockPay,
   onClose,
 }: SepayQrDialogProps) {
   const { t } = useLocale();
   const [copiedKey, setCopiedKey] = useState<'account' | 'content' | null>(null);
   const [qrLoadError, setQrLoadError] = useState(false);
+  const [mockBusy, setMockBusy] = useState(false);
 
   const bankInfo = useMemo(
     () => parseBankInfoFromQrUrl(details?.checkoutUrl),
@@ -288,17 +292,53 @@ export function SepayQrDialog({
         </Stack>
       </DialogContent>
 
-      <DialogActions sx={{ px: 2.5, py: 1.5, justifyContent: onCheckNow ? 'space-between' : 'flex-end' }}>
-        {onCheckNow && (
-          <Button
-            onClick={onCheckNow}
-            disabled={checking}
-            size="small"
-            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
-          >
-            {checking ? t('Checking…') : t('Check payment status')}
-          </Button>
-        )}
+      <DialogActions sx={{ px: 2.5, py: 1.5, justifyContent: onCheckNow || onMockPay ? 'space-between' : 'flex-end' }}>
+        <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+          {onCheckNow && (
+            <Button
+              onClick={onCheckNow}
+              disabled={checking || mockBusy}
+              size="small"
+              sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
+            >
+              {checking ? t('Checking…') : t('Check payment status')}
+            </Button>
+          )}
+          {onMockPay && (
+            <IconButton
+              size="small"
+              disabled={mockBusy}
+              aria-label="Mock pay"
+              onClick={() => {
+                setMockBusy(true);
+                void onMockPay().finally(() => setMockBusy(false));
+              }}
+              sx={{
+                p: 0.5,
+                '&:hover .mock-dot': {
+                  bgcolor: '#60A5FA',
+                  transform: 'scale(1.2)',
+                },
+              }}
+            >
+              {mockBusy ? (
+                <CircularProgress size={10} thickness={5} />
+              ) : (
+                <Box
+                  className="mock-dot"
+                  aria-hidden="true"
+                  sx={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    bgcolor: '#BAE6FD',
+                    transition: 'background-color 150ms ease, transform 150ms ease',
+                  }}
+                />
+              )}
+            </IconButton>
+          )}
+        </Stack>
         <Button onClick={onClose} variant="outlined" size="small" sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}>
           {t('Close')}
         </Button>

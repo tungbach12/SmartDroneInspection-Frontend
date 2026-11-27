@@ -22,6 +22,7 @@ import {
   type PortalId,
 } from '@/app/permissions/accessPolicy';
 import { useAuthStore } from '@/features/auth/store/authStore';
+import { inspectionApi } from '@/features/inspections/api/inspectionApi';
 import {
   useAcceptReportVersion,
   useCreateInspectionSepayLink,
@@ -429,6 +430,15 @@ export default function ReportDetailPage() {
                 }
                 checking={paymentStatusQuery.isFetching}
                 onCheckNow={() => void paymentStatusQuery.refetch()}
+                onMockPay={
+                  inspectionId && sepayLink.data
+                    ? async () => {
+                        await inspectionApi.mockConfirmSepayPayment(inspectionId);
+                        await paymentStatusQuery.refetch();
+                        setSepayQrOpen(false);
+                      }
+                    : undefined
+                }
                 onClose={() => setSepayQrOpen(false)}
               />
 

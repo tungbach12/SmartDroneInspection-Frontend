@@ -16,6 +16,7 @@ import {
 import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
 import { PageBreadcrumbs } from '@/shared/ui/PageBreadcrumbs';
 import { getSectionPath } from '@/app/permissions/accessPolicy';
+import { inspectionApi } from '@/features/inspections/api/inspectionApi';
 import {
   useAcceptReportVersion,
   useCreateInspectionSepayLink,
@@ -294,6 +295,15 @@ export default function CustomerReportDeliverablePage({
               amountVnd={paymentStatus?.amount ? `${formatNumber(paymentStatus.amount)} ₫` : undefined}
               checking={paymentStatusQuery.isFetching}
               onCheckNow={() => void paymentStatusQuery.refetch()}
+              onMockPay={
+                inspectionId && sepayLink.data
+                  ? async () => {
+                      await inspectionApi.mockConfirmSepayPayment(inspectionId);
+                      await paymentStatusQuery.refetch();
+                      setSepayQrOpen(false);
+                    }
+                  : undefined
+              }
               onClose={() => setSepayQrOpen(false)}
             />
 

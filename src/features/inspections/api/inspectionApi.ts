@@ -1192,6 +1192,12 @@ export const inspectionApi = {
       )
       .then((response) => response.data),
 
+  /** Confirms a pending Customer Sepay VietQR payment via mock reference for demo/testing. */
+  mockConfirmSepayPayment: (inspectionId: string) =>
+    api
+      .post<void>(`/inspections/${inspectionId}/sepay/mock-pay`)
+      .then((response) => response.data),
+
   /** Generates a Sepay VietQR payout link targeting the assigned Inspector's bank account. */
   createSepayPayoutLink: (inspectionId: string) =>
     api

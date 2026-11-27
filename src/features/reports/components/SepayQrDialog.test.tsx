@@ -104,4 +104,12 @@ describe('SepayQrDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(onClose).toHaveBeenCalled();
   });
+
+  it('triggers the hidden mock pay dot button when onMockPay is provided', () => {
+    const onMockPay = vi.fn().mockResolvedValue(undefined);
+    render(<SepayQrDialog details={checkout} onMockPay={onMockPay} onClose={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mock pay' }));
+    expect(onMockPay).toHaveBeenCalledTimes(1);
+  });
 });
