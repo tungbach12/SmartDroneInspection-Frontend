@@ -768,8 +768,7 @@ describe('FieldSessionPage', () => {
       target: { value: '2026-12-02T17:00' },
     });
 
-    const maxAltInput = screen.getByLabelText(/Max altitude \(m\)/);
-    fireEvent.change(maxAltInput, { target: { value: '150' } });
+    expect(screen.queryByLabelText(/Max altitude \(m\)/)).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Save flight permit' }));
 
     await waitFor(() =>
@@ -777,9 +776,9 @@ describe('FieldSessionPage', () => {
         'inspection-1',
         expect.objectContaining({
           permitNumber: 'CAAV-2026-009',
-          maxAltitudeM: 150,
         }),
       ),
     );
+    expect(mocks.uploadFlightPermit.mock.calls[0]?.[1]).not.toHaveProperty('maxAltitudeM');
   });
 });

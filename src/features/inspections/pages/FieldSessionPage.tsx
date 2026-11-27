@@ -546,7 +546,6 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
   const [issuingAuthorityDraft, setIssuingAuthority] = useState<string | null>(null);
   const [permitValidFromDraft, setPermitValidFrom] = useState<string | null>(null);
   const [permitValidToDraft, setPermitValidTo] = useState<string | null>(null);
-  const [maxAltitudeDraft, setMaxAltitudeDraft] = useState<string | null>(null);
   const [permitFormError, setPermitFormError] = useState<string | null>(null);
   const [withdrawAssignmentOpen, setWithdrawAssignmentOpen] = useState(false);
   const [withdrawReason, setWithdrawReason] = useState('');
@@ -558,7 +557,6 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
     issuingAuthority: string;
     validFrom: string;
     validTo: string;
-    maxAltitudeM?: number | null | undefined;
   } | null>(null);
   const [startOpen, setStartOpen] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -762,18 +760,12 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
   const permitValidTo =
     permitValidToDraft ??
     toDateTimeLocalValue(inspection?.flightPermitValidTo ?? inspection?.plannedEndAt);
-  const maxAltitudeValue =
-    maxAltitudeDraft ??
-    (inspection?.flightPermitMaxAltitudeM != null
-      ? String(inspection.flightPermitMaxAltitudeM)
-      : '');
   const submitPermitUpload = (payload: {
     file: File;
     permitNumber: string;
     issuingAuthority: string;
     validFrom: string;
     validTo: string;
-    maxAltitudeM?: number | null | undefined;
   }) => {
     uploadPermit.mutate(payload, {
       onSuccess: () => {
@@ -1346,25 +1338,6 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                           }}
                         />
                       </Grid>
-                      <Grid size={{ xs: 12, sm: 6 }}>
-                        <TextField
-                          fullWidth
-                          size="small"
-                          type="number"
-                          label={t('Max altitude (m)')}
-                          slotProps={{ htmlInput: { min: 1, max: 2000, step: 1 } }}
-                          placeholder={tr('Ví dụ: 80', 'e.g. 80')}
-                          helperText={tr(
-                            'Độ cao tối đa được cấp phép (tùy chọn, 1–2000 m)',
-                            'Approved max altitude in meters AGL (optional, 1–2000 m)',
-                          )}
-                          value={maxAltitudeValue}
-                          onChange={(e) => {
-                            setMaxAltitudeDraft(e.target.value);
-                            setPermitFormError(null);
-                          }}
-                        />
-                      </Grid>
                     </Grid>
 
                     {permitFormError && (
@@ -1436,19 +1409,6 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                               return;
                             }
                           }
-                          let parsedMaxAltitude: number | null = null;
-                          const trimmedMaxAlt = maxAltitudeValue.trim();
-                          if (trimmedMaxAlt) {
-                            const altNum = Number(trimmedMaxAlt);
-                            if (!Number.isInteger(altNum) || altNum < 1 || altNum > 2000) {
-                              setPermitFormError(
-                                t('Max altitude must be a whole number between 1 and 2000 meters.'),
-                              );
-                              return;
-                            }
-                            parsedMaxAltitude = altNum;
-                          }
-
                           setPermitFormError(null);
                           const payload = {
                             file: permitFile,
@@ -1456,7 +1416,6 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                             issuingAuthority: trimmedAuth,
                             validFrom: fromDate.toISOString(),
                             validTo: toDate.toISOString(),
-                            maxAltitudeM: parsedMaxAltitude,
                           };
                           if (isPermitApproved) {
                             setPendingPermitReplacePayload(payload);
