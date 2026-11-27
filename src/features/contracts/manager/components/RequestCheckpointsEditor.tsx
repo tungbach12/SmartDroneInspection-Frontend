@@ -8,12 +8,14 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
+  List,
+  ListItem,
+  ListItemButton,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
-import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
@@ -68,9 +70,13 @@ function RequestCheckpointsForm({
     { type: 'CATEGORY_INSPECTION_ITEM', categoryId },
     Boolean(categoryId),
   );
-  const categoryTemplates = (templatesQuery.data ?? [])
-    .filter((item) => item.active && item.label.trim().length > 0)
-    .sort((a, b) => a.sortOrder - b.sortOrder);
+  const assetSuggestionKeys = new Set(assetSuggestions.map((item) => item.toLowerCase()));
+  const categoryTemplates = normalizeItems(
+    (templatesQuery.data ?? [])
+      .filter((item) => item.active)
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map((item) => item.label),
+  ).filter((label) => !assetSuggestionKeys.has(label.toLowerCase()));
 
   const saveMutation = useUpdateServiceRequestInspectionItems(request.id);
 
@@ -83,16 +89,8 @@ function RequestCheckpointsForm({
     setDraftItems((prev) => normalizeItems([...prev, ...candidates]));
   };
 
-  const toggleItem = (label: string) => {
-    const trimmed = label.trim();
-    if (!trimmed) return;
-    const targetKey = trimmed.toLowerCase();
-    setDraftItems((prev) => {
-      const exists = prev.some((item) => item.toLowerCase() === targetKey);
-      return exists
-        ? prev.filter((item) => item.toLowerCase() !== targetKey)
-        : [...prev, trimmed];
-    });
+  const removeItem = (label: string) => {
+    setDraftItems((prev) => prev.filter((item) => item !== label));
   };
 
   const handleOpenDialog = () => {
@@ -132,12 +130,18 @@ function RequestCheckpointsForm({
     }
   };
 
-  const unpickedSuggestions = assetSuggestions.filter(
-    (item) => !selectedKeys.has(item.toLowerCase()),
-  );
-  const unpickedTemplateLabels = categoryTemplates
-    .map((item) => item.label.trim())
-    .filter((label) => !selectedKeys.has(label.toLowerCase()));
+  const suggestionGroups = [
+    {
+      title: t('Suggested from asset'),
+      items: assetSuggestions.filter((item) => !selectedKeys.has(item.toLowerCase())),
+      loading: false,
+    },
+    {
+      title: t('Category templates'),
+      items: categoryTemplates.filter((item) => !selectedKeys.has(item.toLowerCase())),
+      loading: Boolean(categoryId && templatesQuery.isPending),
+    },
+  ].filter((group) => group.items.length > 0 || group.loading);
 
   const summaryItems = savedItems.length > 0 ? savedItems : assetSuggestions;
   const summaryCount = summaryItems.length;
@@ -303,7 +307,7 @@ function RequestCheckpointsForm({
                   )}
                 </Typography>
               ) : (
-                <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75 }}>
+                <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 0.75 }}>
                   {draftItems.map((item) => (
                     <Chip
                       key={item}
@@ -311,8 +315,15 @@ function RequestCheckpointsForm({
                       color="primary"
                       variant="outlined"
                       label={item}
-                      onDelete={() => toggleItem(item)}
-                      sx={{ borderRadius: '6px', fontWeight: 600, maxWidth: '100%' }}
+                      onDelete={() => removeItem(item)}
+                      sx={{
+                        borderRadius: '6px',
+                        fontWeight: 600,
+                        maxWidth: '100%',
+                        height: 'auto',
+                        minHeight: 24,
+                        '& .MuiChip-label': { whiteSpace: 'normal', overflowWrap: 'anywhere', py: 0.25 },
+                      }}
                     />
                   ))}
                 </Stack>
@@ -345,110 +356,52 @@ function RequestCheckpointsForm({
               </Button>
             </Stack>
 
-            {assetSuggestions.length > 0 && (
-              <Box sx={{ pt: 1.25, borderTop: '1px solid', borderColor: 'divider' }}>
+            {suggestionGroups.map(({ title, items, loading }) => (
+              <Box key={title} sx={{ pt: 1.25, borderTop: '1px solid', borderColor: 'divider' }}>
                 <Stack
                   direction="row"
-                  sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 0.75 }}
+                  sx={{ justifyContent: 'space-between', alignItems: 'center', gap: 1, mb: 0.5 }}
                 >
-                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-                    {t('Suggested from asset')}
+                  <Typography variant="subtitle2" component="h3">
+                    {title}
                   </Typography>
-                  {unpickedSuggestions.length > 0 && (
+                  {items.length > 0 && (
                     <Button
                       size="small"
-                      variant="text"
-                      onClick={() => addItems(unpickedSuggestions)}
-                      sx={{ textTransform: 'none', fontWeight: 600, py: 0 }}
+                      onClick={() => addItems(items)}
+                      sx={{ textTransform: 'none', fontWeight: 600, flexShrink: 0 }}
                     >
                       {t('Add all')}
                     </Button>
                   )}
                 </Stack>
-                <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75 }}>
-                  {assetSuggestions.map((item) => {
-                    const selected = selectedKeys.has(item.toLowerCase());
-                    return (
-                      <Chip
-                        key={`asset-${item}`}
-                        size="small"
-                        clickable
-                        color={selected ? 'primary' : 'default'}
-                        variant={selected ? 'filled' : 'outlined'}
-                        icon={
-                          selected ? (
-                            <CheckRoundedIcon fontSize="small" />
-                          ) : (
-                            <AddRoundedIcon fontSize="small" />
-                          )
-                        }
-                        label={item}
-                        onClick={() => toggleItem(item)}
-                        sx={{ borderRadius: '6px', fontWeight: 500, maxWidth: '100%' }}
-                      />
-                    );
-                  })}
-                </Stack>
-              </Box>
-            )}
-
-            {categoryId && (
-              <Box sx={{ pt: 1.25, borderTop: '1px solid', borderColor: 'divider' }}>
-                <Stack
-                  direction="row"
-                  sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 0.75 }}
-                >
-                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-                    {t('Category templates')}
-                  </Typography>
-                  {unpickedTemplateLabels.length > 0 && (
-                    <Button
-                      size="small"
-                      variant="text"
-                      onClick={() => addItems(unpickedTemplateLabels)}
-                      sx={{ textTransform: 'none', fontWeight: 600, py: 0 }}
-                    >
-                      {t('Add all')}
-                    </Button>
-                  )}
-                </Stack>
-                {templatesQuery.isPending ? (
+                {loading ? (
                   <Typography variant="caption" color="text.secondary">
                     {t('Loading templates…')}
                   </Typography>
-                ) : categoryTemplates.length === 0 ? (
-                  <Typography variant="caption" color="text.secondary">
-                    {t('No templates configured for this asset category.')}
-                  </Typography>
                 ) : (
-                  <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75 }}>
-                    {categoryTemplates.map((template) => {
-                      const label = template.label.trim();
-                      const selected = selectedKeys.has(label.toLowerCase());
-                      return (
-                        <Chip
-                          key={template.id}
-                          size="small"
-                          clickable
-                          color={selected ? 'primary' : 'default'}
-                          variant={selected ? 'filled' : 'outlined'}
-                          icon={
-                            selected ? (
-                              <CheckRoundedIcon fontSize="small" />
-                            ) : (
-                              <AddRoundedIcon fontSize="small" />
-                            )
-                          }
-                          label={label}
-                          onClick={() => toggleItem(label)}
-                          sx={{ borderRadius: '6px', fontWeight: 500, maxWidth: '100%' }}
-                        />
-                      );
-                    })}
-                  </Stack>
+                  <List disablePadding aria-label={title}>
+                    {items.map((item) => (
+                      <ListItem key={item} disablePadding divider>
+                        <ListItemButton
+                          component="button"
+                          onClick={() => addItems([item])}
+                          sx={{ width: '100%', gap: 1, px: 1, py: 0.75, alignItems: 'center' }}
+                        >
+                          <AddRoundedIcon fontSize="small" color="primary" />
+                          <Typography
+                            variant="body2"
+                            sx={{ textAlign: 'left', overflowWrap: 'anywhere' }}
+                          >
+                            {item}
+                          </Typography>
+                        </ListItemButton>
+                      </ListItem>
+                    ))}
+                  </List>
                 )}
               </Box>
-            )}
+            ))}
           </Stack>
         </DialogContent>
 
