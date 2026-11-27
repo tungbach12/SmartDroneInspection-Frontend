@@ -13,6 +13,7 @@ vi.mock('@/features/inspections/api/inspectionApi', () => ({
     listVersions: vi.fn(),
     listFindings: vi.fn(),
     listEvidence: vi.fn(),
+    getReinspectionVerifications: vi.fn(),
     getReportPaymentStatus: vi.fn(),
     downloadPaymentDocument: vi.fn(),
     downloadReport: vi.fn(),
@@ -454,5 +455,50 @@ describe('CustomerReportSettlementCard & CustomerReportDeliverablePage', () => {
     expect(screen.getByText(/Re-inspection linked to source inspection: Bridge A/)).toBeTruthy();
     expect(screen.queryByText('Quick re-inspection')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Start Quick Re-inspection' })).toBeNull();
+  });
+
+  it('shows an expired re-inspection verdict and directs the Customer to the original paid report', async () => {
+    mockedApi.getById.mockResolvedValue({
+      id: 'insp-1',
+      assetId: 'asset-1',
+      assetName: 'Tower A',
+      inspectionType: 'RE_INSPECTION',
+      sourceInspectionId: 'source-1',
+    } as never);
+    mockedApi.listVersions.mockResolvedValue([
+      { id: 'ver-1', versionNo: 1, status: 'PUBLISHED', summary: 'Summary' } as never,
+    ]);
+    mockedApi.listFindings.mockResolvedValue([]);
+    mockedApi.listEvidence.mockResolvedValue([]);
+    mockedApi.getReinspectionVerifications.mockResolvedValue([
+      { resolutionStatus: 'RESOLVED', validUntil: new Date(Date.now() - 60_000).toISOString() } as never,
+    ]);
+    mockedApi.getReportPaymentStatus.mockResolvedValue({
+      reportAccepted: true,
+      paid: true,
+      paymentStatus: 'PAID',
+      orderCode: 100047,
+      amount: 5000000,
+      checkoutUrl: null,
+    });
+
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <LocaleProvider>
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter initialEntries={['/client/inspections/insp-1/settlement']}>
+            <Routes>
+              <Route
+                path="/client/inspections/:inspectionId/settlement"
+                element={<CustomerReportDeliverablePage stage="settlement" />}
+              />
+            </Routes>
+          </MemoryRouter>
+        </QueryClientProvider>
+      </LocaleProvider>,
+    );
+
+    expect(await screen.findByText(/Service Payment on the original paid report/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Schedule Re-inspection' })).toBeNull();
   });
 });

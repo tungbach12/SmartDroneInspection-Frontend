@@ -674,5 +674,3 @@ export default function InspectionReportPage() {
     </Stack>
   );
 }
-
-

@@ -205,7 +205,7 @@ describe('Standalone Re-inspection components', () => {
     expect(screen.getByText(/Re-verify those defects with fresh evidence/i)).toBeTruthy();
 
     rerender(<VerdictExpiryBanner verifications={[expiredItem]} audience="customer" />);
-    expect(screen.getByText(/Schedule a new re-inspection if updated defect verification/i)).toBeTruthy();
+    expect(screen.getByText(/Service Payment on the original paid report/i)).toBeTruthy();
 
     rerender(<VerdictExpiryBanner verifications={[expiringSoonItem]} audience="customer" />);
     expect(screen.getByText(/1 RESOLVED re-inspection verdict\(s\) expire within 14 days\./i)).toBeTruthy();

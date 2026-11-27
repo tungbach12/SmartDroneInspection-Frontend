@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   } as Record<string, unknown>,
   versionsData: [] as Array<Record<string, unknown>>,
   paymentStatusData: {} as Record<string, unknown>,
+  verifications: [] as Array<Record<string, unknown>>,
   publishMutate: vi.fn(),
   reviewMutate: vi.fn(),
   listRequests: vi.fn(),
@@ -64,7 +65,7 @@ vi.mock('@/features/inspections/hooks/useInspections', () => ({
   }),
   useInspectionFindings: () => ({ data: [], isLoading: false, error: null }),
   useInspectionEvidence: () => ({ data: [], isLoading: false, error: null }),
-  useReinspectionVerifications: () => ({ data: [] }),
+  useReinspectionVerifications: () => ({ data: mocks.verifications }),
   useReviewReportVersion: () => ({
     isPending: false,
     error: null,
@@ -122,6 +123,7 @@ describe('ManagerReportReviewPage separate review & payout stages', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.verifications = [];
     mocks.listRequests.mockResolvedValue([
       {
         id: 'req-1',
@@ -136,6 +138,21 @@ describe('ManagerReportReviewPage separate review & payout stages', () => {
       checkoutUrl: 'https://vietqr.app/img?acc=0071001234567&bank=VCB&amount=8345455&des=SDIPAY2001234567',
       qrCode: 'SDIPAY2001234567',
     });
+  });
+
+  it('shows expired verdicts on a published report without instructions to publish again', () => {
+    mocks.versionsData = [
+      { id: 'ver-1', versionNo: 1, status: 'PUBLISHED', authorUserId: 'insp-user-1' },
+    ];
+    mocks.verifications = [
+      { resolutionStatus: 'RESOLVED', validUntil: new Date(Date.now() - 60_000).toISOString() },
+    ];
+    mocks.paymentStatusData = { reportAccepted: false, paid: false, payoutStatus: 'PAID' };
+
+    renderStagePage('review');
+
+    expect(screen.getByText('1 RESOLVED re-inspection verdict(s) have expired.')).toBeTruthy();
+    expect(screen.queryByText(/before authoring, submitting or publishing/)).toBeNull();
   });
 
   it('guides APPROVED report on Step 2 review stage toward Step 3 Inspector Payout', () => {

@@ -185,6 +185,10 @@ function matchDescriptor(label: string): DefectDescriptor | undefined {
   return DEFECT_DESCRIPTORS.find((d) => lower.includes(d.key));
 }
 
+function displayDefectLabel(label: string | null | undefined, isVi: boolean): string {
+  return label?.trim() || (isVi ? 'Khiếm khuyết chưa phân loại' : 'Unspecified defect');
+}
+
 function isRedundantNote(note: string | null | undefined, defectLabel: string): boolean {
   const cleanNote = note?.trim().toLowerCase() ?? '';
   if (!cleanNote || cleanNote === 'none' || cleanNote === 'không có') return true;
@@ -197,16 +201,21 @@ function getFindingObservationText(
   evidenceById: Map<string, EvidenceItem>,
   isVi: boolean,
 ): string {
-  const descriptor = matchDescriptor(finding.defectLabel);
-  const baseObservation = !isRedundantNote(finding.technicalNotes, finding.defectLabel)
+  const label = finding.defectLabel?.trim() ?? '';
+  const descriptor = matchDescriptor(label);
+  const baseObservation = !isRedundantNote(finding.technicalNotes, label)
     ? finding.technicalNotes!.trim()
     : descriptor
       ? isVi
         ? descriptor.viObservation
         : descriptor.enObservation
-      : isVi
-        ? `Khiếm khuyết ${finding.defectLabel} đã được xác nhận trên ảnh hiện trường`
-        : `Confirmed ${finding.defectLabel} defect documented on field capture`;
+      : label
+        ? isVi
+          ? `Khiếm khuyết ${label} đã được xác nhận trên ảnh hiện trường`
+          : `Confirmed ${label} defect documented on field capture`
+        : isVi
+          ? 'Khiếm khuyết chưa phân loại đã được xác nhận trên ảnh hiện trường'
+          : 'Unspecified defect confirmed on field capture';
 
   const metaParts: string[] = [];
   const conf = normalizeConfidencePercent(finding.confidence);
@@ -238,9 +247,9 @@ function groupDefectTypes(confirmed: Finding[], isVi: boolean) {
   >();
 
   for (const f of confirmed) {
-    const labelText = (f.defectLabel ?? '').trim();
-    const rawKey = labelText.toLowerCase() || 'unspecified';
-    const descriptor = matchDescriptor(labelText);
+    const label = displayDefectLabel(f.defectLabel, isVi);
+    const rawKey = label.toLowerCase();
+    const descriptor = matchDescriptor(label);
     const existing = groups.get(rawKey);
     const code = f.findingCode?.trim() || '';
 
@@ -249,12 +258,12 @@ function groupDefectTypes(confirmed: Finding[], isVi: boolean) {
       if (code) existing.codes.push(code);
     } else {
       groups.set(rawKey, {
-        label: f.defectLabel.trim(),
+        label,
         categoryText: descriptor
           ? isVi
             ? `${descriptor.viCategory}`
             : `${descriptor.enCategory}`
-          : f.defectLabel.trim(),
+          : label,
         count: 1,
         codes: code ? [code] : [],
       });
@@ -380,7 +389,7 @@ function buildSynthesizedAiSummary({
   const keyHighlights = confirmed.slice(0, 6).map((f) => {
     const codePrefix = f.findingCode ? `${f.findingCode} · ` : '';
     const detail = getFindingObservationText(f, evidenceById, isVi);
-    return `${codePrefix}${f.defectLabel} [${f.severity}] — ${detail}`;
+    return `${codePrefix}${displayDefectLabel(f.defectLabel, isVi)} [${f.severity}] — ${detail}`;
   });
   if (confirmed.length > 6) {
     keyHighlights.push(
@@ -523,6 +532,7 @@ export function ReportAiSummaryCard({
   defaultExpanded = false,
 }: ReportAiSummaryCardProps) {
   const { t, locale } = useLocale();
+  const isVi = locale.toLowerCase().startsWith('vi');
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [knowledgeOpen, setKnowledgeOpen] = useState(false);
   const [remoteState, setRemoteState] = useState<{
@@ -601,11 +611,11 @@ export function ReportAiSummaryCard({
   const categoryBadges = useMemo(() => {
     const counts = new Map<string, number>();
     for (const f of confirmedFindings) {
-      const label = f.defectLabel.trim();
+      const label = displayDefectLabel(f.defectLabel, isVi);
       counts.set(label, (counts.get(label) ?? 0) + 1);
     }
     return Array.from(counts.entries());
-  }, [confirmedFindings]);
+  }, [confirmedFindings, isVi]);
 
   const actionItems = useMemo(
     () =>
@@ -645,8 +655,6 @@ export function ReportAiSummaryCard({
     ) : (
       <CheckCircleOutlineRounded fontSize="small" />
     );
-
-  const isVi = locale.toLowerCase().startsWith('vi');
 
   return (
     <Card
@@ -821,7 +829,7 @@ export function ReportAiSummaryCard({
                               </Box>
                             )}
                             <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.8125rem' }}>
-                              {f.defectLabel}
+                              {displayDefectLabel(f.defectLabel, isVi)}
                             </Typography>
                             <Box
                               component="span"

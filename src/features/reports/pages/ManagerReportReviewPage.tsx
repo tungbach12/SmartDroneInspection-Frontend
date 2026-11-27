@@ -386,7 +386,10 @@ export default function ManagerReportReviewPage({
         {openVersion && (
           <Stack spacing={3}>
             {(showReviewStage || showPayoutStage) && (
-              <VerdictExpiryBanner verifications={reinspectionVerifications?.data} />
+              <VerdictExpiryBanner
+                verifications={reinspectionVerifications?.data}
+                isPublished={openVersion.status === 'PUBLISHED'}
+              />
             )}
             {showReviewStage && openVersion.status === 'PUBLISHED' && customerStatusNotice}
             {showReviewStage && openVersion.status === 'PUBLISHED' && (

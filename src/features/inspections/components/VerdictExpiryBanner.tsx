@@ -5,22 +5,19 @@ import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 export interface VerdictExpiryBannerProps {
   verifications: ReinspectionVerificationItem[] | null | undefined;
-  /**
-   * 'staff' (default) warns Inspector/Manager that authoring, submission and publication are
-   * blocked by `RESOLUTION_EXPIRED`. 'customer' surfaces the expiry warning on the Customer web
-   * deliverable with parity to the Customer mobile app.
-   */
   audience?: 'staff' | 'customer';
+  isPublished?: boolean;
 }
 
 /**
- * Surfaces expired and soon-to-expire (<14 days) RESOLVED re-inspection verdicts.
+ * Surfaces expired RESOLVED re-inspection verdicts and those expiring within 14 days.
  * The backend blocks authoring, submission, approval, and publication with `RESOLUTION_EXPIRED`
  * once any RESOLVED verdict lapses.
  */
 export function VerdictExpiryBanner({
   verifications,
   audience = 'staff',
+  isPublished = false,
 }: VerdictExpiryBannerProps) {
   const { t, formatDateTime } = useLocale();
   const { expired, expiringSoon } = summarizeVerdictExpiry(verifications);
@@ -33,11 +30,13 @@ export function VerdictExpiryBanner({
     const message =
       audience === 'customer'
         ? t(
-            '{count} RESOLVED re-inspection verdict(s) have expired. Schedule a new re-inspection if updated defect verification is needed.',
+            '{count} RESOLVED re-inspection verdict(s) have expired. To request another re-inspection, open Service Payment on the original paid report and select Schedule Re-inspection.',
           )
-        : t(
-            '{count} RESOLVED re-inspection verdict(s) have expired. Re-verify those defects with fresh evidence before authoring, submitting or publishing this report.',
-          );
+        : isPublished
+          ? t('{count} RESOLVED re-inspection verdict(s) have expired.')
+          : t(
+              '{count} RESOLVED re-inspection verdict(s) have expired. Re-verify those defects with fresh evidence before authoring, submitting or publishing this report.',
+            );
     return (
       <Alert severity="error" sx={{ borderRadius: '8px' }}>
         <Typography variant="body2" sx={{ fontWeight: 700 }}>
@@ -58,7 +57,7 @@ export function VerdictExpiryBanner({
       .filter((value): value is string => Boolean(value))
       .sort()[0];
     const message =
-      audience === 'customer'
+      audience === 'customer' || isPublished
         ? t('{count} RESOLVED re-inspection verdict(s) expire within 14 days.')
         : t(
             '{count} RESOLVED re-inspection verdict(s) expire within 14 days. Complete and publish this report before then, or re-verify the defects.',
