@@ -366,7 +366,9 @@ export function SepayPayoutQrDialog({
               aria-label="Mock pay"
               onClick={() => {
                 setMockBusy(true);
-                void onMockPay().finally(() => setMockBusy(false));
+                void Promise.resolve(onMockPay())
+                  .catch(() => undefined)
+                  .finally(() => setMockBusy(false));
               }}
               sx={{
                 p: 0.5,

@@ -22,11 +22,11 @@ import {
   type PortalId,
 } from '@/app/permissions/accessPolicy';
 import { useAuthStore } from '@/features/auth/store/authStore';
-import { inspectionApi } from '@/features/inspections/api/inspectionApi';
 import {
   useAcceptReportVersion,
   useCreateInspectionSepayLink,
   useCreateInspectionVnPayUrl,
+  useMockConfirmInspectionSepayPayment,
   useReviewReportVersion,
   useSubmitReportVersion,
   useWithdrawReportVersion,
@@ -98,6 +98,7 @@ export default function ReportDetailPage() {
   const acceptReport = useAcceptReportVersion(inspectionId);
   const requestClarification = useRequestReportClarification(inspectionId);
   const sepayLink = useCreateInspectionSepayLink(inspectionId);
+  const mockConfirmSepay = useMockConfirmInspectionSepayPayment(inspectionId);
   const vnpayLink = useCreateInspectionVnPayUrl(inspectionId);
   const searchParams = new URLSearchParams(location.search);
   const isPaymentCancelled = searchParams.get('payment') === 'cancelled';
@@ -433,7 +434,7 @@ export default function ReportDetailPage() {
                 onMockPay={
                   inspectionId && sepayLink.data
                     ? async () => {
-                        await inspectionApi.mockConfirmSepayPayment(inspectionId);
+                        await mockConfirmSepay.mutateAsync();
                         await paymentStatusQuery.refetch();
                         setSepayQrOpen(false);
                       }

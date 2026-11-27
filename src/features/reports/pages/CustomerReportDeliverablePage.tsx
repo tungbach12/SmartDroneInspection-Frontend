@@ -16,7 +16,6 @@ import {
 import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
 import { PageBreadcrumbs } from '@/shared/ui/PageBreadcrumbs';
 import { getSectionPath } from '@/app/permissions/accessPolicy';
-import { inspectionApi } from '@/features/inspections/api/inspectionApi';
 import {
   useAcceptReportVersion,
   useCreateInspectionSepayLink,
@@ -24,6 +23,7 @@ import {
   useInspection,
   useInspectionEvidence,
   useInspectionFindings,
+  useMockConfirmInspectionSepayPayment,
   useReinspectionVerifications,
   useReportPaymentStatus,
   useReportVersions,
@@ -81,6 +81,7 @@ export default function CustomerReportDeliverablePage({
   const acceptReport = useAcceptReportVersion(inspectionId);
   const requestClarification = useRequestReportClarification(inspectionId);
   const sepayLink = useCreateInspectionSepayLink(inspectionId);
+  const mockConfirmSepay = useMockConfirmInspectionSepayPayment(inspectionId);
   const vnpayLink = useCreateInspectionVnPayUrl(inspectionId);
   const searchParams = new URLSearchParams(location.search);
   const isPaymentCancelled = searchParams.get('payment') === 'cancelled';
@@ -298,7 +299,7 @@ export default function CustomerReportDeliverablePage({
               onMockPay={
                 inspectionId && sepayLink.data
                   ? async () => {
-                      await inspectionApi.mockConfirmSepayPayment(inspectionId);
+                      await mockConfirmSepay.mutateAsync();
                       await paymentStatusQuery.refetch();
                       setSepayQrOpen(false);
                     }
