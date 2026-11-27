@@ -28,7 +28,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { InspectorProfileDialog } from '@/features/admin/components/InspectorProfileDialog';
 import { mf1ReviewApi } from '@/features/admin/api/mf1ReviewApi';
 import { useAsset } from '@/features/assets/hooks/useAssets';
-import { RestrictedAirspaceAlert } from '@/shared/airspace/RestrictedAirspaceNotice';
+import { NoFlyFootprintAlert } from '@/shared/airspace/RestrictedAirspaceNotice';
 import { AuthenticatedImage } from '@/shared/ui/AuthenticatedImage';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { StatusChip } from '@/shared/ui/StatusChip';
@@ -118,11 +118,9 @@ export function ManagerOccurrencesStep({
         )}
 
         {!stepActive && (
-          <RestrictedAirspaceAlert
-            role="MANAGER"
+          <NoFlyFootprintAlert
             latitude={assetQuery.data?.latitude}
             longitude={assetQuery.data?.longitude}
-            structureHeightMeters={assetQuery.data?.structureHeightMeters}
             footprintAreaSquareMeters={assetQuery.data?.footprintAreaSquareMeters}
             sx={{ mb: 2 }}
           />

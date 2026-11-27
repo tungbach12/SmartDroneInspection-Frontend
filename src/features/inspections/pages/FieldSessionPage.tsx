@@ -52,7 +52,6 @@ import {
   isFlightPermitVerified,
   resolveFlightPermitVerificationStatus,
 } from '../utils/workflowStepResolver';
-import { RestrictedAirspaceAlert } from '@/shared/airspace/RestrictedAirspaceNotice';
 import { FlightOperationsReportView } from '@/features/reports/components/FlightOperationsReportView';
 import { useChecklistTemplates } from '@/features/assets/hooks/useCatalog';
 import {
@@ -1133,15 +1132,6 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                       )}
                   </Stack>
                 </Stack>
-
-                {isManagerOrAdmin && (
-                  <RestrictedAirspaceAlert
-                    role="MANAGER"
-                    latitude={inspection.assetLatitude}
-                    longitude={inspection.assetLongitude}
-                    sx={{ borderRadius: '10px' }}
-                  />
-                )}
 
                 <FlightPermitVerificationPanel
                   inspection={inspection}

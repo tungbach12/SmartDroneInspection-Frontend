@@ -25,7 +25,7 @@ import CloseRounded from '@mui/icons-material/CloseRounded';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { getErrorMessage } from '@/shared/api/errorMessage';
-import { RestrictedAirspaceAlert } from '@/shared/airspace/RestrictedAirspaceNotice';
+import { NoFlyFootprintAlert } from '@/shared/airspace/RestrictedAirspaceNotice';
 import { type CreateServiceRequestInput, type ServiceRequest } from '../api/contractApi';
 import {
   addAnchoredMonths,
@@ -589,11 +589,9 @@ export function CreateRequestDialog({
           )}
 
           {selectedAsset && (
-            <RestrictedAirspaceAlert
-              role="CUSTOMER"
+            <NoFlyFootprintAlert
               latitude={selectedAsset.latitude}
               longitude={selectedAsset.longitude}
-              structureHeightMeters={selectedAsset.structureHeightMeters}
               footprintAreaSquareMeters={selectedAsset.footprintAreaSquareMeters}
             />
           )}

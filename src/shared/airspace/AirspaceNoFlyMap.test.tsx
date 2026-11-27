@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AirspaceNoFlyMap } from './AirspaceNoFlyMap';
-import { RestrictedAirspaceAlert, RestrictedAirspaceChip } from './RestrictedAirspaceNotice';
+import { NoFlyFootprintAlert, RestrictedAirspaceChip } from './RestrictedAirspaceNotice';
 import {
   calculatePolygonPerimeterAndArea,
   evaluateAirspace,
@@ -329,15 +329,14 @@ describe('airspaceZones & AirspaceNoFlyMap', () => {
     expect(screen.getByText('Vết nứt bề mặt K1')).toBeTruthy();
   });
 
-  it('renders restricted zone badges and alerts without 120m altitude labels', () => {
+  it('renders restricted zone badges without the advisory banner or 120m altitude labels', () => {
     render(
       <>
         <RestrictedAirspaceChip latitude={10.7789} longitude={106.7082} />
-        <RestrictedAirspaceAlert
-          role="MANAGER"
+        <NoFlyFootprintAlert
           latitude={10.7789}
           longitude={106.7082}
-          structureHeightMeters={200}
+          footprintAreaSquareMeters={1_000}
         />
         <AirspaceNoFlyMap
           assetName="Cầu Thủ Thiêm"
@@ -349,8 +348,22 @@ describe('airspaceZones & AirspaceNoFlyMap', () => {
 
     expect(screen.getByText('Restricted Zone', { exact: true })).toBeTruthy();
     expect(screen.getByText('HẠN CHẾ BAY (RESTRICTED)', { exact: true })).toBeTruthy();
+    expect(screen.queryByText(/Restricted airspace:/i)).toBeNull();
+    expect(screen.queryByText(/Perimeter overlap warning:/i)).toBeNull();
     expect(screen.queryByText(/120\s*m/i)).toBeNull();
     expect(screen.queryByText(/Trần <=/i)).toBeNull();
     expect(screen.queryByText(/Max ceiling/i)).toBeNull();
+  });
+
+  it('still warns when a building footprint overlaps a No-Fly Zone', () => {
+    render(
+      <NoFlyFootprintAlert
+        latitude={10.851}
+        longitude={106.6519}
+        footprintAreaSquareMeters={31_416}
+      />,
+    );
+
+    expect(screen.getByRole('alert').textContent).toMatch(/Perimeter overlap warning:/i);
   });
 });
