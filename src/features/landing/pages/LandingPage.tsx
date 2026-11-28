@@ -1,13 +1,14 @@
 import { useEffect } from 'react';
-import { Box, Link, Stack, Typography } from '@mui/material';
+import { Box, Button, Link, Stack, Typography } from '@mui/material';
 import NorthEastIcon from '@mui/icons-material/NorthEast';
 import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff';
 import DocumentScannerOutlined from '@mui/icons-material/DocumentScannerOutlined';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import TaskAltIcon from '@mui/icons-material/TaskAlt';
+import LanguageRounded from '@mui/icons-material/LanguageRounded';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { NextAdminLogoMark } from '@/shared/ui/NextAdminIcons';
-import { LandingHeader } from '../components/LandingHeader';
+import { LANDING_PATHS, type LandingAudience } from '../landingAudience';
 
 const services = [
   {
@@ -68,16 +69,22 @@ const actionSx = {
   '&:focus-visible': { outline: '2px solid #38BDF8', outlineOffset: 3 },
 };
 
-export default function LandingPage() {
-  const { t } = useLocale();
+export default function LandingPage({ audience }: { audience?: LandingAudience }) {
+  const { locale, setLocale, t } = useLocale();
+  const homePath = audience ? LANDING_PATHS[audience] : '/';
+  const signInPath = audience === 'inspector' ? '/inspector/login' : '/login';
+  const signUpPath = audience === 'inspector' ? '/inspector/register' : '/register';
   useEffect(() => {
     const previousTitle = document.title;
     document.title = 'SDI';
+    if (!window.sessionStorage.getItem('sdi_locale_explicit')) {
+      setLocale('en');
+    }
 
     return () => {
       document.title = previousTitle;
     };
-  }, []);
+  }, [setLocale]);
 
   return (
     <Box
@@ -89,7 +96,138 @@ export default function LandingPage() {
         fontFamily: '"Geist Sans", sans-serif',
       }}
     >
-      <LandingHeader audience="customer" overlay />
+      <Box
+        component="header"
+        sx={{
+          position: 'absolute',
+          zIndex: 2,
+          inset: '0 0 auto',
+          px: { xs: 1.5, sm: 2.5, md: 6 },
+          py: { xs: 2, md: 2.5 },
+        }}
+      >
+        <Box
+          sx={{
+            maxWidth: 1440,
+            mx: 'auto',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: { xs: 1, sm: 2, md: 3 },
+          }}
+        >
+          <Link
+            href={homePath}
+            underline="none"
+            aria-label={t('SDI home')}
+            sx={{ color: '#fff', fontSize: 15, fontWeight: 650, letterSpacing: '-0.04em' }}
+          >
+            <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
+              <NextAdminLogoMark width={34} height={34} />
+              <Typography component="span" sx={{ color: 'inherit', fontWeight: 'inherit', letterSpacing: 'inherit' }}>
+                SDI
+              </Typography>
+            </Stack>
+          </Link>
+          <Stack
+            component="nav"
+            direction="row"
+            spacing={{ xs: 2, md: 4 }}
+            aria-label={t('Main navigation')}
+            sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center' }}
+          >
+            {navLinks.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                underline="none"
+                sx={{
+                  color: 'rgba(255,255,255,.66)',
+                  fontSize: 11,
+                  fontWeight: 550,
+                  letterSpacing: '.1em',
+                  textTransform: 'uppercase',
+                  '&:hover': { color: '#fff' },
+                }}
+              >
+                {t(item.label)}
+              </Link>
+            ))}
+          </Stack>
+          <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
+            <Button
+              size="small"
+              aria-label={t('Language')}
+              title={locale === 'en' ? 'Tiếng Việt' : 'English'}
+              onClick={() => {
+                const next = locale === 'en' ? 'vi' : 'en';
+                setLocale(next);
+                window.sessionStorage.setItem('sdi_locale_explicit', 'true');
+              }}
+              sx={{
+                minWidth: 'auto',
+                px: 1.25,
+                py: 0.6,
+                color: 'rgba(255,255,255,.75)',
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: '.06em',
+                borderRadius: '6px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 0.6,
+                transition: 'color .15s ease, background-color .15s ease',
+                '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,.08)' },
+              }}
+            >
+              <LanguageRounded sx={{ fontSize: 16 }} />
+              {locale === 'en' ? 'VI' : 'EN'}
+            </Button>
+            <Link
+              href={signInPath}
+              underline="none"
+              sx={{
+                color: 'rgba(255,255,255,.8)',
+                fontSize: 12,
+                fontWeight: 600,
+                letterSpacing: '.04em',
+                px: 1.75,
+                py: 0.9,
+                borderRadius: '6px',
+                transition: 'color .15s ease, background-color .15s ease',
+                '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,.08)' },
+              }}
+            >
+              {t('Sign in')}
+            </Link>
+            <Box
+              component="a"
+              href={signUpPath}
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: 36,
+                px: 2.25,
+                bgcolor: '#ffffff',
+                color: '#0c1110',
+                fontSize: 12,
+                fontWeight: 600,
+                letterSpacing: '.03em',
+                textDecoration: 'none',
+                borderRadius: '6px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.18)',
+                transition: 'background-color .15s ease, opacity .15s ease',
+                '&:hover': {
+                  bgcolor: '#e8eaed',
+                },
+              }}
+            >
+              {t('Sign up')}
+            </Box>
+          </Stack>
+        </Box>
+      </Box>
 
       <Box
         component="section"
@@ -408,7 +546,7 @@ export default function LandingPage() {
                   {t(item.label)}
                 </Link>
               ))}
-              <Link href="/login" underline="none" sx={{ color: '#858982', fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase', '&:hover': { color: '#fff' } }}>
+              <Link href={signInPath} underline="none" sx={{ color: '#858982', fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase', '&:hover': { color: '#fff' } }}>
                 {t('Sign in')}
               </Link>
             </Stack>

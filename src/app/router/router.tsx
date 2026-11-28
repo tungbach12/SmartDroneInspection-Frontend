@@ -36,7 +36,6 @@ import { ToastHost } from '@/shared/ui/Toast';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'));
-const RoleLandingPage = lazy(() => import('@/features/landing/pages/RoleLandingPage'));
 const OAuthCallbackPage = lazy(() => import('@/features/auth/pages/OAuthCallbackPage'));
 const RegisterPage = lazy(() => import('@/features/auth/pages/RegisterPage'));
 const InspectorRegisterPage = lazy(
@@ -397,17 +396,17 @@ export const router = createBrowserRouter([
       },
       {
         path: 'customer',
-        element: <LandingPage />,
+        element: <LandingPage audience="customer" />,
         loader: ({ request }) => redirectToDedicatedLanding(request, 'customer'),
       },
       {
         path: 'inspector',
-        element: <RoleLandingPage audience="inspector" />,
+        element: <LandingPage audience="inspector" />,
         loader: ({ request }) => redirectToDedicatedLanding(request, 'inspector'),
       },
       {
         path: 'staff',
-        element: <RoleLandingPage audience="staff" />,
+        element: <LandingPage audience="staff" />,
         loader: ({ request }) => redirectToDedicatedLanding(request, 'staff'),
       },
       {

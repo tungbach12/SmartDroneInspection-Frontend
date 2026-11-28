@@ -1,10 +1,16 @@
+import { isValidElement } from 'react';
 import { describe, expect, it } from 'vitest';
 import { matchRoutes } from 'react-router-dom';
+import LandingPage from '@/features/landing/pages/LandingPage';
 import { router } from './router';
 
 describe('public role landing routes', () => {
-  it.each(['/customer', '/inspector', '/staff'])('exposes %s', (path) => {
-    expect(matchRoutes(router.routes, path)?.at(-1)?.route.path).toBe(path.slice(1));
+  it.each(['customer', 'inspector', 'staff'])('renders the shared landing page at /%s', (audience) => {
+    const route = matchRoutes(router.routes, `/${audience}`)?.at(-1)?.route;
+    expect(route?.path).toBe(audience);
+    if (!isValidElement(route?.element)) throw new Error('Landing page element is missing');
+    expect(route.element.type).toBe(LandingPage);
+    expect(route.element.props).toEqual({ audience });
   });
 
   it.each([
