@@ -8,6 +8,7 @@ import {
   CardMedia,
   Checkbox,
   Chip,
+  CircularProgress,
   Collapse,
   Dialog,
   DialogActions,
@@ -38,15 +39,18 @@ import BuildCircleOutlined from '@mui/icons-material/BuildCircleOutlined';
 import AppRegistrationOutlined from '@mui/icons-material/AppRegistrationOutlined';
 import EventAvailableOutlined from '@mui/icons-material/EventAvailableOutlined';
 import OpenInNewRounded from '@mui/icons-material/OpenInNewRounded';
+import DocumentScannerOutlined from '@mui/icons-material/DocumentScannerOutlined';
 import { droneDocumentConfigApi } from '../api/droneDocumentConfigApi';
 import { droneFeatureConfigApi } from '../api/droneFeatureConfigApi';
 import {
   mf1DroneApi,
   uploadDroneEvidence,
   type DroneRegistrationInput,
+  type DroneSpecExtractionResult,
   type InspectorDrone,
   type DroneRegistrationApplication,
 } from '../api/mf1DroneApi';
+import { extractImageText } from '../utils/imageOcr';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { AuthenticatedImage } from '@/shared/ui/AuthenticatedImage';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
@@ -215,6 +219,9 @@ export default function InspectorDroneRegistrationPage() {
   const [capabilitiesExpanded, setCapabilitiesExpanded] = useState(false);
   const [customFeatureInput, setCustomFeatureInput] = useState('');
   const [tabIndex, setTabIndex] = useState<'APPROVED' | 'APPLICATIONS'>('APPROVED');
+  const [autoFilledFields, setAutoFilledFields] = useState<Partial<Record<keyof DroneFormState, boolean>>>({});
+  const [scanResult, setScanResult] = useState<DroneSpecExtractionResult | null>(null);
+  const [scanError, setScanError] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
   const isInspector = useAuthStore((state) => state.roles).includes('INSPECTOR');
@@ -239,6 +246,87 @@ export default function InspectorDroneRegistrationPage() {
     enabled: isInspector,
     refetchInterval: isInspector ? 10000 : false,
     retry: false,
+  });
+
+  const extractSpecsMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const ocrText = file.type.startsWith('image/') ? await extractImageText(file) : '';
+      return mf1DroneApi.extractSpecs(file, ocrText);
+    },
+    onMutate: () => {
+      setScanError(null);
+    },
+    onSuccess: (result) => {
+      setScanResult(result);
+      const marked: Partial<Record<keyof DroneFormState, boolean>> = {};
+      setForm((current) => {
+        const next = { ...current };
+        if (result.model) {
+          next.droneName = result.model;
+          marked.droneName = true;
+        }
+        if (result.manufacturer) {
+          next.manufacturer = result.manufacturer;
+          marked.manufacturer = true;
+        }
+        if (result.serialNumber) {
+          next.serialNumber = result.serialNumber;
+          marked.serialNumber = true;
+        }
+        if (result.registrationNumber) {
+          next.registrationNumber = result.registrationNumber;
+          marked.registrationNumber = true;
+        }
+        if (result.registrationExpiresAt) {
+          next.registrationExpiresAt = result.registrationExpiresAt;
+          marked.registrationExpiresAt = true;
+        }
+        if (result.mtowKg != null) {
+          next.mtowKg = String(result.mtowKg);
+          marked.mtowKg = true;
+        }
+        if (result.maxFlightTimeMinutes != null) {
+          next.maxFlightTimeMinutes = String(result.maxFlightTimeMinutes);
+          marked.maxFlightTimeMinutes = true;
+        }
+        if (result.maxWindResistanceMps != null) {
+          next.maxWindResistanceMps = String(result.maxWindResistanceMps);
+          marked.maxWindResistanceMps = true;
+        }
+        if (result.maxAltitudeMeters != null) {
+          next.maxAltitudeMeters = String(result.maxAltitudeMeters);
+          marked.maxAltitudeMeters = true;
+        }
+        if (result.opticalZoomLevel) {
+          next.opticalZoomLevel = result.opticalZoomLevel.replace(/x$/i, '');
+          marked.opticalZoomLevel = true;
+        }
+        if (result.cameraSensor) {
+          next.cameraSensor = result.cameraSensor;
+          marked.cameraSensor = true;
+        }
+        if (result.features && result.features.length > 0) {
+          next.features = Array.from(new Set([...current.features, ...result.features]));
+          marked.features = true;
+        }
+        return next;
+      });
+      setAutoFilledFields(marked);
+      if (result.features && result.features.length > 0) {
+        setCapabilitiesExpanded(true);
+      }
+    },
+    onError: (err) => {
+      setScanResult(null);
+      setScanError(
+        err instanceof Error
+          ? err.message
+          : tr(
+              'Không thể đọc thông số từ tệp này. Vui lòng kiểm tra định dạng PNG/JPG/WebP/PDF.',
+              'Could not extract specs from this file. Check PNG/JPG/WebP/PDF format.',
+            ),
+      );
+    },
   });
 
   const [fleetActionError, setFleetActionError] = useState<string | null>(null);
@@ -404,6 +492,14 @@ export default function InspectorDroneRegistrationPage() {
 
   const updateField = (field: keyof DroneFormState) => (event: React.ChangeEvent<HTMLInputElement>) => {
     setForm((current) => ({ ...current, [field]: event.target.value }));
+    setAutoFilledFields((current) => (current[field] ? { ...current, [field]: false } : current));
+  };
+
+  const handleScanSpecFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    extractSpecsMutation.mutate(file);
   };
 
   const handleFileChange = (code: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -519,6 +615,9 @@ export default function InspectorDroneRegistrationPage() {
     setExistingImageKeys(existingApp?.imageFileKeys ? [...existingApp.imageFileKeys] : []);
     setCapabilitiesExpanded(false);
     setCustomFeatureInput('');
+    setAutoFilledFields({});
+    setScanResult(null);
+    setScanError(null);
     setOpenRegisterDialog(true);
   };
 
@@ -1454,9 +1553,61 @@ export default function InspectorDroneRegistrationPage() {
           <Stack component="form" id="drone-register-form" noValidate spacing={3} onSubmit={handleSubmit}>
             {/* THÔNG SỐ KỸ THUẬT */}
             <Box>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>
-                {tr('1. Thông tin thiết bị', '1. Airframe Specifications')}
-              </Typography>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 1.5,
+                  mb: 1.75,
+                  flexWrap: 'wrap',
+                }}
+              >
+                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                  {tr('1. Thông tin thiết bị', '1. Airframe Specifications')}
+                </Typography>
+                <Button
+                  component="label"
+                  variant="outlined"
+                  size="small"
+                  disabled={extractSpecsMutation.isPending}
+                  startIcon={
+                    extractSpecsMutation.isPending ? (
+                      <CircularProgress size={14} />
+                    ) : (
+                      <DocumentScannerOutlined fontSize="small" />
+                    )
+                  }
+                  sx={{ textTransform: 'none', fontWeight: 600 }}
+                >
+                  {extractSpecsMutation.isPending
+                    ? tr('Đang quét...', 'Scanning...')
+                    : tr('Quét ảnh / PDF', 'Scan Photo / PDF')}
+                  <input
+                    hidden
+                    type="file"
+                    accept=".png,.jpg,.jpeg,.webp,.pdf,image/png,image/jpeg,image/webp,application/pdf"
+                    onChange={handleScanSpecFile}
+                  />
+                </Button>
+              </Box>
+
+              {scanError && (
+                <Alert severity="error" sx={{ mb: 2, py: 0.5, borderRadius: '8px' }}>
+                  {scanError}
+                </Alert>
+              )}
+
+              {scanResult && scanResult.suggestedFields.length === 0 && (
+                <Alert severity="warning" sx={{ mb: 2, py: 0.5, borderRadius: '8px' }}>
+                  <Typography variant="caption" sx={{ display: 'block', fontWeight: 600 }}>
+                    {tr(
+                      'Không đọc được thông số từ tệp này. Hãy thử ảnh rõ hơn hoặc PDF có văn bản.',
+                      'Could not extract fields from this file. Try a clearer photo or text PDF.',
+                    )}
+                  </Typography>
+                </Alert>
+              )}
 
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
                 <TextField
@@ -1466,6 +1617,7 @@ export default function InspectorDroneRegistrationPage() {
                   value={form.droneName}
                   onChange={updateField('droneName')}
                   error={submitAttempted && !form.droneName.trim()}
+                  helperText={autoFilledFields.droneName ? tr('Tự động điền — vui lòng đối chiếu', 'Auto-filled — please verify') : undefined}
                 />
                 <TextField
                   required
@@ -1474,6 +1626,7 @@ export default function InspectorDroneRegistrationPage() {
                   value={form.manufacturer}
                   onChange={updateField('manufacturer')}
                   error={submitAttempted && !form.manufacturer.trim()}
+                  helperText={autoFilledFields.manufacturer ? tr('Tự động điền — vui lòng đối chiếu', 'Auto-filled — please verify') : undefined}
                 />
                 <TextField
                   required
@@ -1482,6 +1635,7 @@ export default function InspectorDroneRegistrationPage() {
                   value={form.serialNumber}
                   onChange={updateField('serialNumber')}
                   error={submitAttempted && !form.serialNumber.trim()}
+                  helperText={autoFilledFields.serialNumber ? tr('Tự động điền — đối chiếu ký tự 0/O, 1/I', 'Auto-filled — verify 0/O, 1/I characters') : undefined}
                 />
                 <TextField
                   required
@@ -1490,6 +1644,7 @@ export default function InspectorDroneRegistrationPage() {
                   value={form.registrationNumber}
                   onChange={updateField('registrationNumber')}
                   error={submitAttempted && !form.registrationNumber.trim()}
+                  helperText={autoFilledFields.registrationNumber ? tr('Tự động điền — vui lòng đối chiếu', 'Auto-filled — please verify') : undefined}
                 />
                 <TextField
                   required
@@ -1499,6 +1654,7 @@ export default function InspectorDroneRegistrationPage() {
                   onChange={updateField('registrationExpiresAt')}
                   slotProps={{ inputLabel: { shrink: true } }}
                   error={submitAttempted && !form.registrationExpiresAt}
+                  helperText={autoFilledFields.registrationExpiresAt ? tr('Tự động điền — kiểm tra DD/MM/YYYY', 'Auto-filled — verify DD/MM/YYYY') : undefined}
                 />
                 {(() => {
                   const legalInfo = classifyDroneByMtow(form.mtowKg);
@@ -1577,6 +1733,7 @@ export default function InspectorDroneRegistrationPage() {
                   placeholder={tr('VD: 48 MP', 'e.g. 48 MP')}
                   value={form.cameraSensor}
                   onChange={updateField('cameraSensor')}
+                  sx={{ gridColumn: { sm: '1 / -1' } }}
                 />
                 <Box sx={{ gridColumn: { xs: '1 / -1' }, mt: 0.5 }}>
                   <Box
