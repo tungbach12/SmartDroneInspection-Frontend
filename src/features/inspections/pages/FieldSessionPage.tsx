@@ -23,6 +23,7 @@ import {
 import AddRounded from '@mui/icons-material/AddRounded';
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
 import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
+import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
 import UploadFileRounded from '@mui/icons-material/UploadFileRounded';
 import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
@@ -566,6 +567,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
     () => searchParams.get('newSession') === '1',
   );
   const [selectedFlightId, setSelectedFlightId] = useState<string | null>(null);
+  const [flightToDelete, setFlightToDelete] = useState<FieldSessionFlight | null>(null);
   const [outcomeTarget, setOutcomeTarget] = useState<{
     session: FieldSession;
     kind: 'abort' | 'complete';
@@ -698,6 +700,10 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
     openSessionFlights.at(-1) ??
     null;
 
+  const refreshFlights = () => Promise.all([
+    queryClient.invalidateQueries({ queryKey: fieldSessionKeys.forInspection(inspectionId) }),
+    queryClient.invalidateQueries({ queryKey: fieldSessionKeys.flightsForInspection(inspectionId) }),
+  ]);
   const createFlight = useMutation({
     mutationFn: (sessionId: string) =>
       fieldSessionApi.createFlight(inspectionId, sessionId, {
@@ -705,10 +711,25 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
       }),
     onSuccess: (created) => {
       setSelectedFlightId(created.id);
-      return Promise.all([
-        queryClient.invalidateQueries({ queryKey: fieldSessionKeys.forInspection(inspectionId) }),
-        queryClient.invalidateQueries({ queryKey: fieldSessionKeys.flightsForInspection(inspectionId) }),
-      ]);
+      return refreshFlights();
+    },
+  });
+  const deleteFlight = useMutation({
+    mutationFn: (flight: FieldSessionFlight) =>
+      fieldSessionApi.deleteFlight(inspectionId, flight.fieldSessionId, flight.id),
+    onSuccess: async (_, flight) => {
+      queryClient.setQueryData<FieldSession[]>(fieldSessionKeys.forInspection(inspectionId), (sessions) =>
+        sessions?.map((session) => session.id === flight.fieldSessionId && session.flights
+          ? { ...session, flights: session.flights.filter((item) => item.id !== flight.id) }
+          : session),
+      );
+      queryClient.setQueryData<FieldSessionFlight[]>(fieldSessionKeys.flightsForInspection(inspectionId), (flights) =>
+        flights?.filter((item) => item.id !== flight.id),
+      );
+      setSelectedFlightId((id) => id === flight.id ? null : id);
+      setFlightCompletedOnStep(false);
+      await refreshFlights();
+      setFlightToDelete(null);
     },
   });
   const flightTitle = (flight: FieldSessionFlight) => {
@@ -2687,6 +2708,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                           variant="outlined"
                           color="inherit"
                           loading={createFlight.isPending}
+                          disabled={deleteFlight.isPending}
                           startIcon={<AddRounded />}
                           onClick={() => createFlight.mutate(openSession.id)}
                           sx={{
@@ -2714,28 +2736,43 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                         <Box
                           component="ul"
                           sx={{
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            gap: 1,
                             m: 0,
-                            p: 0,
+                            px: 2,
+                            pb: 1.5,
                             listStyle: 'none',
-                            '& > li': { borderTop: '1px solid', borderColor: 'divider' },
                           }}
                         >
                           {openSessionFlights.map((flight) => {
                             const selected = flight.id === activeSessionFlight?.id;
                             return (
-                              <Box component="li" key={flight.id}>
+                              <Box
+                                component="li"
+                                key={flight.id}
+                                sx={{
+                                  maxWidth: '100%',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  border: '1px solid',
+                                  borderColor: 'divider',
+                                  borderRadius: '8px',
+                                  bgcolor: selected ? 'action.selected' : 'background.paper',
+                                }}
+                              >
                                 <ButtonBase
                                   aria-pressed={selected}
                                   onClick={() => setSelectedFlightId(flight.id)}
                                   sx={{
-                                    width: '100%',
+                                    minWidth: 0,
                                     minHeight: 48,
-                                    px: 2,
-                                    py: 1,
+                                    px: 1.5,
+                                    py: 0.75,
+                                    borderRadius: '7px',
                                     justifyContent: 'flex-start',
                                     textAlign: 'left',
-                                    bgcolor: selected ? 'action.selected' : 'background.paper',
-                                    '&:hover': { bgcolor: selected ? 'action.selected' : 'action.hover' },
+                                    '&:hover': { bgcolor: 'action.hover' },
                                     '&.Mui-focusVisible': {
                                       outline: '2px solid',
                                       outlineColor: 'text.secondary',
@@ -2745,13 +2782,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                                 >
                                   <Stack
                                     component="span"
-                                    direction={{ xs: 'column', sm: 'row' }}
-                                    sx={{
-                                      width: '100%',
-                                      alignItems: { sm: 'center' },
-                                      justifyContent: 'space-between',
-                                      gap: { xs: 0.25, sm: 2 },
-                                    }}
+                                    spacing={0.25}
                                   >
                                     <Typography
                                       component="span"
@@ -2782,6 +2813,24 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                                     </Typography>
                                   </Stack>
                                 </ButtonBase>
+                                {isInspector && (
+                                  <Tooltip title={tr('Xóa chuyến bay', 'Delete flight')}>
+                                    <Box component="span" sx={{ display: 'inline-flex', mr: 0.5 }}>
+                                      <IconButton
+                                        size="small"
+                                        aria-label={`${tr('Xóa', 'Delete')} ${flightTitle(flight)}`}
+                                        disabled={createFlight.isPending || deleteFlight.isPending}
+                                        onClick={() => {
+                                          deleteFlight.reset();
+                                          setFlightToDelete(flight);
+                                        }}
+                                        sx={{ color: 'text.secondary', '&:hover': { color: 'error.main' } }}
+                                      >
+                                        <DeleteOutlineRounded fontSize="small" />
+                                      </IconButton>
+                                    </Box>
+                                  </Tooltip>
+                                )}
                               </Box>
                             );
                           })}
@@ -3161,6 +3210,33 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
           </Box>
         )}
       </Stack>
+
+      {flightToDelete && (
+        <ConfirmDialog
+          open
+          title={tr('Xóa chuyến bay?', 'Delete flight?')}
+          message={tr(
+            'Bạn sẽ xóa {flight} và dữ liệu bay đã lưu của chuyến này.',
+            'This will delete {flight} and its saved flight data.',
+          ).replace('{flight}', flightTitle(flightToDelete))}
+          confirmLabel={tr('Xóa chuyến bay', 'Delete flight')}
+          cancelLabel={t('Cancel')}
+          severity="danger"
+          loading={deleteFlight.isPending}
+          onCancel={() => setFlightToDelete(null)}
+          onConfirm={() => deleteFlight.mutate(flightToDelete)}
+        >
+          {deleteFlight.isError && (
+            <Box sx={{ mt: 1.5 }}>
+              <MutationProblemAlert
+                error={deleteFlight.error}
+                isError
+                fallbackMessage={tr('Không thể xóa chuyến bay.', 'Could not delete the flight.')}
+              />
+            </Box>
+          )}
+        </ConfirmDialog>
+      )}
 
       <Dialog open={startOpen} onClose={() => setStartOpen(false)} fullWidth maxWidth="sm">
         <form

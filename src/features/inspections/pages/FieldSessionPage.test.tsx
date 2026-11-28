@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthStore } from '@/features/auth/store/authStore';
@@ -8,6 +8,7 @@ import { useToastStore } from '@/shared/ui/Toast';
 const mocks = vi.hoisted(() => ({
   list: vi.fn(),
   createFlight: vi.fn(),
+  deleteFlight: vi.fn(),
   start: vi.fn(),
   complete: vi.fn(),
   postpone: vi.fn(),
@@ -29,6 +30,7 @@ vi.mock('../api/fieldSessionApi', async (importOriginal) => {
       ...actual.fieldSessionApi,
       list: mocks.list,
       createFlight: mocks.createFlight,
+      deleteFlight: mocks.deleteFlight,
       start: mocks.start,
       complete: mocks.complete,
       postpone: mocks.postpone,
@@ -206,6 +208,41 @@ describe('FieldSessionPage', () => {
     expect(mocks.createFlight).toHaveBeenCalledWith('inspection-1', SESSION.id, {
       flightDate: today,
     });
+  });
+
+  it('deletes a flight only after confirmation and selects the remaining flight', async () => {
+    useAuthStore.setState({ roles: ['INSPECTOR'] });
+    const firstFlight = {
+      id: 'flight-1',
+      fieldSessionId: SESSION.id,
+      flightNumber: 1,
+      flightDate: '2026-10-20',
+      flightLabel: 'Flight #1',
+      startedAt: null,
+      hasFlightReport: false,
+    };
+    const secondFlight = { ...firstFlight, id: 'flight-2', flightNumber: 2, flightLabel: 'Flight #2' };
+    mocks.list.mockResolvedValue([{ ...SESSION, flights: [firstFlight, secondFlight] }]);
+    mocks.deleteFlight.mockImplementationOnce(async () => {
+      mocks.list.mockResolvedValue([{ ...SESSION, flights: [firstFlight] }]);
+    });
+
+    renderWithClient('flight');
+
+    expect(await screen.findByRole('button', { name: /^Flight 2/, pressed: true })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Flight 2' }));
+    const dialog = screen.getByRole('dialog', { name: 'Delete flight?' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(mocks.deleteFlight).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: /^Flight 2/, pressed: true })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Flight 2' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete flight' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(mocks.deleteFlight).toHaveBeenCalledWith('inspection-1', SESSION.id, secondFlight.id);
+    expect(screen.queryByRole('button', { name: 'Delete Flight 2' })).toBeNull();
+    expect(screen.getByRole('button', { name: /^Flight 1/, pressed: true })).toBeTruthy();
   });
 
   it('shows the permit upload action when inspection status is SCHEDULED', async () => {
