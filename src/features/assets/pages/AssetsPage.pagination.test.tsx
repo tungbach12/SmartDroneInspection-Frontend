@@ -122,6 +122,8 @@ describe('AssetsPage server-backed pagination for Customer and Manager', () => {
     expect(screen.getByText('Showing 1–8 of 10')).toBeTruthy();
     expect(screen.getByText('Tower Asset 1')).toBeTruthy();
     expect(screen.queryByText('Tower Asset 9')).toBeNull();
+    expect(screen.queryByText(/District 1/)).toBeNull();
+    expect(screen.queryByText(/Tower ·/)).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Go to page 2' }));
 

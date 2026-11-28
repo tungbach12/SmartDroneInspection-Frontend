@@ -1,3 +1,5 @@
+import { formatLocationLabel } from '@/shared/ui/formatLocation';
+
 export type AirspaceZoneType = 'NO_FLY_ZONE' | 'RESTRICTED_ZONE';
 export type AirspaceClassification = 'NO_FLY_ZONE' | 'RESTRICTED_ZONE' | 'CLEAR_ZONE';
 
@@ -371,29 +373,7 @@ export function extractCoordinates(
  * or a plain text string into a clean, human-readable address.
  */
 export function formatLocation(locationText?: string | null | undefined): string {
-  if (!locationText || !locationText.trim()) return '—';
-  const trimmed = locationText.trim();
-  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-    try {
-      const parsed = JSON.parse(trimmed);
-      if (parsed && typeof parsed === 'object') {
-        if (typeof parsed.label === 'string' && parsed.label.trim()) {
-          return parsed.label.trim();
-        }
-        if (typeof parsed.address === 'string' && parsed.address.trim()) {
-          return parsed.address.trim();
-        }
-        const lat = parsed.latitude ?? parsed.lat;
-        const lon = parsed.longitude ?? parsed.lon ?? parsed.lng;
-        if (lat != null && lon != null && !Number.isNaN(Number(lat)) && !Number.isNaN(Number(lon))) {
-          return `${Number(lat).toFixed(4)}, ${Number(lon).toFixed(4)}`;
-        }
-      }
-    } catch {
-      // not valid JSON, treat as plain string
-    }
-  }
-  return trimmed;
+  return formatLocationLabel(locationText);
 }
 
 /**

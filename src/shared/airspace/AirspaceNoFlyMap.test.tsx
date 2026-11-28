@@ -282,6 +282,14 @@ describe('airspaceZones & AirspaceNoFlyMap', () => {
       formatLocation('{"address": "Quận 1 - TP. Thủ Đức, TP.HCM", "latitude": 10.7805, "longitude": 106.7108}'),
     ).toBe('Quận 1 - TP. Thủ Đức, TP.HCM');
 
+    expect(
+      formatLocation('{"city": "TP. Hồ Chí Minh", "address": "Khu Công Nghệ Cao, TP. Thủ Đức, TP. Hồ Chí Minh", "district": "TP. Thủ Đức"}'),
+    ).toBe('Khu Công Nghệ Cao, TP. Thủ Đức, TP. Hồ Chí Minh');
+
+    expect(
+      formatLocation('{"district": "Phú Nhuận", "city": "TP. Hồ Chí Minh"}'),
+    ).toBe('Phú Nhuận, TP. Hồ Chí Minh');
+
     expect(formatLocation('{"latitude": 10.7805, "longitude": 106.7108}')).toBe('10.7805, 106.7108');
 
     expect(formatLocation('Plain location text')).toBe('Plain location text');
