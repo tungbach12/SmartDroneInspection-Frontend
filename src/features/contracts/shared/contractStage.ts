@@ -70,6 +70,21 @@ export function getStatusLabel(
   }
 }
 
+/** Maps a service-request occurrence status to uniform StatusChip props across portals. */
+export function resolveOccurrenceStatusChipProps(status: string): {
+  status: string;
+  label: string;
+  tone: 'success' | 'error' | 'default';
+} {
+  if (status === 'ASSIGNED') {
+    return { status: 'assigned', label: 'Assigned', tone: 'success' };
+  }
+  if (status === 'CANCELLED') {
+    return { status: 'cancelled', label: 'Cancelled', tone: 'error' };
+  }
+  return { status: 'pending', label: 'Unassigned', tone: 'default' };
+}
+
 const INSPECTION_STATUS_LABELS: Record<string, string> = {
   SCHEDULED: 'Scheduled',
   IN_PROGRESS: 'In Progress',
