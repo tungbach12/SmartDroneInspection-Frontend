@@ -99,6 +99,39 @@ export interface InspectorDrone {
   features?: string[] | null;
 }
 
+export interface DroneSpecPreset {
+  id: string;
+  model: string;
+  manufacturer: string;
+  mtowKg: number;
+  maxFlightTimeMinutes: number;
+  maxWindResistanceMps: number;
+  maxAltitudeMeters: number;
+  opticalZoomLevel: string;
+  cameraSensor: string;
+  features: string[];
+}
+
+export interface DroneSpecExtractionResult {
+  model: string | null;
+  manufacturer: string | null;
+  serialNumber: string | null;
+  registrationNumber: string | null;
+  registrationExpiresAt: string | null;
+  mtowKg: number | null;
+  maxFlightTimeMinutes: number | null;
+  maxWindResistanceMps: number | null;
+  maxAltitudeMeters: number | null;
+  opticalZoomLevel: string | null;
+  cameraSensor: string | null;
+  features: string[];
+  visionEnabled: boolean;
+  extractionSource: string;
+  matchedPresetModel: string | null;
+  suggestedFields: string[];
+  notices: string[];
+}
+
 function unwrap<T>(value: T | { data: T }): T {
   return typeof value === 'object' && value !== null && 'data' in value
     ? (value as { data: T }).data
@@ -129,4 +162,21 @@ export const mf1DroneApi = {
         responseType: 'blob',
       })
       .then((response) => response.data),
+  presets: () =>
+    api
+      .get<DroneSpecPreset[] | { data: DroneSpecPreset[] }>('/drone-registration-applications/presets')
+      .then((response) => unwrap(response.data)),
+  extractSpecs: (file: File, ocrText?: string) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (ocrText && ocrText.trim()) {
+      formData.append('ocrText', ocrText.trim());
+    }
+    return api
+      .post<DroneSpecExtractionResult | { data: DroneSpecExtractionResult }>(
+        '/drone-registration-applications/extract-specs',
+        formData,
+      )
+      .then((response) => unwrap(response.data));
+  },
 };
