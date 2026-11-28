@@ -18,6 +18,7 @@ import { Link } from 'react-router-dom';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import type { ServiceRequest } from '../../api/contractApi';
+import { resolveOccurrenceStatusChipProps } from '../../shared/contractStage';
 
 interface CustomerOccurrencesStepProps {
   request: ServiceRequest;
@@ -56,18 +57,20 @@ export function CustomerOccurrencesStep({
         {isMobile ? (
           <Box>
           {request.occurrences.map((occurrence, index) => {
-            const isAssigned = occurrence.status === 'ASSIGNED';
+            const isCancelled = occurrence.status === 'CANCELLED';
+            const occurrenceChip = resolveOccurrenceStatusChipProps(occurrence.status);
             const isPaid = occurrence.paymentStatus === 'PAID';
             const isPaymentDue = occurrence.paymentStatus === 'PAYMENT_DUE';
             const feeVnd =
               occurrence.totalPrice != null && occurrence.totalPrice > 0
                 ? `${formatNumber(occurrence.totalPrice)} ₫`
                 : '—';
-            const inspectionUrl = occurrence.inspectionId
-              ? `/client/inspections/${occurrence.inspectionId}/${
-                  occurrence.reportAcceptedAt || isPaid ? 'report' : 'tracking'
-                }`
-              : null;
+            const inspectionUrl =
+              !isCancelled && occurrence.inspectionId
+                ? `/client/inspections/${occurrence.inspectionId}/${
+                    occurrence.reportAcceptedAt || isPaid ? 'report' : 'tracking'
+                  }`
+                : null;
 
             return (
               <Box
@@ -87,9 +90,9 @@ export function CustomerOccurrencesStep({
                           : `${t('Occurrence')} ${occurrence.occurrenceIndex}`}
                       </Typography>
                       <StatusChip
-                        status={isAssigned ? 'assigned' : 'pending'}
-                        label={occurrence.status === 'ASSIGNED' ? 'Assigned' : 'Unassigned'}
-                        tone={isAssigned ? 'success' : 'default'}
+                        status={occurrenceChip.status}
+                        label={occurrenceChip.label}
+                        tone={occurrenceChip.tone}
                       />
                     </Stack>
                     <Typography variant="body2" sx={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
@@ -161,7 +164,8 @@ export function CustomerOccurrencesStep({
             </TableHead>
             <TableBody>
               {request.occurrences.map((occurrence) => {
-                const isAssigned = occurrence.status === 'ASSIGNED';
+                const isCancelled = occurrence.status === 'CANCELLED';
+                const occurrenceChip = resolveOccurrenceStatusChipProps(occurrence.status);
                 const isPaid = occurrence.paymentStatus === 'PAID';
                 const isPaymentDue = occurrence.paymentStatus === 'PAYMENT_DUE';
                 const feeVnd =
@@ -188,9 +192,9 @@ export function CustomerOccurrencesStep({
                     <TableCell>
                       <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
                         <StatusChip
-                          status={isAssigned ? 'assigned' : 'pending'}
-                          label={occurrence.status === 'ASSIGNED' ? 'Assigned' : 'Unassigned'}
-                          tone={isAssigned ? 'success' : 'default'}
+                          status={occurrenceChip.status}
+                          label={occurrenceChip.label}
+                          tone={occurrenceChip.tone}
                         />
                         {occurrence.reportAcceptedAt && (
                           <StatusChip status="accepted" label="Report accepted" tone="success" />
@@ -209,7 +213,7 @@ export function CustomerOccurrencesStep({
                       </Stack>
                     </TableCell>
                     <TableCell align="right">
-                      {occurrence.inspectionId ? (
+                      {!isCancelled && occurrence.inspectionId ? (
                         <Button
                           component={Link}
                           to={`/client/inspections/${occurrence.inspectionId}/${
