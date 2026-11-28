@@ -717,7 +717,7 @@ describe('FieldSessionPage', () => {
     expect(screen.getByRole('button', { name: 'Clear all' })).toBeTruthy();
   });
 
-  it('requires required post-flight safety checks and building inspection items unless explained in notes', async () => {
+  it('treats post-flight completion checklist as optional and only requires building inspection items unless explained in notes', async () => {
     mocks.list.mockResolvedValue([
       { ...SESSION, hasFlightReport: true, telemetrySource: 'IMPORTED_LOG_SRT' },
     ]);
@@ -730,15 +730,12 @@ describe('FieldSessionPage', () => {
     const completeButton = screen.getByRole('button', {
       name: 'Complete session & Continue to Evidence',
     }) as HTMLButtonElement;
-    // Unchecked building inspection items & required post-flight items gate completion
+    // Unchecked building inspection items gate completion
     expect(completeButton.disabled).toBe(true);
 
-    // Checking building items + required post-flight items unlocks completion while optional PO-04 remains unchecked
+    // Checking only building items unlocks completion while all post-flight checklist items remain unchecked
     fireEvent.click(screen.getByText('Mố cầu'));
     fireEvent.click(screen.getByText('Dầm chính'));
-    fireEvent.click(screen.getByText('Aircraft landed cleanly & propulsion/power completely disarmed'));
-    fireEvent.click(screen.getByText('Motors, ESCs & batteries checked for abnormal heat or swelling'));
-    fireEvent.click(screen.getByText('All sortie photos, videos & flight logs verified & backed up'));
     expect(completeButton.disabled).toBe(false);
   });
 

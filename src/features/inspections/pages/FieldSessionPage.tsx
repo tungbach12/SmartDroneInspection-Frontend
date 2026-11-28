@@ -178,7 +178,7 @@ const POST_FLIGHT_CHECKLIST_ITEMS: readonly {
     details: null,
     referenceThreshold: null,
     safetyCritical: true,
-    required: true,
+    required: false,
   },
   {
     category: 'POST_FLIGHT_HARDWARE',
@@ -186,7 +186,7 @@ const POST_FLIGHT_CHECKLIST_ITEMS: readonly {
     details: null,
     referenceThreshold: null,
     safetyCritical: true,
-    required: true,
+    required: false,
   },
   {
     category: 'POST_FLIGHT_MEDIA',
@@ -194,7 +194,7 @@ const POST_FLIGHT_CHECKLIST_ITEMS: readonly {
     details: null,
     referenceThreshold: null,
     safetyCritical: true,
-    required: true,
+    required: false,
   },
   {
     category: 'POST_FLIGHT_MEDIA',
@@ -713,7 +713,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                 : item.details ?? null,
             referenceThreshold: item.referenceThreshold ?? null,
             safetyCritical: Boolean(item.safetyCritical),
-            required: item.required ?? false,
+            required: false,
           }))
       : POST_FLIGHT_CHECKLIST_ITEMS;
 
@@ -2379,7 +2379,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                                         · {spec.referenceThreshold}
                                       </Typography>
                                     )}
-                                    {!spec.required && (
+                                    {requiredPostFlightItems.length > 0 && !spec.required && (
                                       <Typography
                                         variant="caption"
                                         sx={{
