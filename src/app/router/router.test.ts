@@ -167,10 +167,12 @@ describe('existing portal routes', () => {
 
   it.each([
     ['/login', 'login'],
+    ['/customer/login', 'customer/login'],
     ['/register', 'register'],
     ['/inspector/login', 'inspector/login'],
     ['/inspector/register', 'inspector/register'],
-  ])('exposes separated Customer and Inspector auth route %s', (path, expected) => {
+    ['/staff/login', 'staff/login'],
+  ])('exposes public auth route %s', (path, expected) => {
     const matches = matchRoutes(router.routes, path);
     expect(matches?.at(-1)?.route.path).toBe(expected);
   });

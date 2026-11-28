@@ -27,6 +27,7 @@ import {
   PublicOnly,
 } from '@/features/auth/components/AuthSessionBootstrapper';
 import AccessDeniedPage from '@/features/auth/pages/AccessDeniedPage';
+import { LOGIN_AUDIENCES, LOGIN_PAGES } from '@/features/auth/utils/loginAudience';
 import LandingPage from '@/features/landing/pages/LandingPage';
 import { getDedicatedLandingAudience, LANDING_PATHS, type LandingAudience } from '@/features/landing/landingAudience';
 import { MotionLabPage } from '@/features/landing/pages/MotionLabPage';
@@ -421,18 +422,18 @@ export const router = createBrowserRouter([
         path: 'login',
         element: (
           <PublicOnly>
-            <LoginPage />
+            <LoginPage key="default" />
           </PublicOnly>
         ),
       },
-      {
-        path: 'inspector/login',
+      ...LOGIN_AUDIENCES.map((audience) => ({
+        path: LOGIN_PAGES[audience].path.slice(1),
         element: (
           <PublicOnly>
-            <LoginPage audience="inspector" />
+            <LoginPage key={audience} audience={audience} />
           </PublicOnly>
         ),
-      },
+      })),
       {
         path: 'auth/callback',
         element: <OAuthCallbackPage />,

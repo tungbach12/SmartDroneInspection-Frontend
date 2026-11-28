@@ -11,7 +11,7 @@ import {
   TextField,
 } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
-import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link as RouterLink, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { AuthPageLayout } from '../components/AuthPageLayout';
 import { AuthLoadingScreen } from '../components/AuthSessionBootstrapper';
@@ -20,6 +20,7 @@ import {
   confirmPasswordReset,
   getAuthErrorMessage,
   login,
+  logoutCurrentSession,
   sendLoginOtp,
   sendPasswordResetOtp,
   verifyLoginOtp,
@@ -27,7 +28,6 @@ import {
 import {
   PORTAL_ROLE_ACCESS,
   hasAnyRole,
-  type PortalId,
 } from '@/app/permissions/accessPolicy';
 import { getPortalForHost } from '../utils/domainPortal';
 import {
@@ -37,17 +37,20 @@ import {
   type PasswordSetupFormValues,
 } from '../schemas/authSchemas';
 import { getAuthRedirectTarget, getLoginReturnTo } from '../utils/authRedirect';
-import { useAuthStore, type AuthUser, type Role } from '../store/authStore';
+import { useAuthStore, type AuthUser } from '../store/authStore';
+import { LOGIN_PAGES, type LoginAudience } from '../utils/loginAudience';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 export interface LoginPageProps {
-  audience?: 'default' | 'inspector';
+  audience?: 'default' | LoginAudience;
 }
 
 export default function LoginPage({ audience = 'default' }: LoginPageProps) {
   const { t } = useLocale();
   const isInspectorPortal = audience === 'inspector';
-  const loginPath = isInspectorPortal ? '/inspector/login' : '/login';
+  const isStaffPortal = audience === 'staff';
+  const loginPath = audience === 'default' ? '/login' : LOGIN_PAGES[audience].path;
+  const hostPortal = getPortalForHost(window.location.hostname);
   const status = useAuthStore((state) => state.status);
   const roles = useAuthStore((state) => state.roles);
   const setSession = useAuthStore((state) => state.setSession);
@@ -55,6 +58,7 @@ export default function LoginPage({ audience = 'default' }: LoginPageProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [switchAudience, setSwitchAudience] = useState<LoginAudience | null>(null);
   const [pendingSetupEmail, setPendingSetupEmail] = useState<string | null>(null);
   const [otpChallenge, setOtpChallenge] = useState<string | null>(null);
   const [otpChannels, setOtpChannels] = useState<Array<'EMAIL' | 'SMS'>>([]);
@@ -104,38 +108,42 @@ export default function LoginPage({ audience = 'default' }: LoginPageProps) {
   };
 
   const from = (location.state as { from?: unknown } | null)?.from;
-  const returnTo = getLoginReturnTo(from, searchParams.get('returnTo'));
+  const returnToParam = searchParams.get('returnTo');
+  const returnTo = getLoginReturnTo(from, returnToParam);
   const destination = getAuthRedirectTarget(returnTo, roles);
 
-  const completeAuthenticatedSignIn = (accessToken: string, user: AuthUser): boolean => {
-    const portal: PortalId | null = getPortalForHost(window.location.hostname);
-    if (portal && !hasAnyRole(user.roles, PORTAL_ROLE_ACCESS[portal])) {
-      setErrorMessage('This account does not belong to this workspace.');
-      return false;
+  const completeAuthenticatedSignIn = async (accessToken: string, user: AuthUser) => {
+    const isStaff = user.roles.includes('MANAGER') || user.roles.includes('ADMIN');
+    const isCustomer = user.roles.includes('CUSTOMER');
+    const isInspector = user.roles.includes('INSPECTOR');
+    let nextAudience: LoginAudience | null = null;
+    if (isInspectorPortal && !isInspector) {
+      nextAudience = isStaff ? 'staff' : 'customer';
+    } else if (!isInspectorPortal && isInspector && !isCustomer && !isStaff) {
+      nextAudience = 'inspector';
+    } else if (audience === 'customer' && !isCustomer && isStaff) {
+      nextAudience = 'staff';
+    } else if (isStaffPortal && !isStaff && isCustomer) {
+      nextAudience = 'customer';
     }
-    if (isInspectorPortal) {
-      if (!user.roles.includes('INSPECTOR')) {
-        setErrorMessage(
-          t('This sign-in page is for Partner Inspectors only. Please sign in on the Customer portal (/login).'),
-        );
-        return false;
+    const hostMismatch = hostPortal && !hasAnyRole(user.roles, PORTAL_ROLE_ACCESS[hostPortal]);
+    if (hostMismatch || nextAudience) {
+      // Auth endpoints have already issued a refresh cookie by this point.
+      await logoutCurrentSession(accessToken).catch(() => undefined);
+      if (hostMismatch) {
+        setErrorMessage(t('This account does not belong to this workspace.'));
+      } else {
+        setSwitchAudience(nextAudience);
       }
-    } else if (
-      user.roles.includes('INSPECTOR') &&
-      !user.roles.some((r: Role) => ['CUSTOMER', 'ADMIN', 'MANAGER'].includes(r))
-    ) {
-      setErrorMessage(
-        t('Partner Inspector accounts must sign in at the dedicated Inspector portal (/inspector/login).'),
-      );
-      return false;
+      return;
     }
     setSession({ accessToken, user });
     navigate(getAuthRedirectTarget(returnTo, user.roles), { replace: true });
-    return true;
   };
 
   const onLogin = async (values: LoginFormValues) => {
     setErrorMessage(null);
+    setSwitchAudience(null);
     try {
       const result = await login(values.email, values.password);
       if (result.step === 'PASSWORD_CHANGE_REQUIRED') {
@@ -162,7 +170,7 @@ export default function LoginPage({ audience = 'default' }: LoginPageProps) {
       if (!result.accessToken || !result.user) {
         throw new Error('The sign-in response did not include an access token.');
       }
-      completeAuthenticatedSignIn(result.accessToken, result.user);
+      await completeAuthenticatedSignIn(result.accessToken, result.user);
     } catch (error) {
       setErrorMessage(getAuthErrorMessage(error));
     }
@@ -182,12 +190,13 @@ export default function LoginPage({ audience = 'default' }: LoginPageProps) {
   const onVerifyOtp = async () => {
     if (!otpChallenge || !otpCode) return;
     setErrorMessage(null);
+    setSwitchAudience(null);
     try {
       const result = await verifyLoginOtp(otpChallenge, otpCode);
       if (result.step !== 'AUTHENTICATED' || !result.accessToken || !result.user) {
         throw new Error('The verification response did not complete sign-in.');
       }
-      completeAuthenticatedSignIn(result.accessToken, result.user);
+      await completeAuthenticatedSignIn(result.accessToken, result.user);
     } catch (error) {
       setErrorMessage(getAuthErrorMessage(error));
     }
@@ -199,6 +208,7 @@ export default function LoginPage({ audience = 'default' }: LoginPageProps) {
     }
 
     setErrorMessage(null);
+    setSwitchAudience(null);
     try {
       const result = await completeInitialPasswordSetup(
         pendingSetupEmail,
@@ -221,7 +231,7 @@ export default function LoginPage({ audience = 'default' }: LoginPageProps) {
         throw new Error('Password setup did not complete sign-in.');
       }
 
-      completeAuthenticatedSignIn(result.accessToken, result.user);
+      await completeAuthenticatedSignIn(result.accessToken, result.user);
     } catch (error) {
       setErrorMessage(getAuthErrorMessage(error));
     }
@@ -355,6 +365,29 @@ export default function LoginPage({ audience = 'default' }: LoginPageProps) {
       mt: 0.5,
     },
   };
+
+  const signInNotice = switchAudience ? (
+    <Alert severity="info" sx={{ borderRadius: '8px', '& .MuiAlert-message': { py: 0.5 } }}>
+      <Stack spacing={0.5} sx={{ alignItems: 'flex-start' }}>
+        {t('Use your account’s sign-in page.')}
+        <Button
+          component={RouterLink}
+          to={{
+            pathname: LOGIN_PAGES[switchAudience].path,
+            search: returnToParam ? new URLSearchParams({ returnTo: returnToParam }).toString() : '',
+          }}
+          state={{ email: loginForm.getValues('email'), from }}
+          size="small"
+          variant="outlined"
+          sx={{ textTransform: 'none' }}
+        >
+          {t(LOGIN_PAGES[switchAudience].title)}
+        </Button>
+      </Stack>
+    </Alert>
+  ) : errorMessage && (
+    <Alert severity="error" sx={{ borderRadius: '8px' }}>{errorMessage}</Alert>
+  );
 
   if (isForgotPassword) {
     return (
@@ -560,7 +593,7 @@ export default function LoginPage({ audience = 'default' }: LoginPageProps) {
               </Button>
             </>
           )}
-          {errorMessage && <Alert severity="error" role="alert">{errorMessage}</Alert>}
+          {signInNotice}
           <Button
             color="inherit"
             onClick={() => {
@@ -568,6 +601,7 @@ export default function LoginPage({ audience = 'default' }: LoginPageProps) {
               setOtpCode('');
               setOtpSent(false);
               setErrorMessage(null);
+              setSwitchAudience(null);
             }}
           >
             {t('Back to sign in')}
@@ -662,7 +696,7 @@ export default function LoginPage({ audience = 'default' }: LoginPageProps) {
             error={Boolean(setupForm.formState.errors.confirmPassword)}
             helperText={setupForm.formState.errors.confirmPassword?.message}
           />
-          {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
+          {signInNotice}
           <Button
             type="submit"
             variant="contained"
@@ -689,6 +723,7 @@ export default function LoginPage({ audience = 'default' }: LoginPageProps) {
             onClick={() => {
               setPendingSetupEmail(null);
               setErrorMessage(null);
+              setSwitchAudience(null);
             }}
           >
             {t('Back to sign in')}
@@ -700,20 +735,16 @@ export default function LoginPage({ audience = 'default' }: LoginPageProps) {
 
   return (
     <AuthPageLayout
-      {...(isInspectorPortal
-        ? {
-            eyebrow: t('Partner Inspector Portal'),
-            description: t('Sign in to manage assigned drone inspections and flight missions.'),
-          }
-        : {
-            onGoogleClick: onGoogleLogin,
-          })}
-      title={isInspectorPortal ? t('Inspector sign-in') : t('Welcome back')}
-      subtitleText={isInspectorPortal ? t('New drone partner?') : t("Don't have an account?")}
-      subtitleLinkText={isInspectorPortal ? t('Register as Inspector') : t('Sign up')}
-      subtitleLinkTo={isInspectorPortal ? '/inspector/register' : '/register'}
+      onGoogleClick={onGoogleLogin}
+      title={t(audience === 'default' ? 'Welcome back' : LOGIN_PAGES[audience].title)}
+      description={null}
+      {...(!isStaffPortal && {
+        subtitleText: t(isInspectorPortal ? 'New drone partner?' : "Don't have an account?"),
+        subtitleLinkText: t(isInspectorPortal ? 'Register as Inspector' : 'Sign up'),
+        subtitleLinkTo: isInspectorPortal ? '/inspector/register' : '/register',
+      })}
       backLabel={t('Back to website')}
-      backTo={isInspectorPortal ? '/inspector' : '/'}
+      backTo={audience === 'default' ? '/' : `/${audience}`}
       showSocial={!isInspectorPortal}
       socialPrompt={t('Or sign in with')}
       heroTagline={
@@ -801,6 +832,7 @@ export default function LoginPage({ audience = 'default' }: LoginPageProps) {
             size="small"
             onClick={() => {
               setErrorMessage(null);
+              setSwitchAudience(null);
               setResetEmail(loginForm.getValues('email') || '');
               setIsForgotPassword(true);
             }}
@@ -817,11 +849,7 @@ export default function LoginPage({ audience = 'default' }: LoginPageProps) {
             {t('Forgot password?')}
           </Button>
         </Box>
-        {errorMessage && (
-          <Alert severity="error" role="alert" sx={{ borderRadius: 2 }}>
-            {errorMessage}
-          </Alert>
-        )}
+        {signInNotice}
         <Button
           type="submit"
           variant="contained"
@@ -847,7 +875,7 @@ export default function LoginPage({ audience = 'default' }: LoginPageProps) {
             },
           }}
         >
-          {loginForm.formState.isSubmitting ? 'Signing in…' : 'Sign in'}
+          {t(loginForm.formState.isSubmitting ? 'Signing in…' : 'Sign in')}
         </Button>
       </Stack>
     </AuthPageLayout>

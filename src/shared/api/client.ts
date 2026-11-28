@@ -58,6 +58,7 @@ export async function postWithBrowserCsrf<TResponse = unknown>(
   url: string,
   body?: unknown,
   timeout = 30_000,
+  accessToken?: string,
 ): Promise<AxiosResponse<TResponse>> {
   const { data } = await api.get<CsrfResponse>('/auth/csrf', { timeout });
   if (typeof data.token !== 'string' || data.token.length === 0) {
@@ -73,7 +74,10 @@ export async function postWithBrowserCsrf<TResponse = unknown>(
   return api.post<TResponse>(url, body, {
     timeout,
     withXSRFToken: false,
-    headers: { [headerName]: data.token },
+    headers: {
+      [headerName]: data.token,
+      ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
+    },
   });
 }
 
@@ -155,7 +159,7 @@ api.interceptors.request.use((config) => {
   config.headers.set('Accept-Language', locale);
 
   const token = useAuthStore.getState().accessToken;
-  if (token && !shouldSkipBearerToken(config.url)) {
+  if (token && !config.headers.has('Authorization') && !shouldSkipBearerToken(config.url)) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;

@@ -7,6 +7,7 @@ import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import TaskAltIcon from '@mui/icons-material/TaskAlt';
 import LanguageRounded from '@mui/icons-material/LanguageRounded';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import { LOGIN_PAGES } from '@/features/auth/utils/loginAudience';
 import { NextAdminLogoMark } from '@/shared/ui/NextAdminIcons';
 import { LANDING_PATHS, type LandingAudience } from '../landingAudience';
 
@@ -72,7 +73,7 @@ const actionSx = {
 export default function LandingPage({ audience }: { audience?: LandingAudience }) {
   const { locale, setLocale, t } = useLocale();
   const homePath = audience ? LANDING_PATHS[audience] : '/';
-  const signInPath = audience === 'inspector' ? '/inspector/login' : '/login';
+  const signInPath = audience ? LOGIN_PAGES[audience].path : LOGIN_PAGES.customer.path;
   const signUpPath = audience === 'inspector' ? '/inspector/register' : '/register';
   useEffect(() => {
     const previousTitle = document.title;

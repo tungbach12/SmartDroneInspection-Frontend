@@ -41,9 +41,9 @@ describe('landing page', () => {
   });
 
   it.each([
-    { audience: 'customer', signIn: '/login', signUp: '/register' },
+    { audience: 'customer', signIn: '/customer/login', signUp: '/register' },
     { audience: 'inspector', signIn: '/inspector/login', signUp: '/inspector/register' },
-    { audience: 'staff', signIn: '/login', signUp: '/register' },
+    { audience: 'staff', signIn: '/staff/login', signUp: '/register' },
   ] as const)('keeps the original design and auth links for $audience', ({ audience, signIn, signUp }) => {
     render(<LandingPage audience={audience} />);
 

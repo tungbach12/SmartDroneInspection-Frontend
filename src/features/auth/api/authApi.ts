@@ -357,8 +357,12 @@ export async function evaluateAirspace(
   return data;
 }
 
-export async function logoutCurrentSession(): Promise<void> {
-  await postWithBrowserCsrf('/auth/logout');
+export async function logoutCurrentSession(accessToken?: string): Promise<void> {
+  if (accessToken) {
+    await postWithBrowserCsrf('/auth/logout', undefined, undefined, accessToken);
+  } else {
+    await postWithBrowserCsrf('/auth/logout');
+  }
 }
 
 export async function fetchCurrentUser(accessToken?: string): Promise<AuthUser> {
