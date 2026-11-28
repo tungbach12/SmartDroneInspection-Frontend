@@ -63,6 +63,7 @@ interface AuthPageLayoutProps extends PropsWithChildren {
   footer?: ReactNode;
   workspaceCopy?: { sideLabel: string; sideTitle: string; sideBody: string };
   sideLabels?: readonly string[];
+  formMaxWidth?: number | string;
 }
 
 const defaultGoogleLogin = () => {
@@ -88,6 +89,7 @@ export function AuthPageLayout({
   onGoogleClick,
   onAppleClick: _onAppleClick,
   footer,
+  formMaxWidth = '400px',
   children,
 }: AuthPageLayoutProps) {
   return (
@@ -98,7 +100,7 @@ export function AuthPageLayout({
         width: '100%',
         bgcolor: '#FFFFFF',
         display: 'grid',
-        gridTemplateColumns: { xs: '1fr', md: '58fr 42fr', lg: '62fr 38fr' },
+        gridTemplateColumns: { xs: '1fr', md: '60fr 40fr', lg: '64fr 36fr' },
         alignItems: 'stretch',
         fontFamily: 'var(--lytic-font, "Geist Sans", sans-serif)',
       }}
@@ -110,7 +112,7 @@ export function AuthPageLayout({
         heroTagline={heroTagline}
       />
 
-      {/* Right Pane: Clean Compact Form matching the Reference Layout */}
+      {/* Right Pane: Clean Form */}
       <Box
         sx={{
           minHeight: '100vh',
@@ -118,12 +120,12 @@ export function AuthPageLayout({
           flexDirection: 'column',
           justifyContent: 'center',
           alignItems: 'center',
-          px: { xs: 3, sm: 5, md: 5, lg: 6 },
-          py: { xs: 4, md: 5 },
+          px: { xs: 2.5, sm: 3.5, md: 4, lg: 4.5 },
+          py: { xs: 3, md: 4 },
           bgcolor: '#FFFFFF',
         }}
       >
-        <Box sx={{ width: '100%', maxWidth: '360px' }}>
+        <Box sx={{ width: '100%', maxWidth: formMaxWidth }}>
           {/* Top-Left Brand Logo */}
           <Box sx={{ mb: 3.5 }}>
             <Link

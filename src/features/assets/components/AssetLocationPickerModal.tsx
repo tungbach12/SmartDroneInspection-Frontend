@@ -224,15 +224,6 @@ export function GoogleMapsLocationCard({
         </Alert>
       )}
 
-      {isRestrictedZone && (
-        <Alert severity="warning" sx={{ mb: 1.25, borderRadius: '8px', fontSize: '0.8125rem' }}>
-          {t('Restricted airspace. You can use this location. Inspection flights require a permit.')}{' '}
-          <a href="https://cambay.mod.gov.vn" target="_blank" rel="noopener noreferrer">
-            {t('Airspace rules')}
-          </a>
-        </Alert>
-      )}
-
       {hasCoordinates ? (
         <Stack spacing={1}>
           <Box
@@ -784,7 +775,6 @@ export function AssetLocationPickerModal({
 
   const pinAirspace = evaluateAirspace(pinLat, pinLon);
   const isPinNoFlyZone = pinAirspace.classification === 'NO_FLY_ZONE';
-  const isPinRestrictedZone = pinAirspace.classification === 'RESTRICTED_ZONE';
 
   const handleConfirm = () => {
     if (isPinNoFlyZone) return;
@@ -1200,15 +1190,6 @@ export function AssetLocationPickerModal({
               Google Maps
             </Box>
           </Box>
-
-          {isPinRestrictedZone && (
-            <Alert severity="warning" sx={{ borderRadius: '10px', fontSize: '0.8125rem' }}>
-              {t('Restricted airspace. You can use this location. Inspection flights require a permit.')}{' '}
-              <a href="https://cambay.mod.gov.vn" target="_blank" rel="noopener noreferrer">
-                {t('Airspace rules')}
-              </a>
-            </Alert>
-          )}
 
           {/* CURRENT PIN SUMMARY BOX */}
           <Paper
