@@ -30,7 +30,6 @@ import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { MutationProblemAlert } from '@/shared/ui/MutationProblemAlert';
 import { QueryState } from '@/shared/ui/QueryState';
-import { StatusChip } from '@/shared/ui/StatusChip';
 import { getSectionPath } from '@/app/permissions/accessPolicy';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import {
@@ -3207,72 +3206,6 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
             </>
           )}
         </QueryState>
-        )}
-
-        {(items.length > 1 || (items.length === 1 && !openSession && allInspectionFlights.length > 1)) && (
-          <Box component="details" sx={{ '& > summary': { cursor: 'pointer', color: 'text.secondary' } }}>
-            <Typography component="summary" variant="body2">
-              {t('Session history')} · {items.length}{' '}
-              {allInspectionFlights.length > 0 ? `(${allInspectionFlights.length} ${tr('chuyến bay', 'flights')})` : ''}
-            </Typography>
-            <Stack spacing={1} sx={{ pt: 1.5 }}>
-              {[...items].reverse().map((session, sIdx) => (
-                <Paper key={session.id} variant="outlined" sx={{ p: 1.5, borderRadius: '10px' }}>
-                  <Stack spacing={0.75}>
-                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {tr('Phiên', 'Session')} #{items.length - sIdx}
-                        {session.sessionDate ? ` · ${session.sessionDate}` : ''}
-                        {session.startedAt ? ` · ${formatDateTime(new Date(session.startedAt))}` : ''}
-                      </Typography>
-                      <StatusChip status={session.status} />
-                    </Stack>
-                    {session.preFlightConditions && (
-                      <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', rowGap: 0.5 }}>
-                        {session.preFlightConditions.windSpeedMs != null && (
-                          <Chip size="small" variant="outlined" label={`${t('Wind')}: ${session.preFlightConditions.windSpeedMs} m/s`} />
-                        )}
-                        {session.preFlightConditions.minBatteryPercent != null && (
-                          <Chip size="small" variant="outlined" label={`${t('Battery')}: ${session.preFlightConditions.minBatteryPercent}%`} />
-                        )}
-                        {session.preFlightConditions.gpsSatellites != null && (
-                          <Chip size="small" variant="outlined" label={`GNSS: ${session.preFlightConditions.gpsSatellites} sats`} />
-                        )}
-                      </Stack>
-                    )}
-                    {session.flights && session.flights.length > 0 && (
-                      <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', rowGap: 0.5 }}>
-                        {session.flights.map((f) => (
-                          <Chip
-                            key={f.id}
-                            size="small"
-                            variant="outlined"
-                            color={f.hasFlightReport ? 'success' : 'default'}
-                            label={`${flightTitle(f)} · ${flightDateTime(f)}${f.flightDurationSeconds ? ` (${Math.round(f.flightDurationSeconds / 60)}m)` : ''}`}
-                          />
-                        ))}
-                      </Stack>
-                    )}
-                    {session.postponementReason && (
-                      <Typography variant="body2" color="warning.main">
-                        {t('Postponed:')} {session.postponementReason}
-                      </Typography>
-                    )}
-                    {session.abortReason && (
-                      <Typography variant="body2" color="error.main">
-                        {t('Aborted:')} {session.abortReason}
-                      </Typography>
-                    )}
-                    {session.outcomeNotes && (
-                      <Typography variant="body2" color="text.secondary">
-                        {session.outcomeNotes}
-                      </Typography>
-                    )}
-                  </Stack>
-                </Paper>
-              ))}
-            </Stack>
-          </Box>
         )}
       </Stack>
 

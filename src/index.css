@@ -88,7 +88,9 @@ select {
 .MuiFab-root .MuiSvgIcon-root,
 .MuiAvatar-root .MuiSvgIcon-root,
 .MuiBadge-badge .MuiSvgIcon-root,
-.MuiToggleButton-root.Mui-selected .MuiSvgIcon-root {
+.MuiToggleButton-root.Mui-selected .MuiSvgIcon-root,
+.MuiRating-root .MuiSvgIcon-root,
+.MuiSvgIcon-root[data-rating-star="true"] {
   fill: currentColor !important;
   filter: none !important;
 }

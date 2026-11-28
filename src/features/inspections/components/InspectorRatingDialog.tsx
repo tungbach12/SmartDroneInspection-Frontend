@@ -121,10 +121,15 @@ export function InspectorRatingDialog({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const resolvedCriterionScores: Record<string, number> = {};
+    for (const key of criteriaKeys) {
+      resolvedCriterionScores[key] =
+        criterionScores[key] ?? existingRating?.criterionScores?.[key] ?? 5;
+    }
     upsert.mutate(
       {
         overallScore,
-        criterionScores,
+        criterionScores: resolvedCriterionScores,
         comment: comment.trim() || null,
       },
       {
@@ -134,70 +139,114 @@ export function InspectorRatingDialog({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth slotProps={{ paper: { sx: { borderRadius: '14px' } } }}>
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth slotProps={{ paper: { sx: { borderRadius: '14px' } } }}>
       <form onSubmit={handleSubmit}>
-        <DialogTitle sx={{ pr: 5, pb: 1 }}>
-          <Typography variant="subtitle1" component="span" sx={{ fontWeight: 700, display: 'block' }}>
+        <DialogTitle sx={{ px: 3, pt: 2.5, pb: 2, pr: 6 }}>
+          <Typography variant="h6" component="span" sx={{ fontWeight: 700, display: 'block', lineHeight: 1.3 }}>
             {existingRating ? t('Update Inspector Rating') : t('Rate Inspector')}
           </Typography>
           {inspectorName && (
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25, display: 'block' }}>
               {inspectorName}
             </Typography>
           )}
-          <IconButton aria-label={t('Close')} onClick={onClose} size="small" sx={{ position: 'absolute', right: 12, top: 12 }}>
+          <IconButton aria-label={t('Close')} onClick={onClose} size="small" sx={{ position: 'absolute', right: 16, top: 16 }}>
             <CloseRoundedIcon fontSize="small" />
           </IconButton>
         </DialogTitle>
 
-        <DialogContent dividers>
+        <DialogContent dividers sx={{ px: 3, py: 2.5 }}>
           <Stack spacing={2}>
-            <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
-              <Typography variant="body2" sx={{ fontWeight: 700 }}>
+            <Box
+              sx={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 1.5,
+                px: 2.25,
+                py: 1.75,
+                borderRadius: '12px',
+                border: '1px solid rgba(245, 158, 11, 0.28)',
+                bgcolor: 'rgba(245, 158, 11, 0.06)',
+              }}
+            >
+              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                 {t('Overall')}
               </Typography>
-              <Rating
-                name="overall-rating"
-                value={overallScore}
-                onChange={(_, val) => {
-                  if (val && val >= 1) setOverallScore(val);
-                }}
-                size="large"
-              />
-            </Stack>
+              <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
+                <Rating
+                  name="overall-rating"
+                  value={overallScore}
+                  icon={<StarRoundedIcon fontSize="inherit" data-rating-star="true" />}
+                  emptyIcon={<StarRoundedIcon fontSize="inherit" data-rating-star="true" />}
+                  onChange={(_, val) => {
+                    if (val && val >= 1) setOverallScore(val);
+                  }}
+                  size="large"
+                />
+                <Typography
+                  variant="body2"
+                  sx={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums', minWidth: 28, textAlign: 'right' }}
+                >
+                  {overallScore}/5
+                </Typography>
+              </Stack>
+            </Box>
 
-            <Divider />
-
-            <Stack spacing={1.25}>
-              {criteriaKeys.map((key) => {
+            <Stack spacing={0}>
+              {criteriaKeys.map((key, idx) => {
                 const def = expectedCriteria?.find((c) => c.code === key);
                 const hint = def
                   ? locale === 'vi'
                     ? def.descriptionVi
                     : def.descriptionEn
                   : null;
+                const scoreValue = criterionScores[key] ?? existingRating?.criterionScores?.[key] ?? 5;
                 return (
-                  <Stack key={key} direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography variant="body2" color="text.secondary">
+                  <Stack
+                    key={key}
+                    direction={{ xs: 'column', sm: 'row' }}
+                    sx={{
+                      py: 1.75,
+                      alignItems: { xs: 'flex-start', sm: 'center' },
+                      justifyContent: 'space-between',
+                      gap: { xs: 1, sm: 2.5 },
+                      borderBottom: idx < criteriaKeys.length - 1 ? '1px solid' : 'none',
+                      borderColor: 'divider',
+                    }}
+                  >
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
                         {resolveCriterionLabel(key, expectedCriteria, locale, t, actorRole)}
                       </Typography>
                       {hint && (
-                        <Typography variant="caption" color="text.disabled" sx={{ display: 'block', lineHeight: 1.25 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.35, lineHeight: 1.45 }}>
                           {hint}
                         </Typography>
                       )}
                     </Box>
-                    <Rating
-                      name={`criterion-${key}`}
-                      size="small"
-                      value={criterionScores[key] ?? 5}
-                      onChange={(_, val) => {
-                        if (val && val >= 1) {
-                          setCriterionScores((prev) => ({ ...prev, [key]: val }));
-                        }
-                      }}
-                    />
+                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexShrink: 0 }}>
+                      <Rating
+                        name={`criterion-${key}`}
+                        size="medium"
+                        value={scoreValue}
+                        icon={<StarRoundedIcon fontSize="inherit" data-rating-star="true" />}
+                        emptyIcon={<StarRoundedIcon fontSize="inherit" data-rating-star="true" />}
+                        onChange={(_, val) => {
+                          if (val && val >= 1) {
+                            setCriterionScores((prev) => ({ ...prev, [key]: val }));
+                          }
+                        }}
+                      />
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums', minWidth: 24, textAlign: 'right' }}
+                      >
+                        {scoreValue}/5
+                      </Typography>
+                    </Stack>
                   </Stack>
                 );
               })}
@@ -207,7 +256,7 @@ export function InspectorRatingDialog({
               label={t('Comment (optional)')}
               placeholder={t('Brief note...')}
               multiline
-              rows={2}
+              rows={3}
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               slotProps={{ htmlInput: { maxLength: 2000 } }}
@@ -216,12 +265,21 @@ export function InspectorRatingDialog({
           </Stack>
         </DialogContent>
 
-        <DialogActions sx={{ px: 3, py: 2 }}>
+        <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+          <Button
+            type="button"
+            variant="text"
+            onClick={onClose}
+            disabled={upsert.isPending}
+            sx={{ textTransform: 'none', fontWeight: 600, color: 'text.secondary' }}
+          >
+            {t('Cancel')}
+          </Button>
           <Button
             type="submit"
             variant="contained"
             disabled={upsert.isPending}
-            sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px' }}
+            sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px', px: 2.5 }}
           >
             {upsert.isPending ? t('Saving…') : existingRating ? t('Save changes') : t('Submit rating')}
           </Button>
@@ -295,7 +353,7 @@ export function InspectorRatingPromptCard({ inspectionId }: InspectorRatingPromp
               {myRating ? (
                 <>
                   <Stack direction="row" spacing={0.25} sx={{ alignItems: 'center' }}>
-                    <StarRoundedIcon sx={{ fontSize: 15, color: '#f59e0b' }} />
+                    <StarRoundedIcon data-rating-star="true" sx={{ fontSize: 15, color: '#f59e0b' }} />
                     <Typography variant="caption" sx={{ fontWeight: 700 }}>
                       {t('Your rating')}: {myRating.overallScore}/5
                     </Typography>
@@ -424,7 +482,7 @@ export function InspectorRatingsBreakdownPanel({
             {t('Overall')}
           </Typography>
           <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', mt: 0.25 }}>
-            <StarRoundedIcon sx={{ fontSize: 18, color: '#f59e0b' }} />
+            <StarRoundedIcon data-rating-star="true" sx={{ fontSize: 18, color: '#f59e0b' }} />
             <Typography variant="h6" sx={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
               {summary.averageRating != null ? summary.averageRating.toFixed(1) : '—'}
             </Typography>
