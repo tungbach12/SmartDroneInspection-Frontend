@@ -1376,40 +1376,38 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                           slotProps={{
                             input: {
                               endAdornment: (
-                                <Tooltip title="Fill sample permit details" enterDelay={400}>
-                                  <IconButton
-                                    size="small"
-                                    aria-label="Fill sample permit details"
-                                    data-testid="permit-hidden-autofill-trigger"
-                                    tabIndex={-1}
-                                    onClick={() => {
-                                      setPermitNumber('245/GP-TC-2026');
-                                      setIssuingAuthority('Cục Tác chiến - Bộ Tổng Tham mưu');
-                                      setPermitFormError(null);
-                                    }}
+                                <IconButton
+                                  size="small"
+                                  aria-label="Fill sample permit details"
+                                  data-testid="permit-hidden-autofill-trigger"
+                                  tabIndex={-1}
+                                  onClick={() => {
+                                    setPermitNumber('245/GP-TC-2026');
+                                    setIssuingAuthority('Cục Tác chiến - Bộ Tổng Tham mưu');
+                                    setPermitFormError(null);
+                                  }}
+                                  sx={{
+                                    width: 20,
+                                    height: 20,
+                                    p: 0,
+                                    opacity: 0.08,
+                                    transition: 'opacity 160ms ease, transform 160ms ease',
+                                    '&:hover, &:focus-visible': {
+                                      opacity: 0.85,
+                                      transform: 'scale(1.15)',
+                                      bgcolor: 'action.hover',
+                                    },
+                                  }}
+                                >
+                                  <Box
                                     sx={{
-                                      width: 20,
-                                      height: 20,
-                                      p: 0,
-                                      opacity: 0.08,
-                                      transition: 'opacity 160ms ease, transform 160ms ease',
-                                      '&:hover, &:focus-visible': {
-                                        opacity: 0.85,
-                                        transform: 'scale(1.15)',
-                                        bgcolor: 'action.hover',
-                                      },
+                                      width: 6,
+                                      height: 6,
+                                      borderRadius: '50%',
+                                      bgcolor: 'text.disabled',
                                     }}
-                                  >
-                                    <Box
-                                      sx={{
-                                        width: 6,
-                                        height: 6,
-                                        borderRadius: '50%',
-                                        bgcolor: 'text.disabled',
-                                      }}
-                                    />
-                                  </IconButton>
-                                </Tooltip>
+                                  />
+                                </IconButton>
                               ),
                             },
                           }}
