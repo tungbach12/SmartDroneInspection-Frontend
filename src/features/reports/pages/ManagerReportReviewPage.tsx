@@ -378,7 +378,7 @@ export default function ManagerReportReviewPage({
             description={
               inspectionQuery.data?.inspectorName
                 ? `${t('Waiting for')} ${inspectionQuery.data.inspectorName} ${t('to finalize findings and submit the technical report.')}`
-                : t('The assigned Inspector creates a report draft once field evidence is accepted.')
+                : t('The assigned Inspector compiles and submits the inspection report once findings are confirmed.')
             }
           />
         }

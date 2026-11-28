@@ -754,7 +754,7 @@ export function useGenerateReportDraft(inspectionId: string | null) {
       }
     },
     onError: (error) =>
-      showToast(getErrorMessage(error, 'The report draft was not created.'), 'error'),
+      showToast(getErrorMessage(error, 'Could not compile and submit the inspection report.'), 'error'),
   });
 }
 
@@ -808,13 +808,13 @@ export function useAuthorManualDraft(inspectionId: string | null) {
   return useMutation({
     mutationFn: (input: ManualDraftInput) => inspectionApi.authorManualDraft(inspectionId!, input),
     onSuccess: () => {
-      showToast('Empty manual report draft created.');
+      showToast('Inspection report compiled and submitted.');
       if (inspectionId) {
         client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
       }
     },
     onError: (error) =>
-      showToast(getErrorMessage(error, 'The manual report draft was not created.'), 'error'),
+      showToast(getErrorMessage(error, 'Could not compile the inspection report.'), 'error'),
   });
 }
 
