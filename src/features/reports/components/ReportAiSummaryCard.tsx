@@ -27,6 +27,7 @@ import {
   type Finding,
   type ReportAiSummary,
 } from '@/features/inspections/api/inspectionApi';
+import { useAuthStore } from '@/features/auth/store/authStore';
 import { KnowledgeRecommendationPanel } from '@/features/inspections/components/KnowledgeRecommendationPanel';
 import { useInspectionKnowledgeRecommendations } from '@/features/inspections/hooks/useInspections';
 import { useLocale, type Locale } from '@/shared/i18n/LocaleProvider';
@@ -41,6 +42,7 @@ export interface ReportAiSummaryCardProps {
   assetName?: string | null | undefined;
   evidenceCount?: number | undefined;
   defaultExpanded?: boolean | undefined;
+  canRegenerate?: boolean | undefined;
 }
 
 export interface PersistedAiSummaryOptions {
@@ -549,6 +551,21 @@ function splitActionLine(line: string): { lead: string | null; body: string } {
   return { lead: null, body: clean };
 }
 
+export function readStoredRemoteAiSummary(
+  inspectionId: string,
+  findings: Finding[] = [],
+  locale: Locale | string = 'en',
+): ReportAiSummary | null {
+  if (!inspectionId) return null;
+  const confirmed = findings.filter((f) => f.status === 'CONFIRMED' && !f.isDeleted);
+  const signature = computeConfirmedSignature(confirmed);
+  const stored = readStoredSummary(storageKey(inspectionId, locale));
+  if (stored && stored.source === 'remote' && stored.signature === signature) {
+    return stored.summaryData;
+  }
+  return null;
+}
+
 /** Mounted only on user expand, so a missing QueryClient in incidental tests is never touched. */
 function MatchedKnowledgeBody({ inspectionId }: { inspectionId: string }) {
   const query = useInspectionKnowledgeRecommendations(inspectionId, true);
@@ -565,8 +582,10 @@ export function ReportAiSummaryCard({
   assetName,
   evidenceCount,
   defaultExpanded = false,
+  canRegenerate,
 }: ReportAiSummaryCardProps) {
   const { t, locale } = useLocale();
+  const roles = useAuthStore((state) => state.roles);
   const isVi = locale.toLowerCase().startsWith('vi');
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [knowledgeOpen, setKnowledgeOpen] = useState(false);
@@ -579,7 +598,14 @@ export function ReportAiSummaryCard({
   } | null>(null);
 
   const isPreviewVersion = !versionId || versionId.startsWith('preview-');
-  const isPublished = (versionStatus ?? '').toUpperCase() === 'PUBLISHED';
+  const normalizedStatus = (versionStatus ?? '').toUpperCase();
+  const isPublished = normalizedStatus === 'PUBLISHED';
+  const isInspectorRole = roles.includes('INSPECTOR');
+  const effectiveCanRegenerate =
+    (canRegenerate ?? isInspectorRole) &&
+    !isPublished &&
+    normalizedStatus !== 'SUBMITTED' &&
+    normalizedStatus !== 'APPROVED';
   const canFetchRemoteAi =
     Boolean(inspectionId) && typeof inspectionApi?.getAiSummary === 'function';
   const canQueryKnowledge =
@@ -596,49 +622,48 @@ export function ReportAiSummaryCard({
     [confirmedFindings],
   );
 
-  const localResult = useMemo(
-    () =>
-      getOrGeneratePersistedAiSummary({
-        inspectionId,
-        assetName,
-        findings,
-        evidenceList,
-        evidenceCount,
-        persistedSummary,
-        locale,
-        persist: Boolean(inspectionId) && (findings.length > 0 || isPreviewVersion),
-      }),
-    [
+  const cleanPersistedSummary = useMemo(() => {
+    const trimmed = persistedSummary?.trim() || '';
+    return trimmed && !isLegacyTemplateSummary(trimmed) ? trimmed : '';
+  }, [persistedSummary]);
+
+  const localResult = useMemo(() => {
+    if (!cleanPersistedSummary) {
+      return null;
+    }
+    return getOrGeneratePersistedAiSummary({
       inspectionId,
       assetName,
       findings,
       evidenceList,
       evidenceCount,
-      persistedSummary,
+      persistedSummary: cleanPersistedSummary,
       locale,
-      isPreviewVersion,
-    ],
-  );
+      persist: false,
+    });
+  }, [
+    cleanPersistedSummary,
+    inspectionId,
+    assetName,
+    findings,
+    evidenceList,
+    evidenceCount,
+    locale,
+  ]);
 
   const remoteTargetKey = `${inspectionId}:${versionId}:${locale}:${findingsSignature}`;
-  const storedRemote = useMemo(() => {
-    if (!inspectionId) return null;
-    const stored = readStoredSummary(storageKey(inspectionId, locale));
-    if (
-      stored &&
-      stored.source === 'remote' &&
-      stored.signature === findingsSignature
-    ) {
-      return stored.summaryData;
-    }
-    return null;
-  }, [inspectionId, locale, findingsSignature]);
+  const storedRemote = useMemo(
+    () => readStoredRemoteAiSummary(inspectionId, findings, locale),
+    [inspectionId, findings, locale],
+  );
 
+  const shouldAutoGenerate = effectiveCanRegenerate;
+  const shouldReadPersistedRemote = !isPreviewVersion && Boolean(cleanPersistedSummary);
   const shouldFetchRemote =
-    expanded &&
     canFetchRemoteAi &&
-    (regenerateNonce > 0 ||
-      (!storedRemote && remoteState?.targetKey !== remoteTargetKey));
+    ((regenerateNonce > 0 && effectiveCanRegenerate) ||
+      (shouldAutoGenerate && !storedRemote && remoteState?.targetKey !== remoteTargetKey) ||
+      (expanded && shouldReadPersistedRemote && !storedRemote && remoteState?.targetKey !== remoteTargetKey));
 
   useEffect(() => {
     if (!shouldFetchRemote || typeof inspectionApi?.getAiSummary !== 'function') {
@@ -704,25 +729,26 @@ export function ReportAiSummaryCard({
       ? remoteState.data
       : storedRemote;
 
-  const aiSummary: ReportAiSummary = useMemo(() => {
-    if (!activeRemote) {
-      return localResult.summaryData;
+  const aiSummary: ReportAiSummary | null = useMemo(() => {
+    if (activeRemote) {
+      return {
+        ...activeRemote,
+        keyHighlights:
+          activeRemote.keyHighlights && activeRemote.keyHighlights.length > 0
+            ? activeRemote.keyHighlights
+            : localResult?.summaryData.keyHighlights ?? [],
+        recommendedActions:
+          activeRemote.recommendedActions?.trim() ||
+          localResult?.summaryData.recommendedActions ||
+          '',
+        overallRisk:
+          activeRemote.overallRisk || localResult?.summaryData.overallRisk || 'LOW',
+      };
     }
-    return {
-      ...localResult.summaryData,
-      ...activeRemote,
-      keyHighlights:
-        activeRemote.keyHighlights && activeRemote.keyHighlights.length > 0
-          ? activeRemote.keyHighlights
-          : localResult.summaryData.keyHighlights,
-      recommendedActions:
-        activeRemote.recommendedActions?.trim() ||
-        localResult.summaryData.recommendedActions,
-      overallRisk: activeRemote.overallRisk || localResult.summaryData.overallRisk,
-    };
-  }, [activeRemote, localResult.summaryData]);
+    return localResult?.summaryData ?? null;
+  }, [activeRemote, localResult]);
 
-  const knowledgeRefs = aiSummary.knowledgeReferences ?? [];
+  const knowledgeRefs = aiSummary?.knowledgeReferences ?? [];
 
   const categoryBadges = useMemo(() => {
     const counts = new Map<string, number>();
@@ -735,24 +761,25 @@ export function ReportAiSummaryCard({
 
   const highlightItems = useMemo(
     () =>
-      (aiSummary.keyHighlights ?? [])
+      (aiSummary?.keyHighlights ?? [])
         .map((item) => item.trim())
         .filter(Boolean)
         .map(parseHighlight),
-    [aiSummary.keyHighlights],
+    [aiSummary],
   );
 
   const actionItems = useMemo(
     () =>
-      (aiSummary.recommendedActions ?? '')
+      (aiSummary?.recommendedActions ?? '')
         .split(/\r?\n/)
         .map((line) => line.trim())
         .filter(Boolean)
         .map(splitActionLine),
-    [aiSummary.recommendedActions],
+    [aiSummary],
   );
 
   const handleRegenerate = () => {
+    if (!effectiveCanRegenerate) return;
     setRegenerateError(false);
     if (!expanded) {
       setExpanded(true);
@@ -760,7 +787,7 @@ export function ReportAiSummaryCard({
     setRegenerateNonce((prev) => prev + 1);
   };
 
-  if (isFetching && !isRegenerating && !aiSummary.summary) {
+  if (isFetching && !isRegenerating && !aiSummary?.summary) {
     return (
       <Card
         variant="outlined"
@@ -775,7 +802,34 @@ export function ReportAiSummaryCard({
         <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
           <CircularProgress size={18} color="primary" />
           <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>
-            {t('Generating AI executive summary…')}
+            {effectiveCanRegenerate
+              ? t('Generating AI executive summary…')
+              : t('Loading AI executive summary…')}
+          </Typography>
+        </Stack>
+      </Card>
+    );
+  }
+
+  if (!aiSummary || !aiSummary.summary?.trim()) {
+    return (
+      <Card
+        variant="outlined"
+        data-testid="ai-executive-summary-card"
+        sx={{
+          borderRadius: '10px',
+          borderColor: 'divider',
+          bgcolor: 'background.paper',
+          boxShadow: 'none',
+          p: 2,
+        }}
+      >
+        <Stack spacing={0.75}>
+          <Typography component="h2" variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+            {t('AI Executive Summary')}
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            {t('No AI executive summary generated yet.')}
           </Typography>
         </Stack>
       </Card>
@@ -836,7 +890,7 @@ export function ReportAiSummaryCard({
           </Stack>
 
           <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-            {canFetchRemoteAi && !isPublished && (
+            {canFetchRemoteAi && effectiveCanRegenerate && (
               <Button
                 size="small"
                 variant="text"

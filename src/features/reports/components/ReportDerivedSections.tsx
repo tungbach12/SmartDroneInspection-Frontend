@@ -122,6 +122,7 @@ export interface ReportDerivedSectionsProps {
   inspectionId: string;
   droneSummary?: string | null | undefined;
   flightPermitFileName?: string | null | undefined;
+  canRegenerateSummary?: boolean | undefined;
 }
 
 function formatEvidenceLocationDescription(
@@ -643,6 +644,7 @@ export function ReportDerivedSections({
   inspectionId,
   droneSummary: externalDroneSummary,
   flightPermitFileName: externalPermitFileName,
+  canRegenerateSummary,
 }: ReportDerivedSectionsProps) {
   const { t, formatDateTime: formatDateTimeValue } = useLocale();
   const [selectedMapEvidenceId, setSelectedMapEvidenceId] = useState<string | null>(null);
@@ -749,6 +751,7 @@ export function ReportDerivedSections({
           evidenceList={evidenceList}
           assetName={context?.assetName}
           evidenceCount={evidenceList.length}
+          canRegenerate={canRegenerateSummary}
         />
       </Box>
 

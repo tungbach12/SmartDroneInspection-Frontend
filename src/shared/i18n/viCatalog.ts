@@ -3349,4 +3349,6 @@
   "Motors, ESCs & batteries checked for abnormal heat or swelling": "Kiểm tra nhiệt độ bất thường / phồng pin, motor & ESC",
   "All sortie photos, videos & flight logs verified & backed up": "Kiểm tra đầy đủ ảnh, video & nhật ký bay các chuyến trước khi rời hiện trường",
   "Safety cones removed, equipment packed & site restored": "Thu dọn thiết bị, tháo cọc cảnh báo & bàn giao mặt bằng sạch sẽ",
+  "No AI executive summary generated yet.": "Chưa có tóm tắt AI nào được tạo.",
+  "Loading AI executive summary…": "Đang tải tóm tắt điều hành AI…",
 };

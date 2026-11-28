@@ -36,7 +36,7 @@ import { useToastStore } from '@/shared/ui/Toast';
 import { DraftProgressTracker } from '../components/DraftProgressTracker';
 import { StepActionBar } from '../components/StepActionBar';
 import { VerdictExpiryBanner } from '../components/VerdictExpiryBanner';
-import { getOrGeneratePersistedAiSummary } from '@/features/reports/components/ReportAiSummaryCard';
+import { readStoredRemoteAiSummary } from '@/features/reports/components/ReportAiSummaryCard';
 import { ReportAuthoringPanel } from '@/features/reports/components/ReportAuthoringPanel';
 import { ReportDerivedSections } from '@/features/reports/components/ReportDerivedSections';
 import { FlightOperationsReportView } from '@/features/reports/components/FlightOperationsReportView';
@@ -143,16 +143,6 @@ export default function InspectionReportPage() {
     const unresolvedCount = verifications.filter((v) => v.resolutionStatus === 'UNRESOLVED').length;
     const inconclusiveCount = verifications.filter((v) => v.resolutionStatus === 'INCONCLUSIVE').length;
 
-    const autoSummary = getOrGeneratePersistedAiSummary({
-      inspectionId,
-      assetName: inspectionData?.assetName,
-      findings: findings.data ?? [],
-      evidenceList: activeEvidenceList,
-      evidenceCount: activeEvidenceList.length,
-      locale,
-      persist: findingsConfirmed && !findings.isLoading,
-    }).summaryData.summary;
-
     const reinspectionSummary =
       locale === 'vi'
         ? `Báo cáo bay kiểm tra lại đối chiếu Trước ↔ Sau cho công trình ${inspectionData?.assetName || 'công trình'}. Đã đối soát ${verifications.length} khuyết tật mục tiêu (${resolvedCount} ĐÃ KHẮC PHỤC${unresolvedCount > 0 ? `, ${unresolvedCount} CHƯA KHẮC PHỤC` : ''}${inconclusiveCount > 0 ? `, ${inconclusiveCount} CHƯA KẾT LUẬN` : ''}) cùng ${activeEvidenceList.length} bằng chứng bay lại.`
@@ -170,7 +160,7 @@ export default function InspectionReportPage() {
       returnReason: null,
       publishedAt: null,
       createdAt: new Date().toISOString(),
-      summary: isReinspection ? reinspectionSummary : autoSummary,
+      summary: isReinspection ? reinspectionSummary : null,
       omissionDisclosure: null,
       reportContext: {
         organizationName: null,
@@ -209,8 +199,6 @@ export default function InspectionReportPage() {
     inspectionId,
     userId,
     findings.data,
-    findings.isLoading,
-    findingsConfirmed,
     activeEvidenceList,
     reinspectionVerifications?.data,
     inspectionData,
@@ -452,6 +440,7 @@ export default function InspectionReportPage() {
                   fieldSessions={fieldSessionsQuery?.data}
                   inspectionId={inspectionId}
                   reinspectionVerifications={reinspectionVerifications?.data}
+                  canRegenerateSummary={isInspector}
                 />
               ) : (
                 <FlightOperationsReportView
@@ -637,11 +626,15 @@ export default function InspectionReportPage() {
               onSuccess: () => setConfirmSubmitOpen(false),
             });
           } else {
-            createDraft.mutate(
+            const isReinspection =
               inspectionData?.inspectionType === 'RE_INSPECTION' ||
-                (reinspectionVerifications?.data?.length ?? 0) > 0
-                ? draftPreviewVersion.summary
-                : undefined,
+              (reinspectionVerifications?.data?.length ?? 0) > 0;
+            const cachedRemoteSummary = !isReinspection
+              ? readStoredRemoteAiSummary(inspectionId, findings.data ?? [], locale)?.summary ??
+                undefined
+              : undefined;
+            createDraft.mutate(
+              isReinspection ? draftPreviewVersion.summary : cachedRemoteSummary,
               {
                 onSuccess: () => {
                   setConfirmSubmitOpen(false);
