@@ -1872,52 +1872,50 @@ function QueueTable({
           <TableBody>{children}</TableBody>
         </Table>
       </TableContainer>
-      {totalCount > 0 && (
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            px: { xs: 2, sm: 2.5 },
-            py: 1.5,
-            borderTop: '1px solid',
-            borderColor: 'divider',
-            flexWrap: 'wrap',
-            gap: 1.5,
-          }}
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          px: { xs: 2, sm: 2.5 },
+          py: 1.5,
+          borderTop: '1px solid',
+          borderColor: 'divider',
+          flexWrap: 'wrap',
+          gap: 1.5,
+        }}
+      >
+        <Typography
+          variant="body2"
+          sx={{ color: 'text.secondary', fontSize: '0.875rem', fontVariantNumeric: 'tabular-nums' }}
         >
-          <Typography
-            variant="body2"
-            sx={{ color: 'text.secondary', fontSize: '0.875rem', fontVariantNumeric: 'tabular-nums' }}
-          >
-            {summaryText}
-          </Typography>
-          <Pagination
-            count={Math.max(1, Math.ceil(totalCount / rowsPerPage))}
-            page={page + 1}
-            onChange={(_, nextPage) => onPageChange(nextPage - 1)}
-            shape="rounded"
-            size="small"
-            sx={{
-              '& .MuiPaginationItem-root': {
-                borderRadius: '8px',
-                fontWeight: 600,
-                fontSize: '0.8125rem',
-                color: 'text.primary',
-              },
-              '& .MuiPaginationItem-page.Mui-selected': {
-                bgcolor: 'primary.main',
-                color: '#FFFFFF',
-                '&:hover': { bgcolor: 'primary.dark' },
-              },
-              '& .MuiPaginationItem-previousNext': {
-                border: '1px solid',
-                borderColor: 'divider',
-              },
-            }}
-          />
-        </Box>
-      )}
+          {summaryText}
+        </Typography>
+        <Pagination
+          count={Math.max(1, Math.ceil(totalCount / rowsPerPage))}
+          page={page + 1}
+          onChange={(_, nextPage) => onPageChange(nextPage - 1)}
+          shape="rounded"
+          size="small"
+          sx={{
+            '& .MuiPaginationItem-root': {
+              borderRadius: '8px',
+              fontWeight: 600,
+              fontSize: '0.8125rem',
+              color: 'text.primary',
+            },
+            '& .MuiPaginationItem-page.Mui-selected': {
+              bgcolor: 'primary.main',
+              color: '#FFFFFF',
+              '&:hover': { bgcolor: 'primary.dark' },
+            },
+            '& .MuiPaginationItem-previousNext': {
+              border: '1px solid',
+              borderColor: 'divider',
+            },
+          }}
+        />
+      </Box>
     </Paper>
   );
 }

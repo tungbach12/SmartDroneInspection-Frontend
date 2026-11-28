@@ -161,5 +161,11 @@ describe('AssetsPage server-backed pagination for Customer and Manager', () => {
     expect(useAssetsSpy).toHaveBeenLastCalledWith({ page: 2, pageSize: 8, status: 'ACTIVE' });
     expect(screen.getByText('Showing 9–10 of 10')).toBeTruthy();
     expect(screen.getByText('Tower Asset 9')).toBeTruthy();
+
+    fireEvent.change(screen.getByPlaceholderText(/Search by id, name, or code/i), {
+      target: { value: 'NON_EXISTENT_QUERY' },
+    });
+    expect(screen.getByText('No matching assets found.')).toBeTruthy();
+    expect(screen.getByText('Showing 0 of 0')).toBeTruthy();
   });
 });
