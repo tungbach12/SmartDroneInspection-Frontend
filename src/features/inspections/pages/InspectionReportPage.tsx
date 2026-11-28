@@ -646,29 +646,13 @@ export default function InspectionReportPage() {
           }
         }}
       >
-        <Stack spacing={2} sx={{ pt: 1 }}>
-          <Alert severity="info" sx={{ borderRadius: '8px' }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>
-              {t('Inspector Professional Accountability')}
-            </Typography>
-            <Typography variant="body2">
-              {t(
-                'By submitting, I confirm I reviewed both reports and take responsibility for their contents.',
-              )}
-            </Typography>
-          </Alert>
-
-          <Alert severity="warning" sx={{ borderRadius: '8px' }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>
-              {t('Audit & Review Notice')}
-            </Typography>
-            <Typography variant="body2">
-              {t(
-                'Reports and source records are locked during Manager review.',
-              )}
-            </Typography>
-          </Alert>
-        </Stack>
+        <Alert severity="info" sx={{ borderRadius: '8px', mt: 0.5 }}>
+          <Typography variant="body2">
+            {t(
+              'By submitting, I confirm I reviewed both reports and take responsibility for their contents. Reports and source records are locked during Manager review.',
+            )}
+          </Typography>
+        </Alert>
       </ConfirmDialog>
     </Stack>
   );

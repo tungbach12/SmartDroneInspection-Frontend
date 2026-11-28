@@ -30,6 +30,7 @@
   "Findings report": "Báo cáo phát hiện",
   "Flight operations": "Hoạt động bay",
   "By submitting, I confirm I reviewed both reports and take responsibility for their contents.": "Khi gửi, tôi xác nhận đã rà soát cả hai báo cáo và chịu trách nhiệm về nội dung.",
+  "By submitting, I confirm I reviewed both reports and take responsibility for their contents. Reports and source records are locked during Manager review.": "Khi gửi, tôi xác nhận đã rà soát cả hai báo cáo và chịu trách nhiệm về nội dung. Báo cáo và hồ sơ nguồn sẽ bị khóa trong thời gian Manager thẩm định.",
   "Reports and source records are locked during Manager review.": "Báo cáo và hồ sơ nguồn sẽ bị khóa khi Manager rà soát.",
   "Submission blocked. Confirm findings and create a new report version if evidence or findings changed.": "Chưa thể gửi. Hãy xác nhận phát hiện và tạo phiên bản mới nếu bằng chứng hoặc phát hiện đã thay đổi.",
   "Submitting…": "Đang gửi…",

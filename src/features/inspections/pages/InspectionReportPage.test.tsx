@@ -156,6 +156,12 @@ describe('InspectionReportPage', () => {
     expect(submitBtn).toBeTruthy();
 
     fireEvent.click(submitBtn);
+    expect(
+      screen.getByText(
+        /By submitting, I confirm I reviewed both reports and take responsibility for their contents\. Reports and source records are locked during Manager review\./,
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText('Audit & Review Notice')).toBeNull();
     const confirmBtn = screen.getByRole('button', { name: 'Confirm and Submit' });
     fireEvent.click(confirmBtn);
 
