@@ -301,10 +301,8 @@ describe('InspectionFindingsPage', () => {
     expect(screen.queryByText('retired-span.png')).toBeNull();
     expect(screen.queryByText('Coating crack')).toBeNull();
     expect(screen.queryByRole('img', { name: 'Coating crack' })).toBeNull();
-    fireEvent.click(screen.getByLabelText(/I checked the captures within scope and confirmed no findings/));
     expect(
-      (screen.getByRole('button', { name: 'Confirm findings and continue' }) as HTMLButtonElement)
-        .disabled,
+      (screen.getByRole('button', { name: 'Continue to Report' }) as HTMLButtonElement).disabled,
     ).toBe(false);
   });
 
@@ -382,7 +380,7 @@ describe('InspectionFindingsPage', () => {
     // must not silently re-fire just because the Inspector changed their mind about the reviewed
     // set: reopening is a review action, not a request to run the model.
     const reopened = renderWithRouter(<InspectionFindingsPage />);
-    await screen.findByRole('button', { name: 'Confirm findings and continue' });
+    await screen.findByRole('button', { name: 'Continue to Report' });
 
     // Reopening returns the inspection to FIELD_COMPLETED. Detection must not silently re-fire
     // just because the Inspector changed their mind about the reviewed set: reopening is a review
@@ -509,50 +507,51 @@ describe('InspectionFindingsPage', () => {
   });
 
 
-  it('requires explicit acknowledgment when the reviewed set is empty', () => {
+  it('opens a popup confirmation when continuing to Report with no findings', async () => {
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
     renderWithRouter(<InspectionFindingsPage />);
 
-    const confirmButton = screen.getByRole('button', { name: 'Confirm findings and continue' }) as HTMLButtonElement;
-    expect(confirmButton.disabled).toBe(true);
-    fireEvent.click(screen.getByLabelText(/I checked the captures within scope and confirmed no findings/));
-    expect(confirmButton.disabled).toBe(false);
-    fireEvent.click(confirmButton);
+    expect(screen.queryByText('Confirm findings set')).toBeNull();
+    expect(screen.queryByLabelText(/I checked the captures within scope and confirmed no findings/)).toBeNull();
+
+    const continueButton = screen.getByRole('button', { name: 'Continue to Report' }) as HTMLButtonElement;
+    expect(continueButton.disabled).toBe(false);
+    fireEvent.click(continueButton);
+
+    expect(await screen.findByRole('heading', { name: 'Confirm no findings' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm and continue' }));
+
     expect(mocks.confirm.mutate).toHaveBeenCalledWith(
       true,
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
   });
 
-  it('blocks aggregate confirmation while any finding remains undecided', () => {
-    mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
-    mocks.findingsQuery = { data: [pendingFinding()], isLoading: false, isError: false, error: null, refetch: vi.fn() };
-    renderWithRouter(<InspectionFindingsPage />);
-
-    expect((screen.getByRole('button', { name: 'Confirm findings and continue' }) as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.getByText(/1 finding still need a decision/)).toBeTruthy();
-  });
-
-  it('requires no-findings acknowledgment when the working set is empty', () => {
+  it('confirms findings directly when continuing to Report with reviewed findings', () => {
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
     mocks.findingsQuery = {
-      data: [],
+      data: [{ ...pendingFinding(), status: 'CONFIRMED' }],
       isLoading: false,
       isError: false,
       refetch: vi.fn(),
     };
     renderWithRouter(<InspectionFindingsPage />);
 
-    const confirmButton = screen.getByRole('button', { name: 'Confirm findings and continue' }) as HTMLButtonElement;
-    expect(screen.getByLabelText(/I checked the captures within scope and confirmed no findings/)).toBeTruthy();
-    expect(confirmButton.disabled).toBe(true);
-    fireEvent.click(screen.getByLabelText(/I checked the captures within scope and confirmed no findings/));
-    fireEvent.click(confirmButton);
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to Report' }));
 
+    expect(screen.queryByRole('heading', { name: 'Confirm no findings' })).toBeNull();
     expect(mocks.confirm.mutate).toHaveBeenCalledWith(
-      true,
+      false,
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
+  });
+
+  it('blocks continuing to Report while any finding remains pending review', () => {
+    mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
+    mocks.findingsQuery = { data: [pendingFinding()], isLoading: false, isError: false, error: null, refetch: vi.fn() };
+    renderWithRouter(<InspectionFindingsPage />);
+
+    expect((screen.getByRole('button', { name: 'Continue to Report' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('waits for existing candidate records before enabling manual detection', () => {
