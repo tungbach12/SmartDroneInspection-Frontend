@@ -22,6 +22,7 @@ import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
 import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
 import CalendarTodayOutlinedIcon from '@mui/icons-material/CalendarTodayOutlined';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
+import EditCalendarOutlinedIcon from '@mui/icons-material/EditCalendarOutlined';
 import FlightOutlinedIcon from '@mui/icons-material/FlightOutlined';
 import PersonSearchOutlinedIcon from '@mui/icons-material/PersonSearchOutlined';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -54,7 +55,10 @@ import {
   isSelectablePartnerCandidate,
   PartnerCandidateResults,
 } from '../../components/PartnerCandidateResults';
-import { extractContractErrorText } from '../../shared/contractStage';
+import {
+  extractContractErrorText,
+  resolveOccurrenceStatusChipProps,
+} from '../../shared/contractStage';
 
 interface ManagerOccurrencesStepProps {
   request: ServiceRequest;
@@ -217,13 +221,32 @@ function ManagerOccurrenceRow({
 
   const [inspector, setInspector] = useState('');
   const [drone, setDrone] = useState('');
+  const [scheduleEditing, setScheduleEditing] = useState(false);
   const [customStart, setCustomStart] = useState<string | null>(null);
   const [customEnd, setCustomEnd] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<PartnerCandidate[] | null>(null);
   const [evaluatedKey, setEvaluatedKey] = useState<string | null>(null);
 
-  const start = customStart ?? instantToDateTimeInput(occurrence.plannedStartAt, request.timezone);
-  const end = customEnd ?? instantToDateTimeInput(occurrence.plannedEndAt, request.timezone);
+  const defaultStart = instantToDateTimeInput(occurrence.plannedStartAt, request.timezone);
+  const defaultEnd = instantToDateTimeInput(occurrence.plannedEndAt, request.timezone);
+  const start = customStart ?? defaultStart;
+  const end = customEnd ?? defaultEnd;
+  const lockedDate = defaultStart.slice(0, 10);
+  const dailyWindowStart = (request.windowStart || '00:00').slice(0, 5);
+  const dailyWindowEnd = (request.windowEnd || '23:59').slice(0, 5);
+  const startTimePart = start.slice(11, 16);
+  const endTimePart = end.slice(11, 16);
+  const isOneTimeSchedule = request.requestType === 'ONE_TIME';
+  const scheduleValidationError = (() => {
+    if (!start || !end) return t('Choose a valid start and end time.');
+    if (start.slice(0, 10) !== end.slice(0, 10) || end <= start) {
+      return t('The confirmed end time must be after the start time.');
+    }
+    if (startTimePart < dailyWindowStart || endTimePart > dailyWindowEnd) {
+      return `${t('Must stay within contracted hours')} (${dailyWindowStart}–${dailyWindowEnd}).`;
+    }
+    return null;
+  })();
   const snapshotFeatures = Array.isArray(request.acceptedTermsSnapshot?.requiredDroneFeatureCodes)
     ? (request.acceptedTermsSnapshot.requiredDroneFeatureCodes as unknown[]).filter(
         (item): item is string => typeof item === 'string',
@@ -303,7 +326,7 @@ function ManagerOccurrenceRow({
     }
   };
 
-  if (activePairSelection && candidates !== null) {
+  if (occurrence.status !== 'CANCELLED' && activePairSelection && candidates !== null) {
     return (
       <PartnerCandidateResults
         variant="step"
@@ -331,6 +354,26 @@ function ManagerOccurrenceRow({
   }
 
   const isAssigned = occurrence.status === 'ASSIGNED';
+  const isCancelled = occurrence.status === 'CANCELLED';
+  const isScheduleAdjusted =
+    !isAssigned && !isCancelled && (start !== defaultStart || end !== defaultEnd);
+  const displayStartIso = (() => {
+    if (!isScheduleAdjusted) return occurrence.plannedStartAt;
+    try {
+      return dateTimeInputToInstant(start, request.timezone);
+    } catch {
+      return occurrence.plannedStartAt;
+    }
+  })();
+  const displayEndIso = (() => {
+    if (!isScheduleAdjusted) return occurrence.plannedEndAt;
+    try {
+      return dateTimeInputToInstant(end, request.timezone);
+    } catch {
+      return occurrence.plannedEndAt;
+    }
+  })();
+  const occurrenceChip = resolveOccurrenceStatusChipProps(occurrence.status);
   const isPaid = occurrence.paymentStatus === 'PAID';
   const isPaymentDue = occurrence.paymentStatus === 'PAYMENT_DUE';
   const feeVnd =
@@ -374,9 +417,9 @@ function ManagerOccurrenceRow({
                   : `${t('Occurrence')} ${occurrence.occurrenceIndex}`}
               </Typography>
               <StatusChip
-                status={isAssigned ? 'assigned' : 'pending'}
-                label={occurrence.status === 'ASSIGNED' ? 'Assigned' : 'Unassigned'}
-                tone={isAssigned ? 'success' : 'default'}
+                status={occurrenceChip.status}
+                label={occurrenceChip.label}
+                tone={occurrenceChip.tone}
               />
               {isPaid && <StatusChip status="paid" label="Paid" tone="success" />}
               {isPaymentDue && (
@@ -389,18 +432,27 @@ function ManagerOccurrenceRow({
             <Stack
               direction="row"
               spacing={0.75}
-              sx={{ alignItems: 'center', mt: 0.75, color: 'text.secondary' }}
+              sx={{ alignItems: 'center', mt: 0.75, color: 'text.secondary', flexWrap: 'wrap' }}
             >
               <CalendarTodayOutlinedIcon sx={{ fontSize: 14, flexShrink: 0 }} />
               <Typography variant="caption" sx={{ fontVariantNumeric: 'tabular-nums', fontSize: '0.8125rem' }}>
-                {new Date(occurrence.plannedStartAt).toLocaleString(undefined, {
+                {new Date(displayStartIso).toLocaleString(undefined, {
                   timeZone: request.timezone,
                 })}{' '}
                 –{' '}
-                {new Date(occurrence.plannedEndAt).toLocaleString(undefined, {
+                {new Date(displayEndIso).toLocaleString(undefined, {
                   timeZone: request.timezone,
                 })}
               </Typography>
+              {isScheduleAdjusted && (
+                <Chip
+                  size="small"
+                  label={t('Adjusted')}
+                  color="warning"
+                  variant="outlined"
+                  sx={{ height: 20, fontSize: '0.6875rem', fontWeight: 600, borderRadius: '6px' }}
+                />
+              )}
             </Stack>
           </Box>
 
@@ -827,6 +879,14 @@ function ManagerOccurrenceRow({
               </Stack>
             )}
           </Stack>
+        ) : isCancelled ? (
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}
+          >
+            {t('This scheduled flight has been cancelled.')}
+          </Typography>
         ) : (
           request.status === 'CONTRACT_SIGNED' && (
             <Box
@@ -862,48 +922,170 @@ function ManagerOccurrenceRow({
                         })}). Please assign another Inspector.`}
                   </Alert>
                 )}
-                <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
-                  <TextField
-                    fullWidth
-                    label={t('Flight start')}
-                    type="datetime-local"
-                    size="small"
-                    value={start}
-                    onChange={(e) => setCustomStart(e.target.value)}
-                    slotProps={{ inputLabel: { shrink: true } }}
-                  />
-                  <TextField
-                    fullWidth
-                    label={t('Flight end')}
-                    type="datetime-local"
-                    size="small"
-                    value={end}
-                    onChange={(e) => setCustomEnd(e.target.value)}
-                    slotProps={{ inputLabel: { shrink: true } }}
-                  />
-                </Stack>
+                {scheduleEditing && (
+                  <Stack
+                    spacing={1.25}
+                    sx={{ pb: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}
+                  >
+                    {isOneTimeSchedule ? (
+                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                        <TextField
+                          fullWidth
+                          label={t('Flight date')}
+                          size="small"
+                          value={lockedDate}
+                          slotProps={{ input: { readOnly: true }, inputLabel: { shrink: true } }}
+                        />
+                        <TextField
+                          fullWidth
+                          label={t('Start time')}
+                          type="time"
+                          size="small"
+                          value={startTimePart}
+                          onChange={(e) => {
+                            if (e.target.value) setCustomStart(`${lockedDate}T${e.target.value}`);
+                          }}
+                          slotProps={{
+                            htmlInput: { min: dailyWindowStart, max: dailyWindowEnd },
+                            inputLabel: { shrink: true },
+                          }}
+                        />
+                        <TextField
+                          fullWidth
+                          label={t('End time')}
+                          type="time"
+                          size="small"
+                          value={endTimePart}
+                          onChange={(e) => {
+                            if (e.target.value) setCustomEnd(`${lockedDate}T${e.target.value}`);
+                          }}
+                          slotProps={{
+                            htmlInput: { min: dailyWindowStart, max: dailyWindowEnd },
+                            inputLabel: { shrink: true },
+                          }}
+                        />
+                      </Stack>
+                    ) : (
+                      <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
+                        <TextField
+                          fullWidth
+                          label={t('Flight start')}
+                          type="datetime-local"
+                          size="small"
+                          value={start}
+                          onChange={(e) => setCustomStart(e.target.value)}
+                          slotProps={{
+                            htmlInput: {
+                              min: `${request.requestedFrom}T00:00`,
+                              max: `${request.recurrenceEndDate ?? request.requestedUntil}T23:59`,
+                            },
+                            inputLabel: { shrink: true },
+                          }}
+                        />
+                        <TextField
+                          fullWidth
+                          label={t('Flight end')}
+                          type="datetime-local"
+                          size="small"
+                          value={end}
+                          onChange={(e) => setCustomEnd(e.target.value)}
+                          slotProps={{
+                            htmlInput: {
+                              min: `${request.requestedFrom}T00:00`,
+                              max: `${request.recurrenceEndDate ?? request.requestedUntil}T23:59`,
+                            },
+                            inputLabel: { shrink: true },
+                          }}
+                        />
+                      </Stack>
+                    )}
 
-                <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                  {candidates !== null && !isEvaluationStale && (
+                    {scheduleValidationError && (
+                      <Typography variant="caption" color="error" sx={{ fontWeight: 500 }}>
+                        {scheduleValidationError}
+                      </Typography>
+                    )}
+
+                    <Stack
+                      direction={{ xs: 'column', sm: 'row' }}
+                      spacing={1}
+                      sx={{
+                        justifyContent: 'space-between',
+                        alignItems: { sm: 'center' },
+                      }}
+                    >
+                      <Typography variant="caption" color="text.secondary">
+                        {isOneTimeSchedule
+                          ? `${t('Contract window')}: ${dailyWindowStart}–${dailyWindowEnd} · ${t('Coordinate changes in Messages')}`
+                          : `${t('Contract window')}: ${request.requestedFrom} – ${request.recurrenceEndDate ?? request.requestedUntil} (${dailyWindowStart}–${dailyWindowEnd})`}
+                      </Typography>
+                      <Stack direction="row" spacing={1} sx={{ flexShrink: 0, justifyContent: 'flex-end' }}>
+                        <Button
+                          size="small"
+                          color="inherit"
+                          disabled={!isScheduleAdjusted}
+                          onClick={() => {
+                            setCustomStart(null);
+                            setCustomEnd(null);
+                          }}
+                          sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
+                        >
+                          {t('Reset')}
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => setScheduleEditing(false)}
+                          sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
+                        >
+                          {t('Done')}
+                        </Button>
+                      </Stack>
+                    </Stack>
+                  </Stack>
+                )}
+
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  sx={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}
+                >
+                  {!scheduleEditing ? (
                     <Button
                       size="small"
-                      variant="outlined"
-                      onClick={() => setStepOpen(true)}
+                      variant="text"
+                      startIcon={<EditCalendarOutlinedIcon fontSize="small" />}
+                      onClick={() => setScheduleEditing(true)}
                       sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
                     >
-                      {t('Choose partner & drone')}
+                      {t('Adjust schedule')}
                     </Button>
+                  ) : (
+                    <Box />
                   )}
-                  <LoadingButton
-                    size="small"
-                    variant="outlined"
-                    loading={evaluate.isPending}
-                    startIcon={<PersonSearchOutlinedIcon fontSize="small" />}
-                    onClick={() => void runPartnerEvaluation()}
-                    sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
-                  >
-                    {t('Find eligible partners')}
-                  </LoadingButton>
+                  <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
+                    {candidates !== null && !isEvaluationStale && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => setStepOpen(true)}
+                        sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
+                      >
+                        {t('Choose partner & drone')}
+                      </Button>
+                    )}
+                    <LoadingButton
+                      size="small"
+                      variant="outlined"
+                      loading={evaluate.isPending}
+                      disabled={Boolean(scheduleValidationError)}
+                      startIcon={<PersonSearchOutlinedIcon fontSize="small" />}
+                      onClick={() => void runPartnerEvaluation()}
+                      sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
+                    >
+                      {t('Find eligible partners')}
+                    </LoadingButton>
+                  </Stack>
                 </Stack>
 
                 {selectedCandidate && (
@@ -974,20 +1156,34 @@ function ManagerOccurrenceRow({
                         <Typography variant="body2" sx={{ fontWeight: 700 }}>
                           {selectedCandidate.inspectorName}
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                           {selectedCandidate.droneModel} · {selectedCandidate.droneSerialNumber}
                         </Typography>
+                        {isEvaluationStale && (
+                          <Typography
+                            variant="caption"
+                            sx={{ display: 'block', color: 'warning.main', fontWeight: 500, mt: 0.25 }}
+                          >
+                            {t('Schedule changed — click Find eligible partners to re-verify.')}
+                          </Typography>
+                        )}
                       </Box>
                     </Stack>
                     <Chip
                       size="small"
                       label={
-                        isSelectablePartnerCandidate(selectedCandidate)
-                          ? t('Eligible match')
-                          : t('Not eligible')
+                        isEvaluationStale
+                          ? t('Re-check required')
+                          : isSelectablePartnerCandidate(selectedCandidate)
+                            ? t('Eligible match')
+                            : t('Not eligible')
                       }
                       color={
-                        isSelectablePartnerCandidate(selectedCandidate) ? 'success' : 'error'
+                        isEvaluationStale
+                          ? 'warning'
+                          : isSelectablePartnerCandidate(selectedCandidate)
+                            ? 'success'
+                            : 'error'
                       }
                       variant="outlined"
                       sx={{ fontWeight: 700, borderRadius: '6px' }}

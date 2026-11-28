@@ -1,6 +1,7 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   Alert,
+  Avatar,
   Box,
   Button,
   Chip,
@@ -46,6 +47,7 @@ import {
   inspectorApplicationApi,
   type InspectorApplication,
 } from '@/features/auth/api/inspectorApplicationApi';
+import { inspectorProfileApi } from '../api/inspectorProfileApi';
 import { droneFeatureConfigApi } from '@/features/assets/api/droneFeatureConfigApi';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { PageHeader } from '@/shared/ui/PageHeader';
@@ -189,6 +191,22 @@ function classifyDroneLegalTier(
   return resolveMtowCategoryInfo(fallbackMtow);
 }
 
+function getInitials(name?: string | null): string {
+  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
+  const first = parts[0];
+  const last = parts[parts.length - 1];
+  if (!first) return '?';
+  if (parts.length === 1 || !last) return first.slice(0, 2).toUpperCase();
+  return `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
+}
+
+function formatLicenseClassLabel(rawClass: string | null | undefined, tr: (vi: string, en: string) => string): string | null {
+  if (!rawClass) return null;
+  if (matchesLicenseClass(rawClass, 'CLASS_B')) return tr('Hạng B', 'Class B');
+  if (matchesLicenseClass(rawClass, 'CLASS_A')) return tr('Hạng A', 'Class A');
+  return rawClass;
+}
+
 export default function Mf1ReviewPage({
   fixedQueue,
 }: {
@@ -306,6 +324,24 @@ export default function Mf1ReviewPage({
     retry: false,
   });
   const droneFeatureConfigs = featureConfigsQuery.data ?? [];
+
+  const inspectorProfilesQuery = useQuery({
+    queryKey: ['platform-inspectors'],
+    queryFn: inspectorProfileApi.list,
+    enabled: queue === 'drones',
+    staleTime: 60_000,
+    retry: false,
+  });
+
+  const inspectorAvatarByUserId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const profile of inspectorProfilesQuery.data ?? []) {
+      if (profile.avatarUrl) {
+        map.set(profile.id, profile.avatarUrl);
+      }
+    }
+    return map;
+  }, [inspectorProfilesQuery.data]);
 
   const changeQueue = (next: QueueId) => {
     setSelectedQueue(next);
@@ -1081,21 +1117,11 @@ export default function Mf1ReviewPage({
           >
             {pagedDroneRows.map(({ status, application }) => {
               const cleanModel = stripLegacySpecsFromModel(application.model) || application.model;
-              const legacySpecs = extractLegacyDroneSpecs(application.model);
-              const mtowKg = application.mtowKg ?? legacySpecs.mtowKg;
-              const maxFlightTime =
-                application.maxFlightTimeMinutes ?? legacySpecs.maxFlightTimeMinutes;
-              const cameraSensor = application.cameraSensor ?? legacySpecs.cameraSensor;
-              const tier = classifyDroneLegalTier(application);
-              const licenseWarning =
-                tier.requiresClassB && application.inspectorPilotLicenseClass === 'CLASS_A';
-              const specLine = [
-                mtowKg != null ? `${mtowKg} kg` : null,
-                maxFlightTime != null ? `${maxFlightTime} ${tr('phút', 'min')}` : null,
-                cameraSensor,
-              ]
-                .filter(Boolean)
-                .join(' · ');
+              const inspectorName = application.inspectorFullName || 'Inspector';
+              const inspectorAvatarUrl =
+                application.inspectorAvatarUrl ??
+                inspectorAvatarByUserId.get(application.inspectorUserId) ??
+                null;
               return (
                 <TableRow
                   key={application.id}
@@ -1111,30 +1137,37 @@ export default function Mf1ReviewPage({
                   sx={{ cursor: 'pointer' }}
                 >
                   <TableCell>
-                    <Typography sx={{ fontWeight: 650, fontSize: '0.875rem' }}>
-                      {cleanModel || tr('Thiết bị Drone', 'Drone Aircraft')}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                      {application.manufacturer || '—'} · {tier.categoryLabel}
-                    </Typography>
-                    {specLine && (
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontVariantNumeric: 'tabular-nums' }}>
-                        {specLine}
+                    <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', minWidth: 0 }}>
+                      <DroneRowThumbnail
+                        applicationId={application.id}
+                        hasImage={(application.imageFileKeys?.length ?? 0) > 0}
+                        alt={cleanModel || tr('Thiết bị Drone', 'Drone Aircraft')}
+                      />
+                      <Typography sx={{ fontWeight: 650, fontSize: '0.875rem' }}>
+                        {cleanModel || tr('Thiết bị Drone', 'Drone Aircraft')}
                       </Typography>
-                    )}
-                    {licenseWarning && (
-                      <Typography variant="caption" sx={{ display: 'block', color: 'warning.main' }}>
-                        {tr('Cần Bằng Hạng B', 'Class B license required')}
-                      </Typography>
-                    )}
+                    </Stack>
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2">
-                      {application.inspectorFullName || 'Inspector'}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {application.inspectorEmail || '—'}
-                    </Typography>
+                    <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', minWidth: 0 }}>
+                      <Avatar
+                        src={inspectorAvatarUrl ?? undefined}
+                        alt={inspectorName}
+                        sx={{
+                          width: 34,
+                          height: 34,
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          bgcolor: 'primary.main',
+                          color: 'primary.contrastText',
+                        }}
+                      >
+                        {getInitials(inspectorName)}
+                      </Avatar>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {inspectorName}
+                      </Typography>
+                    </Stack>
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
@@ -1230,30 +1263,72 @@ export default function Mf1ReviewPage({
                 {error && <Alert severity="error">{error}</Alert>}
 
                 <>
-                    <Box
-                      sx={{
-                        display: 'grid',
-                        gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
-                        gap: 1.5,
-                      }}
-                    >
-                      {(() => {
-                        const droneApp = selected as DroneRegistrationApplication;
-                        const legacy = extractLegacyDroneSpecs(droneApp.model);
-                        const mtowVal = droneApp.mtowKg ?? legacy.mtowKg;
-                        const flightTimeVal =
-                          droneApp.maxFlightTimeMinutes ?? legacy.maxFlightTimeMinutes;
-                        const cameraVal = droneApp.cameraSensor ?? legacy.cameraSensor;
-                        return (
-                          <>
+                    {(() => {
+                      const droneApp = selected as DroneRegistrationApplication;
+                      const tier = classifyDroneLegalTier(droneApp);
+                      const licenseMismatch =
+                        tier.requiresClassB && droneApp.inspectorPilotLicenseClass === 'CLASS_A';
+                      const inspectorName = droneApp.inspectorFullName || 'Inspector';
+                      const inspectorAvatarUrl =
+                        droneApp.inspectorAvatarUrl ??
+                        inspectorAvatarByUserId.get(droneApp.inspectorUserId) ??
+                        null;
+                      const legacy = extractLegacyDroneSpecs(droneApp.model);
+                      const mtowVal = droneApp.mtowKg ?? legacy.mtowKg;
+                      const flightTimeVal =
+                        droneApp.maxFlightTimeMinutes ?? legacy.maxFlightTimeMinutes;
+                      const cameraVal = droneApp.cameraSensor ?? legacy.cameraSensor;
+                      const licenseClassLabel = formatLicenseClassLabel(
+                        droneApp.inspectorPilotLicenseClass,
+                        tr,
+                      );
+                      const licenseDisplay = [droneApp.inspectorPilotLicenseNumber, licenseClassLabel]
+                        .filter(Boolean)
+                        .join(' · ');
+
+                      return (
+                        <>
+                          {licenseMismatch && (
+                            <Alert severity="warning" variant="outlined">
+                              {tr(
+                                'Thiết bị ≥ 2 kg yêu cầu phi công có Bằng lái Hạng B (Nghị định 288/2025/NĐ-CP).',
+                                'Aircraft ≥ 2 kg requires a Class B pilot license (Decree 288/2025/ND-CP).',
+                              )}
+                            </Alert>
+                          )}
+                          <Box
+                            sx={{
+                              display: 'grid',
+                              gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
+                              gap: 1.5,
+                            }}
+                          >
                             <DetailField
                               label={tr('Drone', 'Drone')}
                               value={stripLegacySpecsFromModel(droneApp.model) || droneApp.model}
+                            />
+                            <DetailField
+                              label={tr('Hãng sản xuất', 'Manufacturer')}
+                              value={droneApp.manufacturer}
+                            />
+                            <DetailField
+                              label={tr('Phân hạng MTOW', 'Aircraft tier')}
+                              value={`${tier.categoryLabel} · ${tier.requiredPilotLicenseLabel}`}
                             />
                             <DetailField label={tr('Serial', 'Serial')} value={droneApp.serialNumber} />
                             <DetailField
                               label={tr('Số đăng ký', 'Registration')}
                               value={droneApp.registrationNumber}
+                            />
+                            <DetailField
+                              label={tr('Hạn đăng ký', 'Registration expiry')}
+                              value={
+                                droneApp.registrationExpiresAt
+                                  ? new Date(droneApp.registrationExpiresAt).toLocaleDateString(
+                                      dateLocale,
+                                    )
+                                  : null
+                              }
                             />
                             {mtowVal != null && <DetailField label="MTOW" value={`${mtowVal} kg`} />}
                             {flightTimeVal != null && (
@@ -1268,22 +1343,60 @@ export default function Mf1ReviewPage({
                                 value={cameraVal}
                               />
                             )}
-                            <DetailField
-                              label={tr('Người gửi', 'Applicant')}
-                              value={droneApp.inspectorFullName}
-                            />
+                            {droneApp.maxWindResistanceMps != null && (
+                              <DetailField
+                                label={tr('Kháng gió tối đa', 'Max wind resistance')}
+                                value={`${droneApp.maxWindResistanceMps} m/s`}
+                              />
+                            )}
+                            {droneApp.maxAltitudeMeters != null && (
+                              <DetailField
+                                label={tr('Trần bay tối đa', 'Max altitude')}
+                                value={`${droneApp.maxAltitudeMeters} m`}
+                              />
+                            )}
+                            {droneApp.opticalZoomLevel && (
+                              <DetailField
+                                label={tr('Zoom quang học', 'Optical zoom')}
+                                value={droneApp.opticalZoomLevel}
+                              />
+                            )}
+                            <Box sx={{ minWidth: 0 }}>
+                              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                                {tr('Người gửi', 'Applicant')}
+                              </Typography>
+                              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mt: 0.25 }}>
+                                <Avatar
+                                  src={inspectorAvatarUrl ?? undefined}
+                                  alt={inspectorName}
+                                  sx={{
+                                    width: 28,
+                                    height: 28,
+                                    fontSize: '0.7rem',
+                                    fontWeight: 700,
+                                    bgcolor: 'primary.main',
+                                    color: 'primary.contrastText',
+                                  }}
+                                >
+                                  {getInitials(inspectorName)}
+                                </Avatar>
+                                <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
+                                  {droneApp.inspectorFullName || '—'}
+                                </Typography>
+                              </Stack>
+                            </Box>
                             <DetailField
                               label={tr('Email', 'Email')}
                               value={droneApp.inspectorEmail}
                             />
                             <DetailField
                               label={tr('Bằng lái', 'Pilot license')}
-                              value={droneApp.inspectorPilotLicenseNumber}
+                              value={licenseDisplay || null}
                             />
-                          </>
-                        );
-                      })()}
-                    </Box>
+                          </Box>
+                        </>
+                      );
+                    })()}
                     {(() => {
                       const droneApp = selected as DroneRegistrationApplication;
                       const featureCodes =
@@ -1806,6 +1919,83 @@ function QueueTable({
         </Box>
       )}
     </Paper>
+  );
+}
+
+function DroneRowThumbnail({
+  applicationId,
+  hasImage,
+  alt,
+}: {
+  applicationId: string;
+  hasImage: boolean;
+  alt: string;
+}) {
+  const [url, setUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!hasImage) return;
+    let active = true;
+    let objectUrl: string | null = null;
+
+    mf1ReviewApi
+      .droneEvidence(applicationId, 'DRONE_IMAGE_0')
+      .then((blob) => {
+        if (!active || !blob.type.startsWith('image/')) return;
+        objectUrl = URL.createObjectURL(blob);
+        setUrl(objectUrl);
+      })
+      .catch(() => {
+        // Keep the fallback drone icon tile when the thumbnail cannot be fetched.
+      });
+
+    return () => {
+      active = false;
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [applicationId, hasImage]);
+
+  if (url) {
+    return (
+      <Box
+        component="img"
+        src={url}
+        alt={alt}
+        sx={{
+          width: 44,
+          height: 44,
+          borderRadius: '8px',
+          objectFit: 'cover',
+          flexShrink: 0,
+          border: '1px solid',
+          borderColor: 'divider',
+          bgcolor: 'background.default',
+        }}
+      />
+    );
+  }
+
+  return (
+    <Box
+      aria-label={alt}
+      sx={{
+        width: 44,
+        height: 44,
+        borderRadius: '8px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+        border: '1px solid',
+        borderColor: 'divider',
+        bgcolor: 'action.hover',
+        color: 'text.secondary',
+      }}
+    >
+      <FlightTakeoffRounded sx={{ fontSize: 20 }} />
+    </Box>
   );
 }
 

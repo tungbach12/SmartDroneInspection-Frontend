@@ -61,35 +61,7 @@ describe('InspectorDroneRegistrationPage Capabilities & Safety Checklist', () =>
     vi.clearAllMocks();
   });
 
-  it('renders no hardcoded capabilities when catalog is empty and allows adding custom capabilities', async () => {
-    renderPage();
-
-    const registerButtons = screen.getAllByRole('button', { name: /Register New Drone/i });
-    const registerBtn = registerButtons[0];
-    if (!registerBtn) throw new Error('Expected Register New Drone button');
-    fireEvent.click(registerBtn);
-
-    const dialog = await screen.findByRole('dialog');
-    const toggle = within(dialog).getByRole('button', {
-      name: /Capabilities & Safety Checklist/i,
-    });
-    expect(toggle.getAttribute('aria-expanded')).toBe('false');
-    expect(within(dialog).getByText(/0 selected/i)).toBeTruthy();
-
-    fireEvent.click(toggle);
-    expect(toggle.getAttribute('aria-expanded')).toBe('true');
-    expect(within(dialog).queryByLabelText(/Thermal Camera/i)).toBeNull();
-    expect(within(dialog).queryByLabelText(/RTK GNSS Positioning/i)).toBeNull();
-
-    const customInput = within(dialog).getByPlaceholderText(/Add custom capability/i);
-    fireEvent.change(customInput, { target: { value: 'Loudspeaker Payload' } });
-    fireEvent.click(within(dialog).getByRole('button', { name: /^Add$/i }));
-
-    expect(within(dialog).getByText('Loudspeaker Payload')).toBeTruthy();
-    expect(within(dialog).getByText(/1 selected/i)).toBeTruthy();
-  });
-
-  it('loads dynamic capabilities from backend config without pre-checking hardcoded defaults', async () => {
+  it('hides the capabilities and safety checklist in the registration dialog', async () => {
     const { droneFeatureConfigApi } = await import('../api/droneFeatureConfigApi');
     vi.mocked(droneFeatureConfigApi.list).mockResolvedValueOnce([
       {
@@ -113,16 +85,12 @@ describe('InspectorDroneRegistrationPage Capabilities & Safety Checklist', () =>
     fireEvent.click(registerBtn);
 
     const dialog = await screen.findByRole('dialog');
-    const toggle = within(dialog).getByRole('button', {
-      name: /Capabilities & Safety Checklist/i,
-    });
-    expect(toggle.getAttribute('aria-expanded')).toBe('false');
-
-    fireEvent.click(toggle);
-    const checkbox = await within(dialog).findByLabelText(/Thermal Camera/i);
-    expect((checkbox as HTMLInputElement).checked).toBe(false);
-    fireEvent.click(checkbox);
-    expect(within(dialog).getByText(/1 selected/i)).toBeTruthy();
+    expect(
+      within(dialog).queryByRole('button', {
+        name: /Capabilities & Safety Checklist/i,
+      }),
+    ).toBeNull();
+    expect(within(dialog).queryByPlaceholderText(/Add custom capability/i)).toBeNull();
   });
 
   it('opens detail dialog when clicking an approved drone card', async () => {

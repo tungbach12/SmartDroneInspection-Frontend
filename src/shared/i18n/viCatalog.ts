@@ -3351,4 +3351,13 @@
   "Safety cones removed, equipment packed & site restored": "Thu dọn thiết bị, tháo cọc cảnh báo & bàn giao mặt bằng sạch sẽ",
   "No AI executive summary generated yet.": "Chưa có tóm tắt AI nào được tạo.",
   "Loading AI executive summary…": "Đang tải tóm tắt điều hành AI…",
+  "This scheduled flight has been cancelled.": "Chuyến bay theo lịch này đã bị hủy.",
+  "Adjust schedule": "Điều chỉnh lịch bay",
+  "Flight date": "Ngày bay",
+  "Adjusted": "Đã điều chỉnh",
+  "Re-check required": "Cần kiểm tra lại",
+  "Must stay within contracted hours": "Phải nằm trong khung giờ hợp đồng",
+  "Contract window": "Khung giờ hợp đồng",
+  "Coordinate changes in Messages": "Trao đổi đổi giờ qua Messages",
+  "Schedule changed — click Find eligible partners to re-verify.": "Thời gian bay đã thay đổi — bấm Find eligible partners để kiểm tra lại.",
 };

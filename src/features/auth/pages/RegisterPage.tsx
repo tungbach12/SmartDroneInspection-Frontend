@@ -254,6 +254,7 @@ export default function RegisterPage() {
       backLabel={t('Back to website')}
       backTo="/"
       socialPrompt={t('Or register with')}
+      formMaxWidth="420px"
       heroTagline={{
         line1: 'Protect Your Critical Infrastructure',
         line2: 'Schedule drone inspections, review high-resolution evidence, and manage maintenance workflows effortlessly.',

@@ -72,10 +72,7 @@ import {
   buildGoogleMapsExternalUrl,
 } from '../components/AssetLocationPickerModal';
 import { evaluateAirspace } from '@/shared/airspace/airspaceZones';
-import {
-  NoFlyFootprintAlert,
-  RestrictedAirspaceChip,
-} from '@/shared/airspace/RestrictedAirspaceNotice';
+import { RestrictedAirspaceChip } from '@/shared/airspace/RestrictedAirspaceNotice';
 import { estimateFootprintRadiusMeters } from '@/shared/airspace/airspaceZones';
 
 const DOCUMENT_TYPES = ['OWNERSHIP', 'INSPECTION_HISTORY', 'MAINTENANCE_RECORD', 'OTHER'] as const;
@@ -133,13 +130,11 @@ function ReadOnlyLocationField({ value }: { value: string }) {
 
 function AssetCard({
   asset,
-  categoryName,
   isClient,
   onSelect,
   onRequestInspection,
 }: {
   asset: Asset;
-  categoryName?: string | undefined;
   isClient: boolean;
   onSelect: (asset: Asset) => void;
   onRequestInspection?: ((asset: Asset) => void) | undefined;
@@ -230,10 +225,6 @@ function AssetCard({
                 sx={{ fontWeight: 700, color: 'text.primary', lineHeight: 1.3 }}
               >
                 {asset.name}
-              </Typography>
-              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
-                {categoryName ? `${categoryName} · ` : ''}
-                {formatLocation(asset.locationText)}
               </Typography>
               <Stack direction="row" spacing={0.75} sx={{ mt: 0.75, flexWrap: 'wrap', gap: 0.5 }}>
                 {!isClient && (
@@ -600,7 +591,6 @@ export function AssetsPage() {
                 <AssetCard
                   key={asset.id}
                   asset={asset}
-                  categoryName={categoryNameById.get(asset.categoryId)}
                   isClient={isClient}
                   onSelect={(picked) => setSelected(picked)}
                   onRequestInspection={() => navigate('/client/contracts')}
@@ -977,11 +967,6 @@ function CreateAssetDialogForm({
               setGpsFeedback(null);
               setLocationText('');
             }}
-          />
-          <NoFlyFootprintAlert
-            latitude={latitude}
-            longitude={longitude}
-            footprintAreaSquareMeters={areaValue}
           />
 
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
@@ -1721,11 +1706,6 @@ function AssetDetailDrawer({
                   setEditLocation('');
                 }}
               />
-              <NoFlyFootprintAlert
-                latitude={editLatitude}
-                longitude={editLongitude}
-                footprintAreaSquareMeters={parsedEditArea}
-              />
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
                 <TextField
                   label={t('Structure height (m)')}
@@ -1766,13 +1746,6 @@ function AssetDetailDrawer({
                 <Alert severity="info" sx={{ borderRadius: '10px', fontSize: '0.875rem' }}>
                   {t('Upload at least one photo so it displays on the asset card and helps pilots recognize the structure.')}
                 </Alert>
-              )}
-              {asset && (
-                <NoFlyFootprintAlert
-                  latitude={asset.latitude}
-                  longitude={asset.longitude}
-                  footprintAreaSquareMeters={asset.footprintAreaSquareMeters}
-                />
               )}
 
               {/* Split Overview: Media Gallery + Specifications */}

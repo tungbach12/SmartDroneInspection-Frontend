@@ -148,4 +148,57 @@ describe('ManagerOccurrencesStep', () => {
     fireEvent.click(cancelBtn);
     expect(screen.getByText('Cancel scheduled flight?')).toBeTruthy();
   });
+
+  it('renders Cancelled status and locks assignment and cancel controls on cancelled occurrences', () => {
+    const req = assignedRequest();
+    req.status = 'CONTRACT_SIGNED';
+    req.occurrences[0] = {
+      ...req.occurrences[0]!,
+      status: 'CANCELLED',
+    };
+    renderOccurrencesStep(req);
+
+    expect(screen.getByText('Cancelled')).toBeTruthy();
+    expect(screen.getByText('This scheduled flight has been cancelled.')).toBeTruthy();
+    expect(screen.queryByText('Unassigned')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Find eligible partners' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Assign occurrence' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Cancel flight' })).toBeNull();
+  });
+
+  it('keeps schedule fields collapsed by default and opens locked-date time editing via Adjust schedule for ONE_TIME', () => {
+    const req = assignedRequest();
+    req.status = 'CONTRACT_SIGNED';
+    req.occurrences[0] = {
+      ...req.occurrences[0]!,
+      status: 'PENDING_ASSIGNMENT',
+      inspectorId: null,
+      droneId: null,
+      inspectionId: null,
+    };
+    renderOccurrencesStep(req);
+
+    expect(screen.queryByLabelText('Start time')).toBeNull();
+    expect(screen.queryByLabelText('Flight start')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Adjust schedule' }));
+
+    const dateInput = screen.getByLabelText('Flight date') as HTMLInputElement;
+    expect(dateInput.readOnly).toBe(true);
+    expect(dateInput.value).toBe('2026-12-01');
+    expect(screen.getByText(/Contract window: 08:00–17:00/)).toBeTruthy();
+
+    const startTimeInput = screen.getByLabelText('Start time') as HTMLInputElement;
+    fireEvent.change(startTimeInput, { target: { value: '09:00' } });
+    expect(screen.getByText('Adjusted')).toBeTruthy();
+
+    fireEvent.change(startTimeInput, { target: { value: '07:00' } });
+    expect(screen.getByText(/Must stay within contracted hours \(08:00–17:00\)/)).toBeTruthy();
+    const findBtn = screen.getByRole('button', { name: 'Find eligible partners' }) as HTMLButtonElement;
+    expect(findBtn.disabled).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
+    expect(screen.queryByText('Adjusted')).toBeNull();
+    expect(findBtn.disabled).toBe(false);
+  });
 });

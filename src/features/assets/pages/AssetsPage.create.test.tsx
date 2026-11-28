@@ -158,23 +158,15 @@ describe('AssetsPage create dialog dimensions', () => {
     expect(createMutate).not.toHaveBeenCalled();
   });
 
-  it('warns that restricted-zone footprint does not guarantee 100% coverage and flags no-fly perimeter overlap', () => {
+  it('displays estimated perimeter radius while keeping restricted airspace advisory alerts omitted on the asset form', () => {
     mockGeolocation(10.7789, 106.7082);
     render(<AssetsPage />);
     fireEvent.click(screen.getByRole('button', { name: /new asset/i }));
     fillRequiredFields();
     fireEvent.change(screen.getByLabelText(/Footprint area/), { target: { value: '5000' } });
 
-    expect(screen.getByText(/do not guarantee 100% area coverage/i)).toBeTruthy();
     expect(screen.getByText(/Estimated perimeter radius ~40 m/i)).toBeTruthy();
-
-    cleanup();
-    mockGeolocation(10.8508, 106.6519);
-    render(<AssetsPage />);
-    fireEvent.click(screen.getByRole('button', { name: /new asset/i }));
-    fillRequiredFields();
-    fireEvent.change(screen.getByLabelText(/Footprint area/), { target: { value: '100000' } });
-
-    expect(screen.getByText(/No-Fly overlap warning:/i)).toBeTruthy();
+    expect(screen.queryByText(/do not guarantee 100% area coverage/i)).toBeNull();
+    expect(screen.queryByText(/Restricted airspace\. You can use this location\./i)).toBeNull();
   });
 });

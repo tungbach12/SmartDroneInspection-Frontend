@@ -6,15 +6,13 @@ import {
   Button,
   Card,
   CardMedia,
-  Checkbox,
   Chip,
-  Collapse,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   Divider,
-  FormControlLabel,
   IconButton,
   InputAdornment,
   Paper,
@@ -25,11 +23,9 @@ import {
   Typography,
 } from '@mui/material';
 import AddCircleOutlineRounded from '@mui/icons-material/AddCircleOutlineRounded';
-import AddRounded from '@mui/icons-material/AddRounded';
 import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
 import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
 import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
-import ExpandMoreRounded from '@mui/icons-material/ExpandMoreRounded';
 import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
 import RefreshRounded from '@mui/icons-material/RefreshRounded';
 import CloseRounded from '@mui/icons-material/CloseRounded';
@@ -38,15 +34,18 @@ import BuildCircleOutlined from '@mui/icons-material/BuildCircleOutlined';
 import AppRegistrationOutlined from '@mui/icons-material/AppRegistrationOutlined';
 import EventAvailableOutlined from '@mui/icons-material/EventAvailableOutlined';
 import OpenInNewRounded from '@mui/icons-material/OpenInNewRounded';
+import DocumentScannerOutlined from '@mui/icons-material/DocumentScannerOutlined';
 import { droneDocumentConfigApi } from '../api/droneDocumentConfigApi';
 import { droneFeatureConfigApi } from '../api/droneFeatureConfigApi';
 import {
   mf1DroneApi,
   uploadDroneEvidence,
   type DroneRegistrationInput,
+  type DroneSpecExtractionResult,
   type InspectorDrone,
   type DroneRegistrationApplication,
 } from '../api/mf1DroneApi';
+import { extractImageText } from '../utils/imageOcr';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { AuthenticatedImage } from '@/shared/ui/AuthenticatedImage';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
@@ -212,9 +211,10 @@ export default function InspectorDroneRegistrationPage() {
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [openRegisterDialog, setOpenRegisterDialog] = useState(false);
-  const [capabilitiesExpanded, setCapabilitiesExpanded] = useState(false);
-  const [customFeatureInput, setCustomFeatureInput] = useState('');
   const [tabIndex, setTabIndex] = useState<'APPROVED' | 'APPLICATIONS'>('APPROVED');
+  const [autoFilledFields, setAutoFilledFields] = useState<Partial<Record<keyof DroneFormState, boolean>>>({});
+  const [scanResult, setScanResult] = useState<DroneSpecExtractionResult | null>(null);
+  const [scanError, setScanError] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
   const isInspector = useAuthStore((state) => state.roles).includes('INSPECTOR');
@@ -239,6 +239,84 @@ export default function InspectorDroneRegistrationPage() {
     enabled: isInspector,
     refetchInterval: isInspector ? 10000 : false,
     retry: false,
+  });
+
+  const extractSpecsMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const ocrText = file.type.startsWith('image/') ? await extractImageText(file) : '';
+      return mf1DroneApi.extractSpecs(file, ocrText);
+    },
+    onMutate: () => {
+      setScanError(null);
+    },
+    onSuccess: (result) => {
+      setScanResult(result);
+      const marked: Partial<Record<keyof DroneFormState, boolean>> = {};
+      setForm((current) => {
+        const next = { ...current };
+        if (result.model) {
+          next.droneName = result.model;
+          marked.droneName = true;
+        }
+        if (result.manufacturer) {
+          next.manufacturer = result.manufacturer;
+          marked.manufacturer = true;
+        }
+        if (result.serialNumber) {
+          next.serialNumber = result.serialNumber;
+          marked.serialNumber = true;
+        }
+        if (result.registrationNumber) {
+          next.registrationNumber = result.registrationNumber;
+          marked.registrationNumber = true;
+        }
+        if (result.registrationExpiresAt) {
+          next.registrationExpiresAt = result.registrationExpiresAt;
+          marked.registrationExpiresAt = true;
+        }
+        if (result.mtowKg != null) {
+          next.mtowKg = String(result.mtowKg);
+          marked.mtowKg = true;
+        }
+        if (result.maxFlightTimeMinutes != null) {
+          next.maxFlightTimeMinutes = String(result.maxFlightTimeMinutes);
+          marked.maxFlightTimeMinutes = true;
+        }
+        if (result.maxWindResistanceMps != null) {
+          next.maxWindResistanceMps = String(result.maxWindResistanceMps);
+          marked.maxWindResistanceMps = true;
+        }
+        if (result.maxAltitudeMeters != null) {
+          next.maxAltitudeMeters = String(result.maxAltitudeMeters);
+          marked.maxAltitudeMeters = true;
+        }
+        if (result.opticalZoomLevel) {
+          next.opticalZoomLevel = result.opticalZoomLevel.replace(/x$/i, '');
+          marked.opticalZoomLevel = true;
+        }
+        if (result.cameraSensor) {
+          next.cameraSensor = result.cameraSensor;
+          marked.cameraSensor = true;
+        }
+        if (result.features && result.features.length > 0) {
+          next.features = Array.from(new Set([...current.features, ...result.features]));
+          marked.features = true;
+        }
+        return next;
+      });
+      setAutoFilledFields(marked);
+    },
+    onError: (err) => {
+      setScanResult(null);
+      setScanError(
+        err instanceof Error
+          ? err.message
+          : tr(
+              'Không thể đọc thông số từ tệp này. Vui lòng kiểm tra định dạng PNG/JPG/WebP/PDF.',
+              'Could not extract specs from this file. Check PNG/JPG/WebP/PDF format.',
+            ),
+      );
+    },
   });
 
   const [fleetActionError, setFleetActionError] = useState<string | null>(null);
@@ -404,6 +482,14 @@ export default function InspectorDroneRegistrationPage() {
 
   const updateField = (field: keyof DroneFormState) => (event: React.ChangeEvent<HTMLInputElement>) => {
     setForm((current) => ({ ...current, [field]: event.target.value }));
+    setAutoFilledFields((current) => (current[field] ? { ...current, [field]: false } : current));
+  };
+
+  const handleScanSpecFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    extractSpecsMutation.mutate(file);
   };
 
   const handleFileChange = (code: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -517,32 +603,11 @@ export default function InspectorDroneRegistrationPage() {
     setImageFiles([]);
     setImagePreviews([]);
     setExistingImageKeys(existingApp?.imageFileKeys ? [...existingApp.imageFileKeys] : []);
-    setCapabilitiesExpanded(false);
-    setCustomFeatureInput('');
+    setAutoFilledFields({});
+    setScanResult(null);
+    setScanError(null);
     setOpenRegisterDialog(true);
   };
-
-  const handleAddCustomFeature = () => {
-    const trimmed = customFeatureInput.trim();
-    if (!trimmed) return;
-    const normalized = trimmed.toLowerCase();
-    const matchedConfig = effectiveFeatures.find(
-      (f) =>
-        f.code.toLowerCase() === normalized ||
-        f.nameVi.toLowerCase() === normalized ||
-        f.nameEn.toLowerCase() === normalized,
-    );
-    const valueToAdd = matchedConfig ? matchedConfig.code : trimmed;
-    setForm((curr) => {
-      const exists = curr.features.some((c) => c.toLowerCase() === valueToAdd.toLowerCase());
-      return exists ? curr : { ...curr, features: [...curr.features, valueToAdd] };
-    });
-    setCustomFeatureInput('');
-  };
-
-  const customFeatures = form.features.filter(
-    (code) => !effectiveFeatures.some((f) => f.code === code),
-  );
 
   const hasAtLeastOneImage = imageFiles.length > 0 || existingImageKeys.length > 0;
   const requiredDocumentCodes = new Set(effectiveConfigs.filter((doc) => doc.isRequired).map((doc) => doc.code));
@@ -1454,9 +1519,61 @@ export default function InspectorDroneRegistrationPage() {
           <Stack component="form" id="drone-register-form" noValidate spacing={3} onSubmit={handleSubmit}>
             {/* THÔNG SỐ KỸ THUẬT */}
             <Box>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>
-                {tr('1. Thông tin thiết bị', '1. Airframe Specifications')}
-              </Typography>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 1.5,
+                  mb: 1.75,
+                  flexWrap: 'wrap',
+                }}
+              >
+                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                  {tr('1. Thông tin thiết bị', '1. Airframe Specifications')}
+                </Typography>
+                <Button
+                  component="label"
+                  variant="outlined"
+                  size="small"
+                  disabled={extractSpecsMutation.isPending}
+                  startIcon={
+                    extractSpecsMutation.isPending ? (
+                      <CircularProgress size={14} />
+                    ) : (
+                      <DocumentScannerOutlined fontSize="small" />
+                    )
+                  }
+                  sx={{ textTransform: 'none', fontWeight: 600 }}
+                >
+                  {extractSpecsMutation.isPending
+                    ? tr('Đang quét...', 'Scanning...')
+                    : tr('Quét ảnh / PDF', 'Scan Photo / PDF')}
+                  <input
+                    hidden
+                    type="file"
+                    accept=".png,.jpg,.jpeg,.webp,.pdf,image/png,image/jpeg,image/webp,application/pdf"
+                    onChange={handleScanSpecFile}
+                  />
+                </Button>
+              </Box>
+
+              {scanError && (
+                <Alert severity="error" sx={{ mb: 2, py: 0.5, borderRadius: '8px' }}>
+                  {scanError}
+                </Alert>
+              )}
+
+              {scanResult && scanResult.suggestedFields.length === 0 && (
+                <Alert severity="warning" sx={{ mb: 2, py: 0.5, borderRadius: '8px' }}>
+                  <Typography variant="caption" sx={{ display: 'block', fontWeight: 600 }}>
+                    {tr(
+                      'Không đọc được thông số từ tệp này. Hãy thử ảnh rõ hơn hoặc PDF có văn bản.',
+                      'Could not extract fields from this file. Try a clearer photo or text PDF.',
+                    )}
+                  </Typography>
+                </Alert>
+              )}
 
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
                 <TextField
@@ -1466,6 +1583,7 @@ export default function InspectorDroneRegistrationPage() {
                   value={form.droneName}
                   onChange={updateField('droneName')}
                   error={submitAttempted && !form.droneName.trim()}
+                  helperText={autoFilledFields.droneName ? tr('Tự động điền — vui lòng đối chiếu', 'Auto-filled — please verify') : undefined}
                 />
                 <TextField
                   required
@@ -1474,6 +1592,7 @@ export default function InspectorDroneRegistrationPage() {
                   value={form.manufacturer}
                   onChange={updateField('manufacturer')}
                   error={submitAttempted && !form.manufacturer.trim()}
+                  helperText={autoFilledFields.manufacturer ? tr('Tự động điền — vui lòng đối chiếu', 'Auto-filled — please verify') : undefined}
                 />
                 <TextField
                   required
@@ -1482,6 +1601,7 @@ export default function InspectorDroneRegistrationPage() {
                   value={form.serialNumber}
                   onChange={updateField('serialNumber')}
                   error={submitAttempted && !form.serialNumber.trim()}
+                  helperText={autoFilledFields.serialNumber ? tr('Tự động điền — đối chiếu ký tự 0/O, 1/I', 'Auto-filled — verify 0/O, 1/I characters') : undefined}
                 />
                 <TextField
                   required
@@ -1490,6 +1610,7 @@ export default function InspectorDroneRegistrationPage() {
                   value={form.registrationNumber}
                   onChange={updateField('registrationNumber')}
                   error={submitAttempted && !form.registrationNumber.trim()}
+                  helperText={autoFilledFields.registrationNumber ? tr('Tự động điền — vui lòng đối chiếu', 'Auto-filled — please verify') : undefined}
                 />
                 <TextField
                   required
@@ -1499,6 +1620,7 @@ export default function InspectorDroneRegistrationPage() {
                   onChange={updateField('registrationExpiresAt')}
                   slotProps={{ inputLabel: { shrink: true } }}
                   error={submitAttempted && !form.registrationExpiresAt}
+                  helperText={autoFilledFields.registrationExpiresAt ? tr('Tự động điền — kiểm tra DD/MM/YYYY', 'Auto-filled — verify DD/MM/YYYY') : undefined}
                 />
                 {(() => {
                   const legalInfo = classifyDroneByMtow(form.mtowKg);
@@ -1577,188 +1699,8 @@ export default function InspectorDroneRegistrationPage() {
                   placeholder={tr('VD: 48 MP', 'e.g. 48 MP')}
                   value={form.cameraSensor}
                   onChange={updateField('cameraSensor')}
+                  sx={{ gridColumn: { sm: '1 / -1' } }}
                 />
-                <Box sx={{ gridColumn: { xs: '1 / -1' }, mt: 0.5 }}>
-                  <Box
-                    sx={{
-                      borderRadius: '8px',
-                      border: 1,
-                      borderColor: 'divider',
-                      bgcolor: 'background.default',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    <Box
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => setCapabilitiesExpanded((v) => !v)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          setCapabilitiesExpanded((v) => !v);
-                        }
-                      }}
-                      aria-expanded={capabilitiesExpanded}
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: 1,
-                        px: 1.5,
-                        py: 1.1,
-                        cursor: 'pointer',
-                        userSelect: 'none',
-                        '&:hover': { bgcolor: 'action.hover' },
-                      }}
-                    >
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                            {tr('Tính năng & An toàn', 'Capabilities & Safety Checklist')}
-                          </Typography>
-                          <Chip
-                            size="small"
-                            color={form.features.length > 0 ? 'primary' : 'default'}
-                            variant="outlined"
-                            label={tr(`${form.features.length} đã chọn`, `${form.features.length} selected`)}
-                            sx={{ height: 22, fontSize: '0.74rem', fontWeight: 600 }}
-                          />
-                        </Box>
-                      <ExpandMoreRounded
-                        fontSize="small"
-                        sx={{
-                          color: 'text.secondary',
-                          transform: capabilitiesExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                          transition: 'transform 160ms ease',
-                        }}
-                      />
-                    </Box>
-
-                    {!capabilitiesExpanded && form.features.length > 0 && (
-                      <Box sx={{ px: 1.5, pb: 1.25, display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
-                        {form.features.map((code) => {
-                          const feat = effectiveFeatures.find((item) => item.code === code);
-                          const label = feat ? (locale === 'vi' ? feat.nameVi : feat.nameEn) : code;
-                          return (
-                            <Chip
-                              key={code}
-                              size="small"
-                              label={label}
-                              onDelete={() =>
-                                setForm((curr) => ({
-                                  ...curr,
-                                  features: curr.features.filter((c) => c !== code),
-                                }))
-                              }
-                              sx={{ fontSize: '0.76rem' }}
-                            />
-                          );
-                        })}
-                      </Box>
-                    )}
-
-                    <Collapse in={capabilitiesExpanded} unmountOnExit>
-                      <Divider />
-                      <Box sx={{ p: 1.5 }}>
-                        {effectiveFeatures.length === 0 ? (
-                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-                            {tr(
-                              'Chưa có danh mục tính năng cấu hình sẵn. Bạn có thể tự thêm tính năng bên dưới.',
-                              'No pre-configured capabilities yet. Add custom capabilities below.',
-                            )}
-                          </Typography>
-                        ) : (
-                          <Box
-                            sx={{
-                              display: 'grid',
-                              gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
-                              gap: 1,
-                            }}
-                          >
-                            {effectiveFeatures.map((feat) => {
-                              const checked = form.features.includes(feat.code);
-                              return (
-                                <FormControlLabel
-                                  key={feat.code}
-                                  sx={{ m: 0 }}
-                                  control={
-                                    <Checkbox
-                                      size="small"
-                                      checked={checked}
-                                      onChange={(e) => {
-                                        const isChecked = e.target.checked;
-                                        setForm((curr) => ({
-                                          ...curr,
-                                          features: isChecked
-                                            ? [...curr.features, feat.code]
-                                            : curr.features.filter((c) => c !== feat.code),
-                                        }));
-                                      }}
-                                    />
-                                  }
-                                  label={
-                                    <Typography variant="body2" sx={{ fontSize: '0.84rem', fontWeight: checked ? 600 : 400 }}>
-                                      {locale === 'vi' ? feat.nameVi : feat.nameEn}
-                                    </Typography>
-                                  }
-                                />
-                              );
-                            })}
-                          </Box>
-                        )}
-
-                        {customFeatures.length > 0 && (
-                          <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', mt: 1.5 }}>
-                            {customFeatures.map((custom) => (
-                              <Chip
-                                key={custom}
-                                size="small"
-                                color="primary"
-                                variant="outlined"
-                                label={custom}
-                                onDelete={() =>
-                                  setForm((curr) => ({
-                                    ...curr,
-                                    features: curr.features.filter((c) => c !== custom),
-                                  }))
-                                }
-                              />
-                            ))}
-                          </Box>
-                        )}
-
-                        <Box sx={{ display: 'flex', gap: 1, mt: 1.5, alignItems: 'center' }}>
-                          <TextField
-                            size="small"
-                            fullWidth
-                            placeholder={tr(
-                              'Thêm tính năng khác (VD: Loa phát thanh, Cảm biến khí)...',
-                              'Add custom capability (e.g. Loudspeaker, Gas sensor)...',
-                            )}
-                            value={customFeatureInput}
-                            onChange={(e) => setCustomFeatureInput(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                handleAddCustomFeature();
-                              }
-                            }}
-                          />
-                          <Button
-                            type="button"
-                            size="small"
-                            variant="outlined"
-                            startIcon={<AddRounded />}
-                            onClick={handleAddCustomFeature}
-                            disabled={!customFeatureInput.trim()}
-                            sx={{ textTransform: 'none', whiteSpace: 'nowrap', flexShrink: 0 }}
-                          >
-                            {tr('Thêm', 'Add')}
-                          </Button>
-                        </Box>
-                      </Box>
-                    </Collapse>
-                  </Box>
-                </Box>
               </Box>
             </Box>
 

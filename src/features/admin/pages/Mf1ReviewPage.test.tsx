@@ -160,7 +160,7 @@ describe('MF1 review queues', () => {
     expect(inspectorApplicationApi.getLicenseScanBlob).toHaveBeenCalledWith('app-1');
   });
 
-  it('uses structured MTOW and clean model name so DJI Matrice 350 RTK is classified accurately as Category 3', async () => {
+  it('keeps outside table row concise with drone photo and applicant avatar and shows details inside modal', async () => {
     vi.mocked(mf1ReviewApi.pendingDrones).mockResolvedValue([]);
     vi.mocked(mf1ReviewApi.droneHistory).mockResolvedValue([
       {
@@ -168,6 +168,7 @@ describe('MF1 review queues', () => {
         inspectorUserId: 'pilot-1',
         inspectorFullName: 'Inspector Two',
         inspectorEmail: 'inspector2@test.com',
+        inspectorAvatarUrl: 'data:image/png;base64,AAAA',
         serialNumber: 'DJI-M350-SG-0001',
         model: 'DJI Matrice 350 RTK',
         manufacturer: 'DJI',
@@ -175,6 +176,7 @@ describe('MF1 review queues', () => {
         registrationFileKey: 'drone/reg',
         registrationExpiresAt: '2027-12-31T00:00:00Z',
         ownershipFileKey: 'drone/owner',
+        imageFileKeys: ['drone/img-0'],
         mtowKg: 6.47,
         maxFlightTimeMinutes: 55,
         cameraSensor: '20 MP',
@@ -188,15 +190,21 @@ describe('MF1 review queues', () => {
 
     renderPage();
     expect(await screen.findByText('DJI Matrice 350 RTK')).toBeTruthy();
-    expect(screen.getByText(/Loại 3 \(2 – < 25 kg\)/)).toBeTruthy();
-    expect(screen.queryByText(/Loại 5/)).toBeNull();
-    expect(screen.getByText(/6\.47 kg/)).toBeTruthy();
-    expect(screen.getByText(/20 MP/)).toBeTruthy();
+    expect(screen.getByText('Inspector Two')).toBeTruthy();
+    expect(screen.queryByText(/Loại 3 \(2 – < 25 kg\)/)).toBeNull();
+    expect(screen.queryByText(/6\.47 kg/)).toBeNull();
+    expect(screen.queryByText(/20 MP/)).toBeNull();
+    expect(screen.queryByText('inspector2@test.com')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: /View details|Xem chi tiết/i }));
     expect(
       await screen.findByText(/Drone registration approved|Hồ sơ drone đã được phê duyệt/i),
     ).toBeTruthy();
+    expect(screen.getByText(/Loại 3 \(2 – < 25 kg\)/)).toBeTruthy();
+    expect(screen.queryByText(/Loại 5/)).toBeNull();
+    expect(screen.getByText(/6\.47 kg/)).toBeTruthy();
+    expect(screen.getByText(/20 MP/)).toBeTruthy();
+    expect(screen.getByText('inspector2@test.com')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /^Approve$|^Duyệt$/i })).toBeNull();
   });
 

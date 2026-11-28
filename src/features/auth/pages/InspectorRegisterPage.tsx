@@ -17,9 +17,6 @@ import {
   InputAdornment,
   Paper,
   Stack,
-  Step,
-  StepLabel,
-  Stepper,
   TextField,
   Tooltip,
   Typography,
@@ -36,6 +33,8 @@ import {
   EmailOutlined,
   HelpOutlineRounded,
   CloseRounded,
+  DocumentScannerOutlined,
+  BadgeOutlined,
 } from '@mui/icons-material';
 import { Link as RouterLink, Navigate } from 'react-router-dom';
 import { AuthPageLayout } from '../components/AuthPageLayout';
@@ -45,6 +44,7 @@ import {
   sendRegistrationOtp,
 } from '../api/authApi';
 import { inspectorApplicationApi } from '../api/inspectorApplicationApi';
+import { extractCccdImageText, parseCccdOcrText } from '../utils/cccdOcr';
 import { getAuthRedirectTarget } from '../utils/authRedirect';
 import { useAuthStore } from '../store/authStore';
 import { useQuery } from '@tanstack/react-query';
@@ -86,12 +86,6 @@ const authInputSx = {
   },
 };
 
-const STEPS = [
-  'Tài khoản',
-  'CCCD & Bằng chứng bằng lái',
-  'Xác thực OTP & Nộp hồ sơ',
-];
-
 export default function InspectorRegisterPage() {
   const status = useAuthStore((state) => state.status);
   const roles = useAuthStore((state) => state.roles);
@@ -117,6 +111,15 @@ export default function InspectorRegisterPage() {
   // Step 1: Identity, UAV License & Document Scan
   const [citizenId, setCitizenId] = useState('');
   const [address, setAddress] = useState('');
+  const [cccdFrontPreview, setCccdFrontPreview] = useState<string | null>(null);
+  const [cccdBackPreview, setCccdBackPreview] = useState<string | null>(null);
+  const [cccdFrontText, setCccdFrontText] = useState('');
+  const [cccdBackText, setCccdBackText] = useState('');
+  const [scanningCccd, setScanningCccd] = useState<'front' | 'back' | null>(null);
+  const [cccdScanNotice, setCccdScanNotice] = useState<{
+    severity: 'success' | 'info';
+    text: string;
+  } | null>(null);
   const [pilotLicenseNumber, setPilotLicenseNumber] = useState('');
   const [pilotLicenseClass, setPilotLicenseClass] = useState('');
   const [pilotLicenseExpiresAt, setPilotLicenseExpiresAt] = useState('');
@@ -139,6 +142,18 @@ export default function InspectorRegisterPage() {
     const timer = setInterval(() => setCountdown((c) => c - 1), 1000);
     return () => clearInterval(timer);
   }, [countdown]);
+
+  useEffect(() => {
+    return () => {
+      if (cccdFrontPreview) URL.revokeObjectURL(cccdFrontPreview);
+    };
+  }, [cccdFrontPreview]);
+
+  useEffect(() => {
+    return () => {
+      if (cccdBackPreview) URL.revokeObjectURL(cccdBackPreview);
+    };
+  }, [cccdBackPreview]);
 
   if (status === 'checking') {
     return <AuthLoadingScreen />;
@@ -213,6 +228,94 @@ export default function InspectorRegisterPage() {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  const handleCccdScan = async (
+    side: 'front' | 'back',
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setErrorMessage('Vui lòng chọn tệp hình ảnh (JPG, PNG, WEBP) để quét CCCD.');
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+    if (side === 'front') {
+      setCccdFrontPreview((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return previewUrl;
+      });
+    } else {
+      setCccdBackPreview((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return previewUrl;
+      });
+    }
+
+    setErrorMessage(null);
+    setCccdScanNotice(null);
+    setScanningCccd(side);
+
+    try {
+      const extractedText = await extractCccdImageText(file);
+      const nextFrontText = side === 'front' ? extractedText : cccdFrontText;
+      const nextBackText = side === 'back' ? extractedText : cccdBackText;
+      if (side === 'front') setCccdFrontText(extractedText);
+      else setCccdBackText(extractedText);
+
+      const parsed = parseCccdOcrText({
+        frontText: nextFrontText,
+        backText: nextBackText,
+      });
+
+      const filledLabels: string[] = [];
+      if (parsed.citizenId) {
+        setCitizenId(parsed.citizenId);
+        filledLabels.push('Số CCCD');
+      }
+      if (parsed.address) {
+        setAddress(parsed.address);
+        filledLabels.push('Địa chỉ thường trú');
+      }
+      if (!fullName.trim() && parsed.fullName) {
+        setFullName(parsed.fullName);
+        filledLabels.push('Họ tên');
+      }
+
+      if (filledLabels.length > 0) {
+        setCccdScanNotice({
+          severity: 'success',
+          text: `Đã quét và tự động điền: ${filledLabels.join(', ')}. Vui lòng kiểm tra lại thông tin trước khi tiếp tục.`,
+        });
+      } else {
+        setCccdScanNotice({
+          severity: 'info',
+          text: 'Chưa nhận diện được thông tin rõ nét từ ảnh CCCD. Bạn có thể chụp rõ hơn hoặc nhập thủ công bên dưới.',
+        });
+      }
+    } finally {
+      setScanningCccd(null);
+    }
+  };
+
+  const handleRemoveCccdSide = (side: 'front' | 'back') => {
+    if (side === 'front') {
+      setCccdFrontPreview((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
+      setCccdFrontText('');
+    } else {
+      setCccdBackPreview((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
+      setCccdBackText('');
+    }
+    setCccdScanNotice(null);
   };
 
   const validateStep1 = (): boolean => {
@@ -412,41 +515,20 @@ export default function InspectorRegisterPage() {
     <AuthPageLayout
       eyebrow="Đối tác Phi công · Inspector Portal"
       title="Đăng ký Đối tác Phi công"
+      description="Tạo tài khoản và nộp hồ sơ năng lực để tham gia mạng lưới kiểm định UAV."
       subtitleText="Đã có tài khoản đối tác?"
       subtitleLinkText="Đăng nhập Inspector"
       subtitleLinkTo="/inspector/login"
       backLabel="Quay lại trang chủ"
       backTo="/inspector"
       showSocial={false}
+      formMaxWidth="430px"
       heroTagline={{
         line1: 'Partner UAV Network,',
         line2: 'Verified & Certified',
       }}
     >
       <Stack spacing={2.25}>
-        {/* STEPPER HEADER */}
-        <Stepper
-          activeStep={activeStep}
-          alternativeLabel
-          sx={{
-            pt: 0.5,
-            pb: 0.5,
-            '& .MuiStepLabel-label': {
-              fontSize: '11.5px',
-              fontWeight: 600,
-              mt: '4px !important',
-            },
-            '& .MuiStepIcon-root.Mui-active': { color: '#087E8B' },
-            '& .MuiStepIcon-root.Mui-completed': { color: '#10b981' },
-          }}
-        >
-          {STEPS.map((label) => (
-            <Step key={label}>
-              <StepLabel>{label}</StepLabel>
-            </Step>
-          ))}
-        </Stepper>
-
         {/* ===================== STEP 0: THÔNG TIN TÀI KHOẢN ===================== */}
         {activeStep === 0 && (
           <Stack spacing={1.75}>
@@ -548,6 +630,144 @@ export default function InspectorRegisterPage() {
         {/* ===================== STEP 1: CCCD, BẰNG LÁI & TẢI ẢNH BẰNG CHỨNG ===================== */}
         {activeStep === 1 && (
           <Stack spacing={1.75}>
+            {/* SCAN ẢNH CCCD MẶT TRƯỚC & MẶT SAU ĐỂ TỰ ĐỘNG ĐIỀN */}
+            <Paper
+              variant="outlined"
+              sx={{
+                p: 1.5,
+                borderRadius: '10px',
+                bgcolor: '#F8FBFA',
+                borderColor: '#D6E4E0',
+              }}
+            >
+              <Stack spacing={1.25}>
+                <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+                    <DocumentScannerOutlined sx={{ color: '#087E8B', fontSize: 19 }} />
+                    <Typography sx={{ fontWeight: 700, fontSize: '13.5px', color: '#173B36' }}>
+                      Quét ảnh CCCD tự động điền
+                    </Typography>
+                  </Stack>
+                  {scanningCccd && (
+                    <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+                      <CircularProgress size={14} sx={{ color: '#087E8B' }} />
+                      <Typography sx={{ fontSize: '11.5px', color: '#087E8B', fontWeight: 600 }}>
+                        {scanningCccd === 'front' ? 'Đang quét mặt trước…' : 'Đang quét mặt sau…'}
+                      </Typography>
+                    </Stack>
+                  )}
+                </Stack>
+
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr', sm: 'minmax(0, 1fr) minmax(0, 1fr)' },
+                    gap: 1.25,
+                  }}
+                >
+                  {(
+                    [
+                      {
+                        side: 'front' as const,
+                        label: 'CCCD mặt trước',
+                        inputId: 'cccd-front-scan-input',
+                        preview: cccdFrontPreview,
+                      },
+                      {
+                        side: 'back' as const,
+                        label: 'CCCD mặt sau',
+                        inputId: 'cccd-back-scan-input',
+                        preview: cccdBackPreview,
+                      },
+                    ] as const
+                  ).map(({ side, label, inputId, preview }) => (
+                    <Box
+                      key={side}
+                      sx={{
+                        minWidth: 0,
+                        overflow: 'hidden',
+                        border: '1px dashed',
+                        borderColor: preview ? '#087E8B' : '#CBD5E1',
+                        borderRadius: '8px',
+                        bgcolor: '#FFFFFF',
+                        p: 1,
+                      }}
+                    >
+                      {preview ? (
+                        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between', minWidth: 0 }}>
+                          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', minWidth: 0 }}>
+                            <Box
+                              component="img"
+                              src={preview}
+                              alt={label}
+                              sx={{
+                                width: 48,
+                                height: 32,
+                                objectFit: 'cover',
+                                borderRadius: '4px',
+                                border: '1px solid #E2E8F0',
+                                flexShrink: 0,
+                              }}
+                            />
+                            <Typography sx={{ fontSize: '12px', fontWeight: 600, color: '#0F766E' }} noWrap>
+                              {label}
+                            </Typography>
+                          </Stack>
+                          <IconButton
+                            size="small"
+                            color="error"
+                            aria-label={`Xóa ${label}`}
+                            onClick={() => handleRemoveCccdSide(side)}
+                            disabled={scanningCccd !== null}
+                          >
+                            <DeleteOutlined fontSize="small" />
+                          </IconButton>
+                        </Stack>
+                      ) : (
+                        <Button
+                          component="label"
+                          htmlFor={inputId}
+                          size="small"
+                          fullWidth
+                          startIcon={<BadgeOutlined sx={{ fontSize: 17, flexShrink: 0 }} />}
+                          disabled={scanningCccd !== null}
+                          sx={{
+                            minWidth: 0,
+                            px: 1.25,
+                            py: 0.9,
+                            textTransform: 'none',
+                            fontWeight: 600,
+                            fontSize: '13px',
+                            lineHeight: 1.3,
+                            whiteSpace: 'normal',
+                            textAlign: 'center',
+                            color: '#087E8B',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          {`Quét ${label}`}
+                          <input
+                            id={inputId}
+                            type="file"
+                            accept="image/*"
+                            disabled={scanningCccd !== null}
+                            onChange={(e) => void handleCccdScan(side, e)}
+                            style={{ display: 'none' }}
+                          />
+                        </Button>
+                      )}
+                    </Box>
+                  ))}
+                </Box>
+
+                {cccdScanNotice && (
+                  <Alert severity={cccdScanNotice.severity} sx={{ borderRadius: 1.5, py: 0.25, fontSize: '12.5px' }}>
+                    {cccdScanNotice.text}
+                  </Alert>
+                )}
+              </Stack>
+            </Paper>
+
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
               <TextField
                 label="Số CCCD / Hộ chiếu *"
@@ -900,18 +1120,6 @@ export default function InspectorRegisterPage() {
             </Stack>
           </Stack>
         )}
-
-        <Box sx={{ textAlign: 'center', pt: 0.5 }}>
-          <Typography variant="caption" sx={{ color: '#5F7872' }}>
-            Đã có tài khoản đối tác?{' '}
-            <RouterLink
-              to="/inspector/login"
-              style={{ color: '#087E8B', fontWeight: 700, textDecoration: 'none' }}
-            >
-              Đăng nhập ngay
-            </RouterLink>
-          </Typography>
-        </Box>
       </Stack>
 
       {/* POPUP HƯỚNG DẪN CHUẨN BỊ HỒ SƠ */}
