@@ -99,9 +99,14 @@ export default function PlatformFinanceSettingsPage({
   const vatInvalid = isRateOutOfRange(vatRate);
   const tncnInvalid = isRateOutOfRange(tncnRate);
 
-  const commNum = Number(commissionRate) || 0;
-  const vatNum = Number(vatRate) || 0;
-  const tncnNum = Number(tncnRate) || 0;
+  const clampRate = (value: string) => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return 0;
+    return Math.min(100, Math.max(0, parsed));
+  };
+  const commNum = clampRate(commissionRate);
+  const vatNum = clampRate(vatRate);
+  const tncnNum = clampRate(tncnRate);
 
   // Real calculation preview on a standard 10,000,000 VND base contract
   const sampleBase = 10_000_000;
@@ -148,14 +153,18 @@ export default function PlatformFinanceSettingsPage({
 
   const handleConfirmSave = async () => {
     if (!pendingSubmit) return;
-    await updateSettings.mutateAsync(pendingSubmit);
-    setFormValues({
-      commissionRate: String(pendingSubmit.commissionRate),
-      vatRate: String(pendingSubmit.vatRate),
-      tncnRate: String(pendingSubmit.tncnRate),
-    });
-    setPendingSubmit(null);
-    setSaveSuccess(true);
+    try {
+      await updateSettings.mutateAsync(pendingSubmit);
+      setFormValues({
+        commissionRate: String(pendingSubmit.commissionRate),
+        vatRate: String(pendingSubmit.vatRate),
+        tncnRate: String(pendingSubmit.tncnRate),
+      });
+      setPendingSubmit(null);
+      setSaveSuccess(true);
+    } catch {
+      setPendingSubmit(null);
+    }
   };
 
   return (

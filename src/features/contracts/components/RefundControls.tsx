@@ -21,7 +21,22 @@ interface Props {
   onError: (message: string) => void;
 }
 
-const amount = (value: string) => Number(value || 0);
+const amount = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) return Number.NaN;
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) ? parsed : Number.NaN;
+};
+
+const isPositiveAmount = (value: string) => {
+  const parsed = amount(value);
+  return Number.isFinite(parsed) && parsed > 0;
+};
+
+const isNonNegativeAmount = (value: string) => {
+  const parsed = amount(value);
+  return Number.isFinite(parsed) && parsed >= 0;
+};
 const fields = [
   ['inspectorPayoutReduction', 'Inspector payout reduction'],
   ['platformCommissionAdjustment', 'Platform commission adjustment'],
@@ -245,8 +260,7 @@ export function RefundControls({ requestId, occurrence, enabled, onChanged, onEr
               loading={initiate.isPending}
               disabled={
                 !finance.data ||
-                !refundAmount ||
-                amount(refundAmount) <= 0 ||
+                !isPositiveAmount(refundAmount) ||
                 !requestReference.trim() ||
                 !reasonCode ||
                 !serviceStage ||
@@ -254,9 +268,9 @@ export function RefundControls({ requestId, occurrence, enabled, onChanged, onEr
                 !evidenceReference.trim() ||
                 !reason.trim() ||
                 (occurrence.payout?.status === 'PAID' &&
-                  (!receivablePlan ||
-                    !absorbedPlan ||
-                    amount(receivablePlan) + amount(absorbedPlan) !== amount(refundAmount)))
+                  (!isNonNegativeAmount(receivablePlan) ||
+                    !isNonNegativeAmount(absorbedPlan) ||
+                    Math.abs(amount(receivablePlan) + amount(absorbedPlan) - amount(refundAmount)) > 0.01))
               }
               onClick={() =>
                 mutate(() =>
@@ -566,7 +580,7 @@ function CompleteButton({
   run: (action: () => Promise<unknown>) => Promise<void>;
 }) {
   const complete = useCompleteOccurrenceRefund(requestId, occurrenceId, refundId);
-  const disabled = fields.some(([key]) => allocation[key] === '') || !reference.trim();
+  const disabled = fields.some(([key]) => !isNonNegativeAmount(allocation[key])) || !reference.trim();
   return (
     <LoadingButton
       size="small"
@@ -647,9 +661,9 @@ function LegacyButton({
       variant="outlined"
       loading={reconcile.isPending}
       disabled={
-        fields.some(([key]) => allocation[key] === '') ||
-        !plan.receivable ||
-        !plan.absorbed ||
+        fields.some(([key]) => !isNonNegativeAmount(allocation[key])) ||
+        !isNonNegativeAmount(plan.receivable) ||
+        !isNonNegativeAmount(plan.absorbed) ||
         !evidence.reference.trim() ||
         !evidence.note.trim()
       }
@@ -691,8 +705,7 @@ function RecoveryButton({
       variant="outlined"
       loading={recovery.isPending}
       disabled={
-        !draft.amount ||
-        amount(draft.amount) <= 0 ||
+        !isPositiveAmount(draft.amount) ||
         !draft.reference.trim() ||
         !draft.note.trim()
       }
