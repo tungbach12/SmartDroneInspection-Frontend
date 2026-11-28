@@ -843,6 +843,12 @@ describe('FieldSessionPage', () => {
     const pdfFile = new File(['%PDF-1.4 test'], 'permit.pdf', { type: 'application/pdf' });
     fireEvent.change(fileInput, { target: { files: [pdfFile] } });
 
+    fireEvent.click(screen.getByTestId('permit-hidden-autofill-trigger'));
+    expect((screen.getByLabelText(/Permit number/) as HTMLInputElement).value).toBe('245/GP-TC-2026');
+    expect((screen.getByLabelText(/Issuing authority/) as HTMLInputElement).value).toBe(
+      'Cục Tác chiến - Bộ Tổng Tham mưu',
+    );
+
     fireEvent.change(screen.getByLabelText(/Permit number/), {
       target: { value: 'CAAV-2026-009' },
     });
