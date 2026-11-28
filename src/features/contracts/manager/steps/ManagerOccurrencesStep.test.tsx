@@ -134,7 +134,7 @@ describe('ManagerOccurrencesStep', () => {
     expect(link.getAttribute('href')).toBe('/manager/inspections/inspection-1/audit');
   });
 
-  it('shows restricted airspace banner and lets manager open Cancel flight on pending occurrence', () => {
+  it('lets the manager open Cancel flight without a restricted-airspace banner', () => {
     const req = assignedRequest();
     req.occurrences[0] = {
       ...req.occurrences[0]!,
@@ -142,7 +142,7 @@ describe('ManagerOccurrencesStep', () => {
     };
     renderOccurrencesStep(req);
 
-    expect(screen.getByText(/Restricted airspace: Hành Lang An Toàn Hàng Không/i)).toBeTruthy();
+    expect(screen.queryByText(/Restricted airspace:/i)).toBeNull();
     expect(screen.queryByText(/max ceiling|120\s*m/i)).toBeNull();
     const cancelBtn = screen.getByRole('button', { name: 'Cancel flight' });
     fireEvent.click(cancelBtn);

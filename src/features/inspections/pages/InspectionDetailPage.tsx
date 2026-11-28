@@ -72,10 +72,7 @@ import {
   isFlightPermitVerified,
   resolveFlightPermitVerificationStatus,
 } from '../utils/workflowStepResolver';
-import {
-  RestrictedAirspaceAlert,
-  RestrictedAirspaceChip,
-} from '@/shared/airspace/RestrictedAirspaceNotice';
+import { RestrictedAirspaceChip } from '@/shared/airspace/RestrictedAirspaceNotice';
 
 interface WorkflowStep {
   step: number;
@@ -1306,15 +1303,6 @@ export default function InspectionDetailPage() {
             </Paper>
           );
         })()}
-
-        {inspection && (!isInspectorRole || isPendingAcceptance) && (
-          <RestrictedAirspaceAlert
-            role={isCustomer ? 'CUSTOMER' : isReviewerAdmin ? 'MANAGER' : 'INSPECTOR'}
-            latitude={inspection.assetLatitude}
-            longitude={inspection.assetLongitude}
-            sx={{ mt: 1.5, borderRadius: '10px' }}
-          />
-        )}
 
         {isPendingAcceptance && (
           <Alert severity="info" sx={{ mt: 1.5, borderRadius: '10px', '& .MuiAlert-message': { width: '100%' } }}>

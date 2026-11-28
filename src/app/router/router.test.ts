@@ -1,6 +1,36 @@
+import { isValidElement } from 'react';
 import { describe, expect, it } from 'vitest';
 import { matchRoutes } from 'react-router-dom';
+import LandingPage from '@/features/landing/pages/LandingPage';
 import { router } from './router';
+
+describe('public role landing routes', () => {
+  it.each(['customer', 'inspector', 'staff'])('renders the shared landing page at /%s', (audience) => {
+    const route = matchRoutes(router.routes, `/${audience}`)?.at(-1)?.route;
+    expect(route?.path).toBe(audience);
+    if (!isValidElement(route?.element)) throw new Error('Landing page element is missing');
+    expect(route.element.type).toBe(LandingPage);
+    expect(route.element.props).toEqual({ audience });
+  });
+
+  it.each([
+    ['smartdroneinspection-admin.example.test', '/staff'],
+    ['smartdroneinspection-operations.example.test', '/inspector'],
+    ['smartdroneinspection.example.test', null],
+  ])('routes the root of %s to the matching audience', async (host, expected) => {
+    const loader = matchRoutes(router.routes, '/')?.at(-1)?.route.loader;
+    if (typeof loader !== 'function') throw new Error('Root landing loader is missing');
+    const url = new URL(`https://${host}/`);
+    const result = await loader({ request: new Request(url), url, pattern: '/', params: {}, context: undefined });
+
+    if (expected) {
+      expect(result).toBeInstanceOf(Response);
+      expect((result as Response).headers.get('Location')).toBe(expected);
+    } else {
+      expect(result).toBeNull();
+    }
+  });
+});
 
 describe('retired provider routes', () => {
   it.each(['/register-provider', '/activate-provider', '/operations/team'])(
@@ -137,10 +167,12 @@ describe('existing portal routes', () => {
 
   it.each([
     ['/login', 'login'],
+    ['/customer/login', 'customer/login'],
     ['/register', 'register'],
     ['/inspector/login', 'inspector/login'],
     ['/inspector/register', 'inspector/register'],
-  ])('exposes separated Customer and Inspector auth route %s', (path, expected) => {
+    ['/staff/login', 'staff/login'],
+  ])('exposes public auth route %s', (path, expected) => {
     const matches = matchRoutes(router.routes, path);
     expect(matches?.at(-1)?.route.path).toBe(expected);
   });

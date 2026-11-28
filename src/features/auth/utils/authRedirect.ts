@@ -10,6 +10,7 @@ import {
   type SectionId,
 } from '@/app/permissions/accessPolicy';
 import type { Role } from '../store/authStore';
+import { LOGIN_AUDIENCES, LOGIN_PAGES } from './loginAudience';
 
 const APP_ORIGIN = 'https://smartdroneinspection.invalid';
 
@@ -36,8 +37,8 @@ export function getAuthRedirectTarget(
   const path = destination.pathname;
   if (
     path === '/login' ||
+    LOGIN_AUDIENCES.some((audience) => LOGIN_PAGES[audience].path === path) ||
     path === '/register' ||
-    path === '/inspector/login' ||
     path === '/inspector/register' ||
     path === '/register-inspector' ||
     path === '/forbidden'

@@ -7,7 +7,9 @@ import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import TaskAltIcon from '@mui/icons-material/TaskAlt';
 import LanguageRounded from '@mui/icons-material/LanguageRounded';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import { LOGIN_PAGES } from '@/features/auth/utils/loginAudience';
 import { NextAdminLogoMark } from '@/shared/ui/NextAdminIcons';
+import { LANDING_PATHS, type LandingAudience } from '../landingAudience';
 
 const services = [
   {
@@ -68,8 +70,11 @@ const actionSx = {
   '&:focus-visible': { outline: '2px solid #38BDF8', outlineOffset: 3 },
 };
 
-export default function LandingPage() {
+export default function LandingPage({ audience }: { audience?: LandingAudience }) {
   const { locale, setLocale, t } = useLocale();
+  const homePath = audience ? LANDING_PATHS[audience] : '/';
+  const signInPath = audience ? LOGIN_PAGES[audience].path : LOGIN_PAGES.customer.path;
+  const signUpPath = audience === 'inspector' ? '/inspector/register' : '/register';
   useEffect(() => {
     const previousTitle = document.title;
     document.title = 'SDI';
@@ -113,7 +118,7 @@ export default function LandingPage() {
           }}
         >
           <Link
-            href="/"
+            href={homePath}
             underline="none"
             aria-label={t('SDI home')}
             sx={{ color: '#fff', fontSize: 15, fontWeight: 650, letterSpacing: '-0.04em' }}
@@ -180,7 +185,7 @@ export default function LandingPage() {
               {locale === 'en' ? 'VI' : 'EN'}
             </Button>
             <Link
-              href="/login"
+              href={signInPath}
               underline="none"
               sx={{
                 color: 'rgba(255,255,255,.8)',
@@ -198,7 +203,7 @@ export default function LandingPage() {
             </Link>
             <Box
               component="a"
-              href="/register"
+              href={signUpPath}
               sx={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -542,7 +547,7 @@ export default function LandingPage() {
                   {t(item.label)}
                 </Link>
               ))}
-              <Link href="/login" underline="none" sx={{ color: '#858982', fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase', '&:hover': { color: '#fff' } }}>
+              <Link href={signInPath} underline="none" sx={{ color: '#858982', fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase', '&:hover': { color: '#fff' } }}>
                 {t('Sign in')}
               </Link>
             </Stack>

@@ -1,9 +1,32 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { api, postWithBrowserCsrf } from './client';
+import {
+  api,
+  DEFAULT_API_TIMEOUT_MS,
+  getApiRequestTimeoutMs,
+  postWithBrowserCsrf,
+  setApiRequestTimeoutMs,
+} from './client';
 
 describe('browser API client', () => {
-  it('uses the organization API prefix', () => {
+  afterEach(() => {
+    setApiRequestTimeoutMs(DEFAULT_API_TIMEOUT_MS);
+  });
+
+  it('uses the organization API prefix and 120s default timeout', () => {
     expect(api.defaults.baseURL).toBe('/api/v1');
+    expect(DEFAULT_API_TIMEOUT_MS).toBe(120_000);
+    expect(getApiRequestTimeoutMs()).toBe(120_000);
+  });
+
+  it('updates and clamps the configurable API timeout', () => {
+    setApiRequestTimeoutMs(240_000);
+    expect(getApiRequestTimeoutMs()).toBe(240_000);
+
+    setApiRequestTimeoutMs(2_000);
+    expect(getApiRequestTimeoutMs()).toBe(10_000);
+
+    setApiRequestTimeoutMs(900_000);
+    expect(getApiRequestTimeoutMs()).toBe(600_000);
   });
 
   it('sends the selected locale on every request and defaults to English', async () => {

@@ -221,6 +221,14 @@ describe('browser auth API', () => {
     expect(transport.postWithBrowserCsrf).toHaveBeenNthCalledWith(2, '/auth/logout-all');
   });
 
+  it('allows a rejected sign-in to revoke its cookie using the returned token without starting a session', async () => {
+    transport.postWithBrowserCsrf.mockResolvedValue({ data: undefined });
+
+    await logoutCurrentSession('memory-access-token');
+
+    expect(transport.postWithBrowserCsrf).toHaveBeenCalledWith('/auth/logout', undefined, undefined, 'memory-access-token');
+  });
+
   it('changes the authenticated account password through the browser API', async () => {
     transport.postWithBrowserCsrf.mockResolvedValue({ data: undefined });
 

@@ -16,7 +16,7 @@ import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import TaskAltOutlinedIcon from '@mui/icons-material/TaskAltOutlined';
 import { useAsset } from '@/features/assets/hooks/useAssets';
-import { RestrictedAirspaceAlert } from '@/shared/airspace/RestrictedAirspaceNotice';
+import { NoFlyFootprintAlert } from '@/shared/airspace/RestrictedAirspaceNotice';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import type { IssueServiceQuoteInput, ServiceRequest } from '../../api/contractApi';
@@ -256,11 +256,9 @@ export function ManagerQuoteWorkspace({
 
       <Box sx={{ p: 2 }}>
         <Stack spacing={2}>
-          <RestrictedAirspaceAlert
-            role="MANAGER"
+          <NoFlyFootprintAlert
             latitude={assetQuery.data?.latitude}
             longitude={assetQuery.data?.longitude}
-            structureHeightMeters={assetQuery.data?.structureHeightMeters}
             footprintAreaSquareMeters={assetQuery.data?.footprintAreaSquareMeters}
           />
           <RequestCheckpointsEditor

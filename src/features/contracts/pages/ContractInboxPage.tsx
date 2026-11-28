@@ -253,7 +253,7 @@ export default function ContractInboxPage() {
         const personName = isManager
           ? item.ownerCustomerName || otherMsg?.authorName || item.description
           : item.serviceManager?.fullName || otherMsg?.authorName || t('Service Manager');
-        const avatarUrl = !isManager ? item.serviceManager?.avatarUrl : undefined;
+        const avatarUrl = isManager ? item.ownerCustomerAvatarUrl : item.serviceManager?.avatarUrl;
         const latestBody = item.messages[item.messages.length - 1]?.body ?? '';
 
         return {

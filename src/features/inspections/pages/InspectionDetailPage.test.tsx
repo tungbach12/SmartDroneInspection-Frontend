@@ -1010,7 +1010,7 @@ describe('InspectionDetailPage', () => {
     ).toBeTruthy();
   });
 
-  it('shows restricted airspace alert and one-click permit decline chip when assignment is pending acceptance', async () => {
+  it('shows the permit decline chip without a restricted-airspace banner on a pending assignment', async () => {
     signInAs('INSPECTOR');
     mocks.inspectionQuery = {
       data: {
@@ -1039,7 +1039,7 @@ describe('InspectionDetailPage', () => {
     };
 
     renderInspectionPage({ route: '/operations/inspections/inspection-1/permit' });
-    expect(await screen.findByText(/Restricted airspace: Hành Lang An Toàn Hàng Không/i)).toBeTruthy();
+    expect(screen.queryByText(/Restricted airspace:/i)).toBeNull();
     expect(screen.queryByText(/max ceiling|120\s*m/i)).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Decline mission' }));
     const chip = await screen.findByText('Unable to obtain restricted-airspace flight permit');

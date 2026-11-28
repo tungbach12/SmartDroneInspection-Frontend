@@ -125,7 +125,7 @@ describe('InspectionWorkDetailDialog', () => {
     expect(screen.getByText('Deck Joint East')).toBeTruthy();
 
     // Guidance banner for SCHEDULED when permit is verified -> pre-flight
-    expect(screen.getByText(/Flight permit verified by Manager/i)).toBeTruthy();
+    expect(screen.getByText(/Flight permit recorded and self-confirmed/i)).toBeTruthy();
     expect(screen.getByRole('button', { name: /Open pre-flight check/i })).toBeTruthy();
   });
 
@@ -148,7 +148,7 @@ describe('InspectionWorkDetailDialog', () => {
     );
 
     expect(screen.getByText(/The drone or schedule changed/i)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /Review permit status/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Upload updated permit/i }));
     expect(mockNavigate).toHaveBeenCalledWith('/operations/inspections/insp-12345678-abcd/permit');
   });
 

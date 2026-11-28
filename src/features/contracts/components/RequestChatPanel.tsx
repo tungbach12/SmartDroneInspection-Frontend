@@ -1143,7 +1143,9 @@ export function RequestChatPanel({
     <ChatConversationPanel
       threadId={request.id}
       partnerName={partnerName}
-      partnerAvatarUrl={!isManagerRole ? request.serviceManager?.avatarUrl : undefined}
+      partnerAvatarUrl={
+        isManagerRole ? request.ownerCustomerAvatarUrl : request.serviceManager?.avatarUrl
+      }
       subtitle={`${request.description} · ${statusLabel}`}
       emptyTitle={locale === 'vi' ? 'Chưa có tin nhắn đàm phán nào' : 'No messages yet'}
       emptyDescription={

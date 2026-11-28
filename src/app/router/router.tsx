@@ -3,6 +3,7 @@ import {
   createBrowserRouter,
   Navigate,
   Outlet,
+  redirect,
   RouterProvider,
 } from 'react-router-dom';
 import { BrandLoadingScreen } from '@/shared/components/BrandLoadingScreen';
@@ -26,7 +27,9 @@ import {
   PublicOnly,
 } from '@/features/auth/components/AuthSessionBootstrapper';
 import AccessDeniedPage from '@/features/auth/pages/AccessDeniedPage';
+import { LOGIN_AUDIENCES, LOGIN_PAGES } from '@/features/auth/utils/loginAudience';
 import LandingPage from '@/features/landing/pages/LandingPage';
+import { getDedicatedLandingAudience, LANDING_PATHS, type LandingAudience } from '@/features/landing/landingAudience';
 import { MotionLabPage } from '@/features/landing/pages/MotionLabPage';
 import PortalSelectionPage from '@/app/pages/PortalSelectionPage';
 import { useAuthStore } from '@/features/auth/store/authStore';
@@ -375,6 +378,13 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
   };
 });
 
+function redirectToDedicatedLanding(request: Request, audience: LandingAudience) {
+  const dedicatedAudience = getDedicatedLandingAudience(new URL(request.url).hostname);
+  return dedicatedAudience && dedicatedAudience !== audience
+    ? redirect(LANDING_PATHS[dedicatedAudience])
+    : null;
+}
+
 export const router = createBrowserRouter([
   {
     path: '/',
@@ -383,16 +393,22 @@ export const router = createBrowserRouter([
       {
         index: true,
         element: <LandingPage />,
-        loader: () => {
-          const host = window.location.hostname;
-          if (host.startsWith('smartdroneinspection-admin')) {
-            return new Response(null, { status: 302, headers: { Location: '/login' } });
-          }
-          if (host.startsWith('smartdroneinspection-operations')) {
-            return new Response(null, { status: 302, headers: { Location: '/inspector/login' } });
-          }
-          return null;
-        },
+        loader: ({ request }) => redirectToDedicatedLanding(request, 'customer'),
+      },
+      {
+        path: 'customer',
+        element: <LandingPage audience="customer" />,
+        loader: ({ request }) => redirectToDedicatedLanding(request, 'customer'),
+      },
+      {
+        path: 'inspector',
+        element: <LandingPage audience="inspector" />,
+        loader: ({ request }) => redirectToDedicatedLanding(request, 'inspector'),
+      },
+      {
+        path: 'staff',
+        element: <LandingPage audience="staff" />,
+        loader: ({ request }) => redirectToDedicatedLanding(request, 'staff'),
       },
       {
         path: 'motion-lab',
@@ -406,18 +422,18 @@ export const router = createBrowserRouter([
         path: 'login',
         element: (
           <PublicOnly>
-            <LoginPage />
+            <LoginPage key="default" />
           </PublicOnly>
         ),
       },
-      {
-        path: 'inspector/login',
+      ...LOGIN_AUDIENCES.map((audience) => ({
+        path: LOGIN_PAGES[audience].path.slice(1),
         element: (
           <PublicOnly>
-            <LoginPage audience="inspector" />
+            <LoginPage key={audience} audience={audience} />
           </PublicOnly>
         ),
-      },
+      })),
       {
         path: 'auth/callback',
         element: <OAuthCallbackPage />,

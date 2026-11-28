@@ -4,6 +4,7 @@ import {
   Alert,
   Box,
   Button,
+  ButtonBase,
   Checkbox,
   Chip,
   Dialog,
@@ -22,6 +23,7 @@ import {
 import AddRounded from '@mui/icons-material/AddRounded';
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
 import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
+import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
 import UploadFileRounded from '@mui/icons-material/UploadFileRounded';
 import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
@@ -42,6 +44,7 @@ import {
   useReinspectionVerifications,
   useStartFieldSession,
   useUploadFlightPermit,
+  type UploadFlightPermitInput,
 } from '../hooks/useInspections';
 import { TargetFlightShotList } from '../components/TargetFlightShotList';
 import { SmartDroneHubTelemetryPanel } from '../components/SmartDroneHubTelemetryPanel';
@@ -52,7 +55,6 @@ import {
   isFlightPermitVerified,
   resolveFlightPermitVerificationStatus,
 } from '../utils/workflowStepResolver';
-import { RestrictedAirspaceAlert } from '@/shared/airspace/RestrictedAirspaceNotice';
 import { FlightOperationsReportView } from '@/features/reports/components/FlightOperationsReportView';
 import { useChecklistTemplates } from '@/features/assets/hooks/useCatalog';
 import {
@@ -547,20 +549,12 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
   const [issuingAuthorityDraft, setIssuingAuthority] = useState<string | null>(null);
   const [permitValidFromDraft, setPermitValidFrom] = useState<string | null>(null);
   const [permitValidToDraft, setPermitValidTo] = useState<string | null>(null);
-  const [maxAltitudeDraft, setMaxAltitudeDraft] = useState<string | null>(null);
   const [permitFormError, setPermitFormError] = useState<string | null>(null);
   const [withdrawAssignmentOpen, setWithdrawAssignmentOpen] = useState(false);
   const [withdrawReason, setWithdrawReason] = useState('');
   const [permitPreviewOpen, setPermitPreviewOpen] = useState(false);
   const [replacePermitOpen, setReplacePermitOpen] = useState(false);
-  const [pendingPermitReplacePayload, setPendingPermitReplacePayload] = useState<{
-    file: File;
-    permitNumber: string;
-    issuingAuthority: string;
-    validFrom: string;
-    validTo: string;
-    maxAltitudeM?: number | null | undefined;
-  } | null>(null);
+  const [pendingPermitPayload, setPendingPermitPayload] = useState<UploadFlightPermitInput | null>(null);
   const [startOpen, setStartOpen] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
   useEffect(() => {
@@ -573,8 +567,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
     () => searchParams.get('newSession') === '1',
   );
   const [selectedFlightId, setSelectedFlightId] = useState<string | null>(null);
-  const [newFlightOpenedAt, setNewFlightOpenedAt] = useState<Date | null>(null);
-  const [newFlightLabel, setNewFlightLabel] = useState('');
+  const [flightToDelete, setFlightToDelete] = useState<FieldSessionFlight | null>(null);
   const [outcomeTarget, setOutcomeTarget] = useState<{
     session: FieldSession;
     kind: 'abort' | 'complete';
@@ -594,7 +587,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
     return [];
   });
   const [liveTelemetry, setLiveTelemetry] = useState<SmartDroneHubTelemetry | null>(null);
-  const [flightCompletedOnStep, setFlightCompletedOnStep] = useState(false);
+  const [completedFlight, setCompletedFlight] = useState<{ sessionId: string; flightId: string | null } | null>(null);
   const [abortCategory, setAbortCategory] = useState<string | null>(null);
   const [outcomeReason, setOutcomeReason] = useState('');
   const [simDemoOpen, setSimDemoOpen] = useState(false);
@@ -707,17 +700,36 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
     openSessionFlights.at(-1) ??
     null;
 
+  const refreshFlights = () => Promise.all([
+    queryClient.invalidateQueries({ queryKey: fieldSessionKeys.forInspection(inspectionId) }),
+    queryClient.invalidateQueries({ queryKey: fieldSessionKeys.flightsForInspection(inspectionId) }),
+  ]);
   const createFlight = useMutation({
-    mutationFn: ({ sessionId, flightLabel }: { sessionId: string; flightLabel: string | null }) =>
+    mutationFn: (sessionId: string) =>
       fieldSessionApi.createFlight(inspectionId, sessionId, {
-        flightLabel,
         flightDate: toDateTimeLocalValue(new Date().toISOString()).slice(0, 10),
       }),
     onSuccess: (created) => {
       setSelectedFlightId(created.id);
-      setNewFlightOpenedAt(null);
-      void queryClient.invalidateQueries({ queryKey: fieldSessionKeys.forInspection(inspectionId) });
-      void queryClient.invalidateQueries({ queryKey: fieldSessionKeys.flightsForInspection(inspectionId) });
+      return refreshFlights();
+    },
+  });
+  const deleteFlight = useMutation({
+    mutationFn: (flight: FieldSessionFlight) =>
+      fieldSessionApi.deleteFlight(inspectionId, flight.fieldSessionId, flight.id),
+    onSuccess: async (_, flight) => {
+      queryClient.setQueryData<FieldSession[]>(fieldSessionKeys.forInspection(inspectionId), (sessions) =>
+        sessions?.map((session) => session.id === flight.fieldSessionId && session.flights
+          ? { ...session, flights: session.flights.filter((item) => item.id !== flight.id) }
+          : session),
+      );
+      queryClient.setQueryData<FieldSessionFlight[]>(fieldSessionKeys.flightsForInspection(inspectionId), (flights) =>
+        flights?.filter((item) => item.id !== flight.id),
+      );
+      setSelectedFlightId((id) => id === flight.id ? null : id);
+      setCompletedFlight((completed) => completed?.flightId === flight.id ? null : completed);
+      await refreshFlights();
+      setFlightToDelete(null);
     },
   });
   const flightTitle = (flight: FieldSessionFlight) => {
@@ -763,28 +775,6 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
   const permitValidTo =
     permitValidToDraft ??
     toDateTimeLocalValue(inspection?.flightPermitValidTo ?? inspection?.plannedEndAt);
-  const maxAltitudeValue =
-    maxAltitudeDraft ??
-    (inspection?.flightPermitMaxAltitudeM != null
-      ? String(inspection.flightPermitMaxAltitudeM)
-      : '');
-  const submitPermitUpload = (payload: {
-    file: File;
-    permitNumber: string;
-    issuingAuthority: string;
-    validFrom: string;
-    validTo: string;
-    maxAltitudeM?: number | null | undefined;
-  }) => {
-    uploadPermit.mutate(payload, {
-      onSuccess: () => {
-        setPermitFile(null);
-        setReplacePermitOpen(false);
-        setPendingPermitReplacePayload(null);
-      },
-    });
-  };
-
   const canContinueToEvidence =
     !openSession &&
     (inspection?.status === 'FIELD_COMPLETED' ||
@@ -873,15 +863,21 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
       window.dispatchEvent(new Event('sdi-flight-session-updated'));
     }
   }, [liveHasFlown, openSession?.id]);
-  const hasFlightReport = Boolean(
+  const sessionHasFlightReport = Boolean(
     openSession?.hasFlightReport || openSessionFlights.some((f) => f.hasFlightReport),
+  );
+  const completedInSession = completedFlight !== null && completedFlight.sessionId === openSession?.id;
+  const activeFlightId = activeSessionFlight?.id ?? null;
+  const selectedFlightHasReport = Boolean(
+    (activeSessionFlight ? activeSessionFlight.hasFlightReport : openSession?.hasFlightReport) ||
+    (completedInSession && completedFlight.flightId === activeFlightId),
   );
   const hasFlown = liveHasFlown || Boolean(
     openSession?.id &&
       typeof sessionStorage !== 'undefined' &&
       sessionStorage.getItem(`sdi_has_flown_${openSession.id}`) === 'true',
   );
-  const hasFlightRecord = hasFlown || hasFlightReport || flightCompletedOnStep;
+  const hasFlightRecord = hasFlown || sessionHasFlightReport || completedInSession;
   const canProceedToPostFlight = hasFlightRecord;
 
   const buildChecklistSnapshot = (
@@ -1124,7 +1120,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                             setReplacePermitOpen((prev) => !prev);
                             setPermitFile(null);
                             setPermitFormError(null);
-                            setPendingPermitReplacePayload(null);
+                            setPendingPermitPayload(null);
                           }}
                           sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
                         >
@@ -1133,15 +1129,6 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                       )}
                   </Stack>
                 </Stack>
-
-                {isManagerOrAdmin && (
-                  <RestrictedAirspaceAlert
-                    role="MANAGER"
-                    latitude={inspection.assetLatitude}
-                    longitude={inspection.assetLongitude}
-                    sx={{ borderRadius: '10px' }}
-                  />
-                )}
 
                 <FlightPermitVerificationPanel
                   inspection={inspection}
@@ -1163,7 +1150,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                     {replacePermitOpen && isPermitApproved && (
                       <Alert severity="warning" sx={{ borderRadius: '10px' }}>
                         {t(
-                          'Replacing the permit records the new document immediately; you remain responsible for its validity.',
+                          'The current permit stays on file until you save its replacement.',
                         )}
                       </Alert>
                     )}
@@ -1356,25 +1343,6 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                           }}
                         />
                       </Grid>
-                      <Grid size={{ xs: 12, sm: 6 }}>
-                        <TextField
-                          fullWidth
-                          size="small"
-                          type="number"
-                          label={t('Max altitude (m)')}
-                          slotProps={{ htmlInput: { min: 1, max: 2000, step: 1 } }}
-                          placeholder={tr('Ví dụ: 80', 'e.g. 80')}
-                          helperText={tr(
-                            'Độ cao tối đa được cấp phép (tùy chọn, 1–2000 m)',
-                            'Approved max altitude in meters AGL (optional, 1–2000 m)',
-                          )}
-                          value={maxAltitudeValue}
-                          onChange={(e) => {
-                            setMaxAltitudeDraft(e.target.value);
-                            setPermitFormError(null);
-                          }}
-                        />
-                      </Grid>
                     </Grid>
 
                     {permitFormError && (
@@ -1446,33 +1414,14 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                               return;
                             }
                           }
-                          let parsedMaxAltitude: number | null = null;
-                          const trimmedMaxAlt = maxAltitudeValue.trim();
-                          if (trimmedMaxAlt) {
-                            const altNum = Number(trimmedMaxAlt);
-                            if (!Number.isInteger(altNum) || altNum < 1 || altNum > 2000) {
-                              setPermitFormError(
-                                t('Max altitude must be a whole number between 1 and 2000 meters.'),
-                              );
-                              return;
-                            }
-                            parsedMaxAltitude = altNum;
-                          }
-
                           setPermitFormError(null);
-                          const payload = {
+                          setPendingPermitPayload({
                             file: permitFile,
                             permitNumber: trimmedNum,
                             issuingAuthority: trimmedAuth,
                             validFrom: fromDate.toISOString(),
                             validTo: toDate.toISOString(),
-                            maxAltitudeM: parsedMaxAltitude,
-                          };
-                          if (isPermitApproved) {
-                            setPendingPermitReplacePayload(payload);
-                            return;
-                          }
-                          submitPermitUpload(payload);
+                          });
                         }}
                         sx={{
                           borderRadius: '8px',
@@ -1599,20 +1548,25 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
             />
           )}
           <ConfirmDialog
-            open={Boolean(pendingPermitReplacePayload)}
-            severity="warning"
-            title={t('Replace approved flight permit?')}
+            open={Boolean(pendingPermitPayload)}
+            title={hasPermit ? t('Confirm flight permit replacement') : t('Confirm flight permit')}
             message={t(
-              'Replacing this approved permit will revoke the current Manager approval and lock pre-flight checks until the new permit is verified again.',
+              'I confirm this permit is valid for the assigned drone, site, and scheduled flight window. I take responsibility for the document and the details provided.',
             )}
-            confirmLabel={t('Replace & resubmit')}
+            confirmLabel={hasPermit ? t('Confirm & replace') : t('Confirm & save')}
             cancelLabel={t('Cancel')}
             loading={uploadPermit.isPending}
-            onCancel={() => setPendingPermitReplacePayload(null)}
+            onCancel={() => setPendingPermitPayload(null)}
             onConfirm={() => {
-              if (pendingPermitReplacePayload) {
-                submitPermitUpload(pendingPermitReplacePayload);
-              }
+              if (!pendingPermitPayload) return;
+              uploadPermit.mutate(pendingPermitPayload, {
+                onSuccess: () => {
+                  setPermitFile(null);
+                  setReplacePermitOpen(false);
+                  setPendingPermitPayload(null);
+                },
+                onError: () => setPendingPermitPayload(null),
+              });
             }}
           />
         </QueryState>
@@ -1771,13 +1725,13 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                             size="small"
                             sx={{ whiteSpace: 'nowrap' }}
                           >
-                            {t('View permit')}
+                            {t('Upload replacement permit')}
                           </Button>
                         }
                       >
                         {permitVerificationStatus === 'REJECTED'
-                          ? t('Flight permit was rejected by the Manager. Upload a replacement permit in Step 1 before starting the session.')
-                          : t('Flight permit is pending Manager verification. You can prepare the checklist below, and session start will unlock once the permit is approved.')}
+                          ? t('Upload a replacement flight permit before starting the pre-flight checklist.')
+                          : t('Upload an updated flight permit in Step 1 before starting the session.')}
                       </Alert>
                     )}
 
@@ -2745,91 +2699,170 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                   <>
                     <Paper
                       variant="outlined"
-                      sx={{
-                        p: 1.75,
-                        borderRadius: '10px',
-                        bgcolor: 'background.default',
-                        borderColor: 'divider',
-                      }}
+                      sx={{ borderRadius: '10px', overflow: 'hidden' }}
                     >
                       <Stack
-                        direction={{ xs: 'column', sm: 'row' }}
+                        direction="row"
                         spacing={1}
-                        sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between', mb: 1 }}
+                        sx={{ alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.25 }}
                       >
-                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                          {tr('Chuyến bay trong phiên này', 'Flight sorties in this session')}
-                          {openSessionFlights.length > 0 ? ` (${openSessionFlights.length})` : ''}
+                        <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                          {tr('Chuyến bay', 'Flights')}
                         </Typography>
-                        <Button
+                        <LoadingButton
                           size="small"
                           variant="outlined"
+                          color="inherit"
+                          loading={createFlight.isPending}
+                          disabled={deleteFlight.isPending}
                           startIcon={<AddRounded />}
-                          onClick={() => {
-                            createFlight.reset();
-                            setNewFlightLabel('');
-                            setNewFlightOpenedAt(new Date());
+                          onClick={() => createFlight.mutate(openSession.id)}
+                          sx={{
+                            textTransform: 'none',
+                            borderRadius: '8px',
+                            borderColor: 'divider',
+                            flexShrink: 0,
                           }}
-                          sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px', flexShrink: 0 }}
                         >
-                          {tr('Thêm chuyến bay', 'Record new flight')}
-                        </Button>
+                          {tr('Thêm chuyến bay', 'Add flight')}
+                        </LoadingButton>
                       </Stack>
 
+                      {createFlight.isError && (
+                        <Box sx={{ px: 2, pb: 1.25 }}>
+                          <MutationProblemAlert
+                            error={createFlight.error}
+                            isError
+                            fallbackMessage={tr('Không thể tạo chuyến bay.', 'Could not add the flight.')}
+                          />
+                        </Box>
+                      )}
+
                       {openSessionFlights.length > 0 && (
-                        <Stack direction="row" spacing={0.75} useFlexGap sx={{ flexWrap: 'wrap' }}>
+                        <Box
+                          component="ul"
+                          sx={{
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            gap: 1,
+                            m: 0,
+                            px: 2,
+                            pb: 1.5,
+                            listStyle: 'none',
+                          }}
+                        >
                           {openSessionFlights.map((flight) => {
                             const selected = flight.id === activeSessionFlight?.id;
                             return (
-                              <Chip
+                              <Box
+                                component="li"
                                 key={flight.id}
-                                size="small"
-                                clickable
-                                aria-pressed={selected}
-                                color={selected ? 'primary' : flight.hasFlightReport ? 'success' : 'default'}
-                                variant={selected ? 'filled' : 'outlined'}
-                                onClick={() => setSelectedFlightId(flight.id)}
-                                label={
-                                  <Stack component="span" sx={{ py: 0.5 }}>
-                                    <Typography component="span" variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontWeight: 700 }}>
+                                sx={{
+                                  maxWidth: '100%',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  border: '1px solid',
+                                  borderColor: 'divider',
+                                  borderRadius: '8px',
+                                  bgcolor: selected ? 'action.selected' : 'background.paper',
+                                }}
+                              >
+                                <ButtonBase
+                                  aria-pressed={selected}
+                                  onClick={() => setSelectedFlightId(flight.id)}
+                                  sx={{
+                                    minWidth: 0,
+                                    minHeight: 48,
+                                    px: 1.5,
+                                    py: 0.75,
+                                    borderRadius: '7px',
+                                    justifyContent: 'flex-start',
+                                    textAlign: 'left',
+                                    '&:hover': { bgcolor: 'action.hover' },
+                                    '&.Mui-focusVisible': {
+                                      outline: '2px solid',
+                                      outlineColor: 'text.secondary',
+                                      outlineOffset: -2,
+                                    },
+                                  }}
+                                >
+                                  <Stack
+                                    component="span"
+                                    spacing={0.25}
+                                  >
+                                    <Typography
+                                      component="span"
+                                      variant="body2"
+                                      sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 0.75,
+                                        fontWeight: 600,
+                                        overflowWrap: 'anywhere',
+                                      }}
+                                    >
                                       {flightTitle(flight)}
                                       {flight.hasFlightReport && (
                                         <CheckCircleRounded
                                           titleAccess={tr('Đã ghi nhận báo cáo chuyến bay', 'Flight report recorded')}
-                                          sx={{ fontSize: '1rem' }}
+                                          sx={{ fontSize: '1rem', color: 'text.secondary', flexShrink: 0 }}
                                         />
                                       )}
                                     </Typography>
-                                    <Typography component="span" variant="caption">
+                                    <Typography
+                                      component="span"
+                                      variant="caption"
+                                      color="text.secondary"
+                                      sx={{ flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}
+                                    >
                                       {flightDateTime(flight)}
                                     </Typography>
                                   </Stack>
-                                }
-                                sx={{ height: 'auto', borderRadius: 2, '& .MuiChip-label': { whiteSpace: 'normal' } }}
-                              />
+                                </ButtonBase>
+                                {isInspector && (
+                                  <Tooltip title={tr('Xóa chuyến bay', 'Delete flight')}>
+                                    <Box component="span" sx={{ display: 'inline-flex', mr: 0.5 }}>
+                                      <IconButton
+                                        size="small"
+                                        aria-label={`${tr('Xóa', 'Delete')} ${flightTitle(flight)}`}
+                                        disabled={createFlight.isPending || deleteFlight.isPending}
+                                        onClick={() => {
+                                          deleteFlight.reset();
+                                          setFlightToDelete(flight);
+                                        }}
+                                        sx={{ color: 'text.secondary', '&:hover': { color: 'error.main' } }}
+                                      >
+                                        <DeleteOutlineRounded fontSize="small" />
+                                      </IconButton>
+                                    </Box>
+                                  </Tooltip>
+                                )}
+                              </Box>
                             );
                           })}
-                        </Stack>
+                        </Box>
                       )}
                     </Paper>
 
                     <SmartDroneHubTelemetryPanel
+                      key={`telemetry:${activeFlightId ?? openSession.id}`}
                       inspectionId={inspectionId}
                       fieldSessionId={openSession.id}
-                      flightId={activeSessionFlight?.id ?? null}
-                      flightMeta={activeSessionFlight ?? null}
+                      flightId={activeFlightId}
+                      flightMeta={activeSessionFlight}
                       sessionActive
-                      hasFlightReport={hasFlightReport || flightCompletedOnStep}
+                      hasFlightReport={selectedFlightHasReport}
                       telemetrySource={openSession.telemetrySource}
                       onTelemetryChange={setLiveTelemetry}
-                      onFlightCompleted={() => setFlightCompletedOnStep(true)}
+                      onFlightCompleted={() => setCompletedFlight({ sessionId: openSession.id, flightId: activeFlightId })}
                     />
-                    {(hasFlightReport || flightCompletedOnStep) && (
+                    {selectedFlightHasReport && (
                       <FlightOperationsReportView
+                        key={`report:${activeFlightId ?? openSession.id}`}
                         inspectionId={inspectionId}
                         fieldSessionId={openSession.id}
-                        flightId={activeSessionFlight?.id ?? null}
-                        flights={allInspectionFlights}
+                        flightId={activeFlightId}
+                        flights={openSessionFlights}
                         sessions={items}
                         evidenceList={evidenceQuery?.data ?? []}
                         assetName={inspection.assetName}
@@ -2840,7 +2873,6 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                         }
                         flightPermitFileName={inspection.flightPermitFileName}
                         collapsible
-                        defaultExpanded
                       />
                     )}
                     {assetInspectionItems.length > 0 && (
@@ -3184,60 +3216,34 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
             </Stack>
           </Box>
         )}
-
-        <Dialog
-          open={newFlightOpenedAt !== null}
-          onClose={() => !createFlight.isPending && setNewFlightOpenedAt(null)}
-          fullWidth
-          maxWidth="xs"
-        >
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (!openSession || createFlight.isPending) return;
-              createFlight.mutate({
-                sessionId: openSession.id,
-                flightLabel: newFlightLabel.trim() || null,
-              });
-            }}
-          >
-            <DialogTitle sx={{ fontWeight: 700 }}>
-              {tr('Ghi nhận chuyến bay mới', 'Add flight sortie')}
-            </DialogTitle>
-            <DialogContent>
-              <Stack spacing={2} sx={{ pt: 1 }}>
-                <TextField
-                  size="small"
-                  fullWidth
-                  label={tr('Ngày giờ ghi nhận', 'Recording date and time')}
-                  value={newFlightOpenedAt ? formatDateTime(newFlightOpenedAt) : ''}
-                  slotProps={{ input: { readOnly: true }, inputLabel: { shrink: true } }}
-                />
-                <TextField
-                  size="small"
-                  fullWidth
-                  autoFocus
-                  label={tr('Tên / khu vực chuyến bay', 'Flight label / zone')}
-                  placeholder="North Facade · Battery #2"
-                  value={newFlightLabel}
-                  onChange={(e) => setNewFlightLabel(e.target.value)}
-                />
-                <MutationProblemAlert
-                  error={createFlight.error}
-                  isError={createFlight.isError}
-                  fallbackMessage={tr('Không thể tạo chuyến bay.', 'Could not add the flight.')}
-                />
-              </Stack>
-            </DialogContent>
-            <DialogActions sx={{ px: 3, pb: 2 }}>
-              <Button disabled={createFlight.isPending} onClick={() => setNewFlightOpenedAt(null)}>{t('Cancel')}</Button>
-              <LoadingButton type="submit" variant="contained" loading={createFlight.isPending}>
-                {tr('Tạo chuyến bay', 'Add flight')}
-              </LoadingButton>
-            </DialogActions>
-          </form>
-        </Dialog>
       </Stack>
+
+      {flightToDelete && (
+        <ConfirmDialog
+          open
+          title={tr('Xóa chuyến bay?', 'Delete flight?')}
+          message={tr(
+            'Bạn sẽ xóa {flight} và dữ liệu bay đã lưu của chuyến này.',
+            'This will delete {flight} and its saved flight data.',
+          ).replace('{flight}', flightTitle(flightToDelete))}
+          confirmLabel={tr('Xóa chuyến bay', 'Delete flight')}
+          cancelLabel={t('Cancel')}
+          severity="danger"
+          loading={deleteFlight.isPending}
+          onCancel={() => setFlightToDelete(null)}
+          onConfirm={() => deleteFlight.mutate(flightToDelete)}
+        >
+          {deleteFlight.isError && (
+            <Box sx={{ mt: 1.5 }}>
+              <MutationProblemAlert
+                error={deleteFlight.error}
+                isError
+                fallbackMessage={tr('Không thể xóa chuyến bay.', 'Could not delete the flight.')}
+              />
+            </Box>
+          )}
+        </ConfirmDialog>
+      )}
 
       <Dialog open={startOpen} onClose={() => setStartOpen(false)} fullWidth maxWidth="sm">
         <form

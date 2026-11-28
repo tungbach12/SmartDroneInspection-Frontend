@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import type { ServiceRequest } from '../../api/contractApi';
@@ -225,7 +225,7 @@ describe('ManagerAssetOverview', () => {
     expect(screen.queryByText('BR-1')).toBeNull();
   });
 
-  it('opens full asset details dialog when clicking the Asset field', () => {
+  it('opens full asset details with photo previews and a compact airspace status', () => {
     useAssetMock.mockReturnValue({
       data: {
         id: 'asset-1',
@@ -257,6 +257,20 @@ describe('ManagerAssetOverview', () => {
           documentDate: '2026-09-15',
           createdAt: '2026-10-01T00:00:00Z',
         },
+        {
+          id: 'photo-1',
+          documentType: 'ASSET_PHOTO',
+          fileName: 'bridge-deck.jpg',
+          contentType: 'image/jpeg',
+          sizeBytes: 4096,
+        },
+        {
+          id: 'photo-2',
+          documentType: 'ASSET_PHOTO',
+          fileName: 'bridge-pier.png',
+          contentType: 'image/png',
+          sizeBytes: 4096,
+        },
       ],
       isPending: false,
       isError: false,
@@ -271,9 +285,15 @@ describe('ManagerAssetOverview', () => {
     expect(dialog.textContent).toContain('Bridge');
     expect(dialog.textContent).toContain('10.034100, 105.788000');
     expect(dialog.textContent).toContain('CLEAR_ZONE');
+    expect(dialog.textContent).not.toContain('Coordinates are outside published static');
     expect(dialog.textContent).not.toContain('Inspection Checkpoints');
     expect(dialog.textContent).not.toContain('Checkpoints status');
     expect(dialog.textContent).toContain('bridge-blueprint.pdf');
+    expect(within(dialog).getAllByRole('img').map((img) => img.getAttribute('src'))).toEqual([
+      '/assets/asset-1/documents/photo-1/content',
+      '/assets/asset-1/documents/photo-2/content',
+    ]);
+    expect(within(dialog).getAllByRole('button', { name: 'Download' })).toHaveLength(3);
   });
 
   it('prefers request-configured checkpoints over asset suggestions in the overview', () => {

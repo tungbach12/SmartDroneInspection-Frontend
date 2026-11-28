@@ -140,16 +140,9 @@ describe('SmartDroneHubTelemetryPanel fallback records', () => {
 
     fireEvent.change(fileInput(container), { target: { files: [file] } });
 
-    expect(await screen.findByText('Flight log report recorded')).toBeTruthy();
-    expect(screen.getByText('bridge-track.srt · SRT · 1 KB')).toBeTruthy();
-    expect(screen.getByText('Source: SRT subtitle log')).toBeTruthy();
-    expect(screen.getByText('Trace points: 2')).toBeTruthy();
-    expect(screen.getByText('Duration: —')).toBeTruthy();
-    expect(screen.getByText('Distance: —')).toBeTruthy();
-    expect(screen.getByText('Started: —')).toBeTruthy();
-    expect(screen.getByText('Ended: —')).toBeTruthy();
-    expect(screen.getByText('Recorded flight state: UNKNOWN')).toBeTruthy();
-    expect(screen.getByText(/SRT subtitles can contain a partial trace/)).toBeTruthy();
+    const status = (await screen.findByText('Flight log saved')).closest('[role="status"]');
+    expect(status?.textContent).toContain('bridge-track.srt');
+    expect(status?.textContent).not.toMatch(/Trace points|Duration|Recorded flight state/);
     expect(screen.getByRole('button', { name: 'Connect Flight Operations' })).toBeTruthy();
     expect(mocks.start).not.toHaveBeenCalled();
     expect(queryClient.getQueryData(['smartdronehub', 'flight-report', 'inspection-1', 'session-1'])).toEqual(importedReport);
@@ -169,7 +162,7 @@ describe('SmartDroneHubTelemetryPanel fallback records', () => {
     expect(await screen.findByRole('button', { name: 'Parsing flight log…' })).toBeTruthy();
     expect((input.closest('label') as HTMLLabelElement).className).toContain('Mui-disabled');
     upload.resolve(importedReport);
-    expect(await screen.findByText('Flight log report recorded')).toBeTruthy();
+    expect(await screen.findByText('Flight log saved')).toBeTruthy();
   });
 
   it('shows an API error and permits re-upload after a failed parse', async () => {
@@ -187,7 +180,7 @@ describe('SmartDroneHubTelemetryPanel fallback records', () => {
     fireEvent.change(input, {
       target: { files: [new File(['valid'], 'flight.gpx', { type: 'application/gpx+xml' })] },
     });
-    expect(await screen.findByText('Flight log report recorded')).toBeTruthy();
+    expect(await screen.findByText('Flight log saved')).toBeTruthy();
     await waitFor(() => expect(screen.queryByText('Unsupported GPS data')).toBeNull());
     expect(mocks.importFlightLog).toHaveBeenCalledTimes(2);
   });
@@ -226,8 +219,8 @@ describe('SmartDroneHubTelemetryPanel fallback records', () => {
       note: 'Manual declaration',
     });
 
-    expect(await screen.findByText('Manual flight declaration recorded')).toBeTruthy();
-    expect(screen.getByText('Inspector declaration only; values are estimates, not telemetry or independent verification.')).toBeTruthy();
+    expect(await screen.findByText('Manual declaration saved')).toBeTruthy();
+    expect(screen.getByText('Inspector estimates')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Connect Flight Operations' })).toBeTruthy();
     expect(mocks.start).not.toHaveBeenCalled();
   });
@@ -265,9 +258,8 @@ describe('SmartDroneHubTelemetryPanel fallback records', () => {
   it('uses persisted source metadata after refresh without browser storage or guessed report values', () => {
     renderPanel({ hasFlightReport: true, telemetrySource: 'IMPORTED_LOG_CSV' });
 
-    expect(screen.getByText('Source: Imported log · CSV')).toBeTruthy();
-    expect(screen.getByText('Duration: —')).toBeTruthy();
-    expect(screen.getByText('Recorded flight state: —')).toBeTruthy();
+    expect(screen.getByText('Imported log · CSV')).toBeTruthy();
+    expect(screen.queryByText(/Duration:|Recorded flight state:/)).toBeNull();
   });
 
   it('allows replacing a previously imported log when session is closed but allowFlightLogImport is true', async () => {
@@ -277,22 +269,25 @@ describe('SmartDroneHubTelemetryPanel fallback records', () => {
       telemetrySource: 'IMPORTED_LOG_CSV',
       durationSeconds: 180,
     });
-    const { container } = renderPanel({
+    const { container, queryClient } = renderPanel({
       sessionActive: false,
       allowFlightLogImport: true,
       hasFlightReport: true,
       telemetrySource: 'IMPORTED_LOG_SRT',
     });
 
-    expect(await screen.findByText('Duration: 1:30')).toBeTruthy();
+    expect(await screen.findByText('SRT subtitle log')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Upload another log' })).toBeTruthy();
 
     fireEvent.change(fileInput(container), {
       target: { files: [new File(['csv'], 'corrected.csv', { type: 'text/csv' })] },
     });
 
-    expect(await screen.findByText('Source: Imported log · CSV')).toBeTruthy();
-    expect(screen.getByText('Duration: 3:00')).toBeTruthy();
+    expect(await screen.findByText('corrected.csv')).toBeTruthy();
+    expect(queryClient.getQueryData(['smartdronehub', 'flight-report', 'inspection-1', 'session-1'])).toMatchObject({
+      telemetrySource: 'IMPORTED_LOG_CSV',
+      durationSeconds: 180,
+    });
   });
 
   it('allows starting telemetry and completing flight to persist report and trigger onFlightCompleted', async () => {

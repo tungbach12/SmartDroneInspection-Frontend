@@ -35,12 +35,28 @@ interface CsrfResponse {
   token?: unknown;
 }
 
+export const DEFAULT_API_TIMEOUT_MS = 120_000;
+const MIN_API_TIMEOUT_MS = 10_000;
+const MAX_API_TIMEOUT_MS = 600_000;
+
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? '/api/v1',
-  timeout: 30_000,
+  timeout: DEFAULT_API_TIMEOUT_MS,
   withCredentials: true,
   withXSRFToken: false,
 });
+
+export function getApiRequestTimeoutMs(): number {
+  return typeof api.defaults.timeout === 'number' && Number.isFinite(api.defaults.timeout)
+    ? api.defaults.timeout
+    : DEFAULT_API_TIMEOUT_MS;
+}
+
+export function setApiRequestTimeoutMs(timeoutMs: number): void {
+  if (!Number.isFinite(timeoutMs)) return;
+  const clamped = Math.min(MAX_API_TIMEOUT_MS, Math.max(MIN_API_TIMEOUT_MS, Math.round(timeoutMs)));
+  api.defaults.timeout = clamped;
+}
 
 let refreshPromise: Promise<string> | null = null;
 
@@ -57,7 +73,8 @@ export function withBrowserRefreshLock<T>(
 export async function postWithBrowserCsrf<TResponse = unknown>(
   url: string,
   body?: unknown,
-  timeout = 30_000,
+  timeout = getApiRequestTimeoutMs(),
+  accessToken?: string,
 ): Promise<AxiosResponse<TResponse>> {
   const { data } = await api.get<CsrfResponse>('/auth/csrf', { timeout });
   if (typeof data.token !== 'string' || data.token.length === 0) {
@@ -73,7 +90,10 @@ export async function postWithBrowserCsrf<TResponse = unknown>(
   return api.post<TResponse>(url, body, {
     timeout,
     withXSRFToken: false,
-    headers: { [headerName]: data.token },
+    headers: {
+      [headerName]: data.token,
+      ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
+    },
   });
 }
 
@@ -155,7 +175,7 @@ api.interceptors.request.use((config) => {
   config.headers.set('Accept-Language', locale);
 
   const token = useAuthStore.getState().accessToken;
-  if (token && !shouldSkipBearerToken(config.url)) {
+  if (token && !config.headers.has('Authorization') && !shouldSkipBearerToken(config.url)) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;

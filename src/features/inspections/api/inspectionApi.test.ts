@@ -69,7 +69,7 @@ describe('inspectionApi.generateDraft', () => {
       undefined,
       { timeout: 110_000 },
     );
-    expect(api.defaults.timeout).toBe(30_000);
+    expect(api.defaults.timeout).toBe(120_000);
   });
 
   it('builds variant-aware content URLs and resumable upload / media ticket contracts', async () => {

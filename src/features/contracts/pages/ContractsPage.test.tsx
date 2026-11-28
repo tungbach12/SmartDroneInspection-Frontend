@@ -1291,6 +1291,15 @@ describe('ContractsPage', () => {
           active: false,
           required: false,
         },
+        {
+          id: 'tpl-3',
+          templateType: 'CATEGORY_INSPECTION_ITEM',
+          categoryId: 'cat-1',
+          label: ' deck joints ',
+          sortOrder: 3,
+          active: true,
+          required: false,
+        },
       ],
       isPending: false,
     } as any);
@@ -1342,7 +1351,9 @@ describe('ContractsPage', () => {
     openTrackProgress();
 
     fireEvent.click(screen.getByRole('button', { name: 'Configure checkpoints' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Deck joints' }));
+    expect(await screen.findAllByRole('button', { name: /^deck joints$/i })).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Deck joints' }));
+    expect(screen.getAllByText('Deck joints')).toHaveLength(1);
     fireEvent.click(screen.getByRole('button', { name: 'Anchor bolts' }));
     expect(screen.queryByRole('button', { name: 'Retired template' })).toBeNull();
 

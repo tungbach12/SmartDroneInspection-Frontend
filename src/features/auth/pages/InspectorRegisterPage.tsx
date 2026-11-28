@@ -314,7 +314,7 @@ export default function InspectorRegisterPage() {
         title="Nộp Hồ sơ Thành công"
         subtitleText="SmartDroneInspection Partner Network"
         backLabel="Quay lại trang chủ"
-        backTo="/"
+        backTo="/inspector"
         heroTagline={{
           line1: 'Partner UAV Network,',
           line2: 'Verified & Certified',
@@ -416,7 +416,7 @@ export default function InspectorRegisterPage() {
       subtitleLinkText="Đăng nhập Inspector"
       subtitleLinkTo="/inspector/login"
       backLabel="Quay lại trang chủ"
-      backTo="/"
+      backTo="/inspector"
       showSocial={false}
       heroTagline={{
         line1: 'Partner UAV Network,',

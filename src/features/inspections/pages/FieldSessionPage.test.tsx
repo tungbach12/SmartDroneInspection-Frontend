@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthStore } from '@/features/auth/store/authStore';
@@ -8,6 +8,7 @@ import { useToastStore } from '@/shared/ui/Toast';
 const mocks = vi.hoisted(() => ({
   list: vi.fn(),
   createFlight: vi.fn(),
+  deleteFlight: vi.fn(),
   start: vi.fn(),
   complete: vi.fn(),
   postpone: vi.fn(),
@@ -29,6 +30,7 @@ vi.mock('../api/fieldSessionApi', async (importOriginal) => {
       ...actual.fieldSessionApi,
       list: mocks.list,
       createFlight: mocks.createFlight,
+      deleteFlight: mocks.deleteFlight,
       start: mocks.start,
       complete: mocks.complete,
       postpone: mocks.postpone,
@@ -181,7 +183,7 @@ describe('FieldSessionPage', () => {
       id: 'flight-2',
       flightNumber: 2,
       flightDate: today,
-      flightLabel: 'Roof',
+      flightLabel: 'Flight #2',
       startedAt: null,
       createdAt: now.toISOString(),
     };
@@ -196,19 +198,102 @@ describe('FieldSessionPage', () => {
 
     expect(await screen.findByText('Flight 1')).toBeTruthy();
     expect(screen.queryByText('Flight #1')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Record new flight' }));
-    const recordTime = screen.getByRole<HTMLInputElement>('textbox', { name: 'Recording date and time' });
-    expect(recordTime.readOnly).toBe(true);
-    expect(recordTime.value).toMatch(/\d{1,2}:\d{2}/);
-    fireEvent.change(screen.getByRole('textbox', { name: 'Flight label / zone' }), { target: { value: 'Roof' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add flight' }));
 
-    expect(await screen.findByText('Flight 2 · Roof')).toBeTruthy();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    const flight = await screen.findByRole('button', { name: /Flight 2/, pressed: true });
+    expect(flight).toBeTruthy();
     expect(screen.getByText(new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(now))).toBeTruthy();
+    expect(mocks.createFlight).toHaveBeenCalledTimes(1);
     expect(mocks.createFlight).toHaveBeenCalledWith('inspection-1', SESSION.id, {
-      flightLabel: 'Roof',
       flightDate: today,
     });
+  });
+
+  it('shows the recorded report only while its flight is selected', async () => {
+    const firstFlight = {
+      id: 'flight-1',
+      fieldSessionId: SESSION.id,
+      flightNumber: 1,
+      flightDate: '2026-10-20',
+      flightLabel: 'Flight #1',
+      hasFlightReport: true,
+      telemetrySource: 'IMPORTED_LOG_CSV',
+    };
+    const secondFlight = {
+      ...firstFlight,
+      id: 'flight-2',
+      flightNumber: 2,
+      flightLabel: 'Flight #2',
+      hasFlightReport: false,
+      telemetrySource: null,
+    };
+    mocks.list.mockResolvedValue([{ ...SESSION, hasFlightReport: true, flights: [firstFlight, secondFlight] }]);
+    mocks.flightReport.mockResolvedValue({
+      inspectionId: 'inspection-1',
+      fieldSessionId: SESSION.id,
+      telemetrySource: 'IMPORTED_LOG_CSV',
+      durationSeconds: 180,
+      flightTrace: [],
+    });
+
+    renderWithClient('flight');
+
+    const unfinishedFlight = await screen.findByRole('button', { name: /^Flight 2/, pressed: true });
+    expect(screen.queryByRole('button', { name: /Show flight report/ })).toBeNull();
+    expect(mocks.flightReport).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: /^Flight 1/ }));
+    const showReport = screen.getByRole('button', { name: /Show flight report/ });
+    expect(screen.queryByText('Imported flight log summary')).toBeNull();
+    fireEvent.click(showReport);
+    expect(await screen.findByText('Imported flight log summary')).toBeTruthy();
+    expect(mocks.flightReport).toHaveBeenCalledWith('inspection-1', SESSION.id, 'flight-1');
+
+    fireEvent.click(unfinishedFlight);
+    expect(screen.queryByText('Imported flight log summary')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Show flight report/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Hide flight report/ })).toBeNull();
+    expect(mocks.flightReport).not.toHaveBeenCalledWith('inspection-1', SESSION.id, 'flight-2');
+
+    fireEvent.click(screen.getByRole('button', { name: /^Flight 1/ }));
+    expect(screen.getAllByText('SmartDroneHub telemetry')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: /Show flight report/ }).getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('deletes a flight only after confirmation and selects the remaining flight', async () => {
+    useAuthStore.setState({ roles: ['INSPECTOR'] });
+    const firstFlight = {
+      id: 'flight-1',
+      fieldSessionId: SESSION.id,
+      flightNumber: 1,
+      flightDate: '2026-10-20',
+      flightLabel: 'Flight #1',
+      startedAt: null,
+      hasFlightReport: false,
+    };
+    const secondFlight = { ...firstFlight, id: 'flight-2', flightNumber: 2, flightLabel: 'Flight #2' };
+    mocks.list.mockResolvedValue([{ ...SESSION, flights: [firstFlight, secondFlight] }]);
+    mocks.deleteFlight.mockImplementationOnce(async () => {
+      mocks.list.mockResolvedValue([{ ...SESSION, flights: [firstFlight] }]);
+    });
+
+    renderWithClient('flight');
+
+    expect(await screen.findByRole('button', { name: /^Flight 2/, pressed: true })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Flight 2' }));
+    const dialog = screen.getByRole('dialog', { name: 'Delete flight?' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(mocks.deleteFlight).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: /^Flight 2/, pressed: true })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Flight 2' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete flight' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(mocks.deleteFlight).toHaveBeenCalledWith('inspection-1', SESSION.id, secondFlight.id);
+    expect(screen.queryByRole('button', { name: 'Delete Flight 2' })).toBeNull();
+    expect(screen.getByRole('button', { name: /^Flight 1/, pressed: true })).toBeTruthy();
   });
 
   it('shows the permit upload action when inspection status is SCHEDULED', async () => {
@@ -545,7 +630,7 @@ describe('FieldSessionPage', () => {
     ).toBe(true);
   });
 
-  it('warns and requires confirmation before replacing an already approved flight permit', async () => {
+  it('requires Inspector self-attestation before replacing a flight permit and keeps the existing permit on cancel', async () => {
     mocks.getById.mockResolvedValue({
       ...INSPECTION,
       status: 'SCHEDULED',
@@ -558,7 +643,7 @@ describe('FieldSessionPage', () => {
     mocks.list.mockResolvedValue([]);
     mocks.uploadFlightPermit.mockResolvedValue({
       ...INSPECTION,
-      flightPermitVerificationStatus: 'PENDING_REVIEW',
+      flightPermitVerificationStatus: 'APPROVED',
     });
 
     renderWithClient();
@@ -566,7 +651,7 @@ describe('FieldSessionPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Replace permit' }));
     expect(
       screen.getByText(
-        /Replacing the permit records the new document immediately; you remain responsible for its validity\./i,
+        'The current permit stays on file until you save its replacement.',
       ),
     ).toBeTruthy();
 
@@ -578,10 +663,16 @@ describe('FieldSessionPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Save flight permit' }));
 
-    expect(await screen.findByText('Replace approved flight permit?')).toBeTruthy();
+    expect(await screen.findByText('Confirm flight permit replacement')).toBeTruthy();
+    expect(screen.getByText(/I take responsibility for the document and the details provided/i)).toBeTruthy();
     expect(mocks.uploadFlightPermit).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Replace & resubmit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(mocks.uploadFlightPermit).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save flight permit' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm & replace' }));
 
     await waitFor(() => expect(mocks.uploadFlightPermit).toHaveBeenCalledTimes(1));
   });
@@ -768,18 +859,22 @@ describe('FieldSessionPage', () => {
       target: { value: '2026-12-02T17:00' },
     });
 
-    const maxAltInput = screen.getByLabelText(/Max altitude \(m\)/);
-    fireEvent.change(maxAltInput, { target: { value: '150' } });
+    expect(screen.queryByLabelText(/Max altitude \(m\)/)).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Save flight permit' }));
+    expect(await screen.findByText('Confirm flight permit')).toBeTruthy();
+    expect(screen.getByText(/I take responsibility for the document and the details provided/i)).toBeTruthy();
+    expect(mocks.uploadFlightPermit).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm & save' }));
 
     await waitFor(() =>
       expect(mocks.uploadFlightPermit).toHaveBeenCalledWith(
         'inspection-1',
         expect.objectContaining({
           permitNumber: 'CAAV-2026-009',
-          maxAltitudeM: 150,
         }),
       ),
     );
+    expect(mocks.uploadFlightPermit.mock.calls[0]?.[1]).not.toHaveProperty('maxAltitudeM');
   });
 });

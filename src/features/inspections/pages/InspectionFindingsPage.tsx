@@ -6,8 +6,8 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
   Checkbox,
+  Chip,
   CircularProgress,
   FormControlLabel,
   InputAdornment,
@@ -160,7 +160,7 @@ export default function InspectionFindingsPage() {
       | { kind: 'manual-register'; findingId: string };
   } | null>(null);
   const [findingToDeleteId, setFindingToDeleteId] = useState<string | null>(null);
-  const [noFindingsAcknowledged, setNoFindingsAcknowledged] = useState(false);
+  const [noFindingsConfirmOpen, setNoFindingsConfirmOpen] = useState(false);
   const [draftingNoteId, setDraftingNoteId] = useState<string | null>(null);
   const [noteDraftResults, setNoteDraftResults] = useState<Record<string, DraftFindingNoteResult>>({});
   const draftingNoteIds = useMemo(() => {
@@ -197,7 +197,8 @@ export default function InspectionFindingsPage() {
   const isReturnedRevision = latestReportVersion?.status === 'RETURNED';
   const analysisUnlocked =
     workflow.data?.status === 'FIELD_COMPLETED' && !isFindingsLocked;
-
+  const canNavigateDirectlyToReport =
+    isFindingsLocked || Boolean(workflow.data?.findingsConfirmedAt);
   const canConfirm =
     isInspector &&
     hasActiveEvidence &&
@@ -206,12 +207,26 @@ export default function InspectionFindingsPage() {
     !workflow.isLoading &&
     !findings.isError &&
     pendingFindings === 0 &&
-    (!noFindings || noFindingsAcknowledged) &&
     !isAnalysisPending &&
     !confirmFinding.isPending &&
     !createManualFinding.isPending &&
     !confirmFindings.isPending &&
     !isFindingsLocked;
+  const canContinueToReport = canNavigateDirectlyToReport || canConfirm;
+
+  const handleContinueToReport = () => {
+    if (canNavigateDirectlyToReport) {
+      navigate('../report');
+      return;
+    }
+    if (noFindings) {
+      setNoFindingsConfirmOpen(true);
+      return;
+    }
+    confirmFindings.mutate(false, {
+      onSuccess: () => navigate('../report'),
+    });
+  };
 
   const analysedEvidenceIds = useMemo(
     () => new Set([...activeFindings.map((finding) => finding.evidenceId), ...completedIds]),
@@ -529,12 +544,12 @@ export default function InspectionFindingsPage() {
 
       {isInspector && isReturnedRevision && (
         <Alert severity="info" sx={{ borderRadius: '10px' }}>
-          {t('Returned for revision. Update findings, reconfirm, and resubmit the report.')}
+          {t('Returned for revision. Update findings and resubmit the report.')}
         </Alert>
       )}
       {isInspector && workflow.data?.status === 'FIELD_COMPLETED' && Boolean(workflow.data?.findingsConfirmedAt) && latestReportVersion && !isReturnedRevision && (
         <Alert severity="info" sx={{ borderRadius: '10px' }}>
-          {t('Findings remain editable while authoring the report. Confirm the current set again after changes before submitting a fresh report version.')}
+          {t('Findings remain editable while authoring the report.')}
         </Alert>
       )}
 
@@ -1120,7 +1135,7 @@ export default function InspectionFindingsPage() {
 
       {isInspector && (
         <>
-          {confirmFindings.isError && (
+          {confirmFindings.isError && !noFindingsConfirmOpen && (
             <Alert severity="error" sx={{ borderRadius: '10px' }}>
               {getErrorMessage(
                 confirmFindings.error,
@@ -1131,53 +1146,11 @@ export default function InspectionFindingsPage() {
           <StepActionBar
             backTo={isReinspection ? '../post-flight' : '../evidence'}
             backLabel={isReinspection ? t('Post-flight & Items') : t('Field Evidence')}
-            borderColor={pendingFindings > 0 ? 'warning.main' : 'divider'}
-            leftSlot={
-              <Stack spacing={0.5} sx={{ minWidth: 0 }}>
-                <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-                  <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                    {t('Confirm findings set')}
-                  </Typography>
-                  {pendingFindings > 0 && (
-                    <Chip size="small" color="warning" label={`${pendingFindings} ${t('awaiting review')}`} />
-                  )}
-                </Stack>
-                <Typography variant="caption" color="text.secondary">
-                  {pendingFindings > 0
-                    ? `${pendingFindings} finding${pendingFindings === 1 ? '' : 's'} still need a decision before the report can be compiled.`
-                    : confirmedFindingsCount > 0
-                      ? `${confirmedFindingsCount} confirmed finding${confirmedFindingsCount === 1 ? '' : 's'} will be included in the report.`
-                      : t('No findings recorded. Confirm that you checked the captures within scope.')}
-                </Typography>
-                {noFindings && (
-                  <FormControlLabel
-                    sx={{ alignItems: 'flex-start', mx: 0, gap: 0.5, pt: 0.25 }}
-                    control={
-                      <Checkbox
-                        size="small"
-                        checked={noFindingsAcknowledged}
-                        onChange={(event) => setNoFindingsAcknowledged(event.target.checked)}
-                        sx={{ pt: 0, pb: 0 }}
-                      />
-                    }
-                    label={
-                      <Typography variant="body2">
-                        {t('I checked the captures within scope and confirmed no findings.')}
-                      </Typography>
-                    }
-                  />
-                )}
-              </Stack>
-            }
             primaryAction={
               <Button
                 variant="contained"
-                disabled={!canConfirm}
-                onClick={() =>
-                  confirmFindings.mutate(noFindings, {
-                    onSuccess: () => navigate('../report'),
-                  })
-                }
+                disabled={!canContinueToReport}
+                onClick={handleContinueToReport}
                 endIcon={<ArrowForwardRounded fontSize="small" />}
                 sx={{
                   borderRadius: '8px',
@@ -1187,7 +1160,7 @@ export default function InspectionFindingsPage() {
                   boxShadow: 'none',
                 }}
               >
-                {confirmFindings.isPending ? 'Confirming findings…' : 'Confirm findings and continue'}
+                {confirmFindings.isPending ? t('Confirming findings…') : t('Continue to Report')}
               </Button>
             }
           />
@@ -1238,6 +1211,35 @@ export default function InspectionFindingsPage() {
           }
         }}
       />
+
+      <ConfirmDialog
+        open={noFindingsConfirmOpen}
+        title={t('Confirm no findings')}
+        message={t(
+          'No findings were recorded for these captures. Confirm that you checked the captures within scope and want to continue to the report.',
+        )}
+        confirmLabel={t('Confirm and continue')}
+        cancelLabel={t('Cancel')}
+        loading={confirmFindings.isPending}
+        onCancel={() => setNoFindingsConfirmOpen(false)}
+        onConfirm={() =>
+          confirmFindings.mutate(true, {
+            onSuccess: () => {
+              setNoFindingsConfirmOpen(false);
+              navigate('../report');
+            },
+          })
+        }
+      >
+        {confirmFindings.isError && (
+          <Alert severity="error" sx={{ mt: 1.5, borderRadius: '8px' }}>
+            {getErrorMessage(
+              confirmFindings.error,
+              'Findings were not confirmed. Please try again.',
+            )}
+          </Alert>
+        )}
+      </ConfirmDialog>
     </Stack>
   );
 }

@@ -248,6 +248,7 @@ export interface ManagerFinanceHistoryItem {
 export interface ManagerFinanceHistoryPage {
   summary: ManagerFinanceSummary;
   content: ManagerFinanceHistoryItem[];
+  customerAvatarUrls?: Record<string, string>;
   totalElements: number;
   page: number;
   size: number;
@@ -311,6 +312,7 @@ export interface ServiceRequest {
   id: string;
   ownerCustomerId: string;
   ownerCustomerName?: string | null;
+  ownerCustomerAvatarUrl?: string | null;
   assetId: string;
   assetName?: string | null;
   assetCode?: string | null;

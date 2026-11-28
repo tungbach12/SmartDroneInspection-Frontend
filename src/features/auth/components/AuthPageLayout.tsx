@@ -49,7 +49,7 @@ function BrandLogo() {
 interface AuthPageLayoutProps extends PropsWithChildren {
   eyebrow?: string;
   title: string;
-  description?: string;
+  description?: string | null;
   subtitleText?: string;
   subtitleLinkText?: string;
   subtitleLinkTo?: string;
@@ -170,15 +170,11 @@ export function AuthPageLayout({
             >
               {title}
             </Typography>
-            <Typography
-              sx={{
-                fontSize: '14px',
-                color: '#64748B',
-                lineHeight: 1.5,
-              }}
-            >
-              {description || 'Enter to get unlimited access to data & information.'}
-            </Typography>
+            {description !== null && (
+              <Typography sx={{ fontSize: '14px', color: '#64748B', lineHeight: 1.5 }}>
+                {description || 'Enter to get unlimited access to data & information.'}
+              </Typography>
+            )}
           </Box>
 
           {/* Form Fields & Primary Submit Button */}

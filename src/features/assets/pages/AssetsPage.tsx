@@ -72,7 +72,7 @@ import {
 } from '../components/AssetLocationPickerModal';
 import { evaluateAirspace } from '@/shared/airspace/airspaceZones';
 import {
-  RestrictedAirspaceAlert,
+  NoFlyFootprintAlert,
   RestrictedAirspaceChip,
 } from '@/shared/airspace/RestrictedAirspaceNotice';
 import { estimateFootprintRadiusMeters } from '@/shared/airspace/airspaceZones';
@@ -977,11 +977,9 @@ function CreateAssetDialogForm({
               setLocationText('');
             }}
           />
-          <RestrictedAirspaceAlert
-            role="CUSTOMER"
+          <NoFlyFootprintAlert
             latitude={latitude}
             longitude={longitude}
-            structureHeightMeters={heightValue}
             footprintAreaSquareMeters={areaValue}
           />
 
@@ -1717,11 +1715,9 @@ function AssetDetailDrawer({
                   setEditLocation('');
                 }}
               />
-              <RestrictedAirspaceAlert
-                role="CUSTOMER"
+              <NoFlyFootprintAlert
                 latitude={editLatitude}
                 longitude={editLongitude}
-                structureHeightMeters={parsedEditHeight}
                 footprintAreaSquareMeters={parsedEditArea}
               />
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
@@ -1766,11 +1762,9 @@ function AssetDetailDrawer({
                 </Alert>
               )}
               {asset && (
-                <RestrictedAirspaceAlert
-                  role={isClient ? 'CUSTOMER' : 'MANAGER'}
+                <NoFlyFootprintAlert
                   latitude={asset.latitude}
                   longitude={asset.longitude}
-                  structureHeightMeters={asset.structureHeightMeters}
                   footprintAreaSquareMeters={asset.footprintAreaSquareMeters}
                 />
               )}

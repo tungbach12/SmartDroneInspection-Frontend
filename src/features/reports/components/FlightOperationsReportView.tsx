@@ -199,20 +199,15 @@ export function FlightOperationsReportView({
   }, [propFlights, version?.reportContext?.flights]);
 
   const activeFlight = useMemo(() => {
-    if (allFlights.length === 0) return null;
-    const requestedId = propFlightId ?? selectedFlightId;
-    if (requestedId) {
-      const matched = allFlights.find((item) => item.id === requestedId);
-      if (matched) return matched;
-    }
-    return allFlights.at(-1) ?? null;
+    if (propFlightId) return allFlights.find((item) => item.id === propFlightId) ?? null;
+    return allFlights.find((item) => item.id === selectedFlightId) ?? allFlights.at(-1) ?? null;
   }, [allFlights, propFlightId, selectedFlightId]);
 
   const effectiveSessionId = activeFlight?.fieldSessionId ?? fieldSessionId ?? null;
   const effectiveFlightId = activeFlight?.id ?? propFlightId ?? null;
 
   const multiFlightTotals = useMemo(() => {
-    if (allFlights.length <= 1) return null;
+    if (propFlightId || allFlights.length <= 1) return null;
     const uniqueDays = new Set(allFlights.map((f) => f.flightDate).filter(Boolean)).size;
     const totalDurationSeconds = allFlights.reduce(
       (sum, f) => sum + (f.flightDurationSeconds ?? 0),
@@ -233,7 +228,7 @@ export function FlightOperationsReportView({
       totalDistanceMeters,
       maxAltitudeMeters,
     };
-  }, [allFlights]);
+  }, [allFlights, propFlightId]);
 
   const flightReportQuery = useQuery({
     queryKey: [

@@ -70,6 +70,7 @@ export interface InspectorRatingProfile {
   totalElements: number;
   totalPages: number;
   historyVisible: boolean;
+  noShowCount?: number | null;
 }
 
 export interface UpsertInspectorRatingPayload {
