@@ -989,6 +989,25 @@ export function useCreateInspectionSepayLink(inspectionId: string | null) {
   });
 }
 
+export function useMockConfirmInspectionSepayPayment(inspectionId: string | null) {
+  const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
+  return useMutation({
+    mutationFn: () => inspectionApi.mockConfirmSepayPayment(inspectionId!),
+    onSuccess: async () => {
+      await Promise.all([
+        client.invalidateQueries({ queryKey: ['inspections'] }),
+        client.invalidateQueries({ queryKey: ['finance'] }),
+        client.invalidateQueries({ queryKey: ['contracts'] }),
+        client.invalidateQueries({ queryKey: ['dashboard'] }),
+      ]);
+      showToast('Payment confirmed.', 'success');
+    },
+    onError: (error) =>
+      showToast(getErrorMessage(error, 'Could not confirm Sepay payment.'), 'error'),
+  });
+}
+
 export function useCreateInspectionSepayPayoutLink(inspectionId: string | null) {
   const client = useQueryClient();
   const showToast = useToastStore((s) => s.showToast);

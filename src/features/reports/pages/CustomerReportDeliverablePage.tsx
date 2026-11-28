@@ -23,6 +23,7 @@ import {
   useInspection,
   useInspectionEvidence,
   useInspectionFindings,
+  useMockConfirmInspectionSepayPayment,
   useReinspectionVerifications,
   useReportPaymentStatus,
   useReportVersions,
@@ -80,6 +81,7 @@ export default function CustomerReportDeliverablePage({
   const acceptReport = useAcceptReportVersion(inspectionId);
   const requestClarification = useRequestReportClarification(inspectionId);
   const sepayLink = useCreateInspectionSepayLink(inspectionId);
+  const mockConfirmSepay = useMockConfirmInspectionSepayPayment(inspectionId);
   const vnpayLink = useCreateInspectionVnPayUrl(inspectionId);
   const searchParams = new URLSearchParams(location.search);
   const isPaymentCancelled = searchParams.get('payment') === 'cancelled';
@@ -294,6 +296,15 @@ export default function CustomerReportDeliverablePage({
               amountVnd={paymentStatus?.amount ? `${formatNumber(paymentStatus.amount)} ₫` : undefined}
               checking={paymentStatusQuery.isFetching}
               onCheckNow={() => void paymentStatusQuery.refetch()}
+              onMockPay={
+                inspectionId && sepayLink.data
+                  ? async () => {
+                      await mockConfirmSepay.mutateAsync();
+                      await paymentStatusQuery.refetch();
+                      setSepayQrOpen(false);
+                    }
+                  : undefined
+              }
               onClose={() => setSepayQrOpen(false)}
             />
 
