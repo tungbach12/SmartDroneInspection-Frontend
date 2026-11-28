@@ -4,6 +4,7 @@ import {
   Alert,
   Box,
   Button,
+  ButtonBase,
   Checkbox,
   Chip,
   Dialog,
@@ -565,8 +566,6 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
     () => searchParams.get('newSession') === '1',
   );
   const [selectedFlightId, setSelectedFlightId] = useState<string | null>(null);
-  const [newFlightOpenedAt, setNewFlightOpenedAt] = useState<Date | null>(null);
-  const [newFlightLabel, setNewFlightLabel] = useState('');
   const [outcomeTarget, setOutcomeTarget] = useState<{
     session: FieldSession;
     kind: 'abort' | 'complete';
@@ -700,16 +699,16 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
     null;
 
   const createFlight = useMutation({
-    mutationFn: ({ sessionId, flightLabel }: { sessionId: string; flightLabel: string | null }) =>
+    mutationFn: (sessionId: string) =>
       fieldSessionApi.createFlight(inspectionId, sessionId, {
-        flightLabel,
         flightDate: toDateTimeLocalValue(new Date().toISOString()).slice(0, 10),
       }),
     onSuccess: (created) => {
       setSelectedFlightId(created.id);
-      setNewFlightOpenedAt(null);
-      void queryClient.invalidateQueries({ queryKey: fieldSessionKeys.forInspection(inspectionId) });
-      void queryClient.invalidateQueries({ queryKey: fieldSessionKeys.flightsForInspection(inspectionId) });
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: fieldSessionKeys.forInspection(inspectionId) }),
+        queryClient.invalidateQueries({ queryKey: fieldSessionKeys.flightsForInspection(inspectionId) }),
+      ]);
     },
   });
   const flightTitle = (flight: FieldSessionFlight) => {
@@ -2673,71 +2672,120 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                   <>
                     <Paper
                       variant="outlined"
-                      sx={{
-                        p: 1.75,
-                        borderRadius: '10px',
-                        bgcolor: 'background.default',
-                        borderColor: 'divider',
-                      }}
+                      sx={{ borderRadius: '10px', overflow: 'hidden' }}
                     >
                       <Stack
-                        direction={{ xs: 'column', sm: 'row' }}
+                        direction="row"
                         spacing={1}
-                        sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between', mb: 1 }}
+                        sx={{ alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.25 }}
                       >
-                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                          {tr('Chuyến bay trong phiên này', 'Flight sorties in this session')}
-                          {openSessionFlights.length > 0 ? ` (${openSessionFlights.length})` : ''}
+                        <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                          {tr('Chuyến bay', 'Flights')}
                         </Typography>
-                        <Button
+                        <LoadingButton
                           size="small"
                           variant="outlined"
+                          color="inherit"
+                          loading={createFlight.isPending}
                           startIcon={<AddRounded />}
-                          onClick={() => {
-                            createFlight.reset();
-                            setNewFlightLabel('');
-                            setNewFlightOpenedAt(new Date());
+                          onClick={() => createFlight.mutate(openSession.id)}
+                          sx={{
+                            textTransform: 'none',
+                            borderRadius: '8px',
+                            borderColor: 'divider',
+                            flexShrink: 0,
                           }}
-                          sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px', flexShrink: 0 }}
                         >
-                          {tr('Thêm chuyến bay', 'Record new flight')}
-                        </Button>
+                          {tr('Thêm chuyến bay', 'Add flight')}
+                        </LoadingButton>
                       </Stack>
 
+                      {createFlight.isError && (
+                        <Box sx={{ px: 2, pb: 1.25 }}>
+                          <MutationProblemAlert
+                            error={createFlight.error}
+                            isError
+                            fallbackMessage={tr('Không thể tạo chuyến bay.', 'Could not add the flight.')}
+                          />
+                        </Box>
+                      )}
+
                       {openSessionFlights.length > 0 && (
-                        <Stack direction="row" spacing={0.75} useFlexGap sx={{ flexWrap: 'wrap' }}>
+                        <Box
+                          component="ul"
+                          sx={{
+                            m: 0,
+                            p: 0,
+                            listStyle: 'none',
+                            '& > li': { borderTop: '1px solid', borderColor: 'divider' },
+                          }}
+                        >
                           {openSessionFlights.map((flight) => {
                             const selected = flight.id === activeSessionFlight?.id;
                             return (
-                              <Chip
-                                key={flight.id}
-                                size="small"
-                                clickable
-                                aria-pressed={selected}
-                                color={selected ? 'primary' : flight.hasFlightReport ? 'success' : 'default'}
-                                variant={selected ? 'filled' : 'outlined'}
-                                onClick={() => setSelectedFlightId(flight.id)}
-                                label={
-                                  <Stack component="span" sx={{ py: 0.5 }}>
-                                    <Typography component="span" variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontWeight: 700 }}>
+                              <Box component="li" key={flight.id}>
+                                <ButtonBase
+                                  aria-pressed={selected}
+                                  onClick={() => setSelectedFlightId(flight.id)}
+                                  sx={{
+                                    width: '100%',
+                                    minHeight: 48,
+                                    px: 2,
+                                    py: 1,
+                                    justifyContent: 'flex-start',
+                                    textAlign: 'left',
+                                    bgcolor: selected ? 'action.selected' : 'background.paper',
+                                    '&:hover': { bgcolor: selected ? 'action.selected' : 'action.hover' },
+                                    '&.Mui-focusVisible': {
+                                      outline: '2px solid',
+                                      outlineColor: 'text.secondary',
+                                      outlineOffset: -2,
+                                    },
+                                  }}
+                                >
+                                  <Stack
+                                    component="span"
+                                    direction={{ xs: 'column', sm: 'row' }}
+                                    sx={{
+                                      width: '100%',
+                                      alignItems: { sm: 'center' },
+                                      justifyContent: 'space-between',
+                                      gap: { xs: 0.25, sm: 2 },
+                                    }}
+                                  >
+                                    <Typography
+                                      component="span"
+                                      variant="body2"
+                                      sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 0.75,
+                                        fontWeight: 600,
+                                        overflowWrap: 'anywhere',
+                                      }}
+                                    >
                                       {flightTitle(flight)}
                                       {flight.hasFlightReport && (
                                         <CheckCircleRounded
                                           titleAccess={tr('Đã ghi nhận báo cáo chuyến bay', 'Flight report recorded')}
-                                          sx={{ fontSize: '1rem' }}
+                                          sx={{ fontSize: '1rem', color: 'text.secondary', flexShrink: 0 }}
                                         />
                                       )}
                                     </Typography>
-                                    <Typography component="span" variant="caption">
+                                    <Typography
+                                      component="span"
+                                      variant="caption"
+                                      color="text.secondary"
+                                      sx={{ flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}
+                                    >
                                       {flightDateTime(flight)}
                                     </Typography>
                                   </Stack>
-                                }
-                                sx={{ height: 'auto', borderRadius: 2, '& .MuiChip-label': { whiteSpace: 'normal' } }}
-                              />
+                                </ButtonBase>
+                              </Box>
                             );
                           })}
-                        </Stack>
+                        </Box>
                       )}
                     </Paper>
 
@@ -3112,59 +3160,6 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
             </Stack>
           </Box>
         )}
-
-        <Dialog
-          open={newFlightOpenedAt !== null}
-          onClose={() => !createFlight.isPending && setNewFlightOpenedAt(null)}
-          fullWidth
-          maxWidth="xs"
-        >
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (!openSession || createFlight.isPending) return;
-              createFlight.mutate({
-                sessionId: openSession.id,
-                flightLabel: newFlightLabel.trim() || null,
-              });
-            }}
-          >
-            <DialogTitle sx={{ fontWeight: 700 }}>
-              {tr('Ghi nhận chuyến bay mới', 'Add flight sortie')}
-            </DialogTitle>
-            <DialogContent>
-              <Stack spacing={2} sx={{ pt: 1 }}>
-                <TextField
-                  size="small"
-                  fullWidth
-                  label={tr('Ngày giờ ghi nhận', 'Recording date and time')}
-                  value={newFlightOpenedAt ? formatDateTime(newFlightOpenedAt) : ''}
-                  slotProps={{ input: { readOnly: true }, inputLabel: { shrink: true } }}
-                />
-                <TextField
-                  size="small"
-                  fullWidth
-                  autoFocus
-                  label={tr('Tên / khu vực chuyến bay', 'Flight label / zone')}
-                  placeholder="North Facade · Battery #2"
-                  value={newFlightLabel}
-                  onChange={(e) => setNewFlightLabel(e.target.value)}
-                />
-                <MutationProblemAlert
-                  error={createFlight.error}
-                  isError={createFlight.isError}
-                  fallbackMessage={tr('Không thể tạo chuyến bay.', 'Could not add the flight.')}
-                />
-              </Stack>
-            </DialogContent>
-            <DialogActions sx={{ px: 3, pb: 2 }}>
-              <Button disabled={createFlight.isPending} onClick={() => setNewFlightOpenedAt(null)}>{t('Cancel')}</Button>
-              <LoadingButton type="submit" variant="contained" loading={createFlight.isPending}>
-                {tr('Tạo chuyến bay', 'Add flight')}
-              </LoadingButton>
-            </DialogActions>
-          </form>
-        </Dialog>
       </Stack>
 
       <Dialog open={startOpen} onClose={() => setStartOpen(false)} fullWidth maxWidth="sm">

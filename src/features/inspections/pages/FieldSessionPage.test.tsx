@@ -181,7 +181,7 @@ describe('FieldSessionPage', () => {
       id: 'flight-2',
       flightNumber: 2,
       flightDate: today,
-      flightLabel: 'Roof',
+      flightLabel: 'Flight #2',
       startedAt: null,
       createdAt: now.toISOString(),
     };
@@ -196,17 +196,14 @@ describe('FieldSessionPage', () => {
 
     expect(await screen.findByText('Flight 1')).toBeTruthy();
     expect(screen.queryByText('Flight #1')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Record new flight' }));
-    const recordTime = screen.getByRole<HTMLInputElement>('textbox', { name: 'Recording date and time' });
-    expect(recordTime.readOnly).toBe(true);
-    expect(recordTime.value).toMatch(/\d{1,2}:\d{2}/);
-    fireEvent.change(screen.getByRole('textbox', { name: 'Flight label / zone' }), { target: { value: 'Roof' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add flight' }));
 
-    expect(await screen.findByText('Flight 2 · Roof')).toBeTruthy();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    const flight = await screen.findByRole('button', { name: /Flight 2/, pressed: true });
+    expect(flight).toBeTruthy();
     expect(screen.getByText(new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(now))).toBeTruthy();
+    expect(mocks.createFlight).toHaveBeenCalledTimes(1);
     expect(mocks.createFlight).toHaveBeenCalledWith('inspection-1', SESSION.id, {
-      flightLabel: 'Roof',
       flightDate: today,
     });
   });
