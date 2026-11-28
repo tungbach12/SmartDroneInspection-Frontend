@@ -37,6 +37,7 @@ import { FlightPermitPreviewDialog } from '@/features/inspections/components/Fli
 import { parseBoundingBox } from '@/features/inspections/utils/boundingBox';
 import { formatLocation } from '@/shared/airspace/airspaceZones';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import { localizeChecklistText } from '@/shared/i18n/inspectionItemsI18n';
 import { ReportAiSummaryCard } from './ReportAiSummaryCard';
 import { ReportFindingsMapPanel } from './ReportFindingsMapPanel';
 
@@ -145,7 +146,15 @@ function formatEvidenceLocationDescription(
   return trimmed;
 }
 
-function formatChecklistLabel(rawItem: string, t: (key: string) => string): string {
+function formatChecklistLabel(
+  rawItem: string,
+  t: (key: string) => string,
+  locale: string,
+): string {
+  const localized = localizeChecklistText(rawItem, locale);
+  if (localized !== rawItem.trim()) {
+    return localized;
+  }
   const trimmed = rawItem.trim();
   if (trimmed.startsWith('Inspected:')) {
     return `${t('Inspected')}: ${trimmed.slice('Inspected:'.length).trim()}`;
@@ -320,7 +329,7 @@ function SessionChecklistBlock({
   parsedChecklist?: ParsedChecklist | undefined;
   defaultExpanded?: boolean | undefined;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const [expanded, setExpanded] = useState(defaultExpanded);
   const { checkedItems, skippedItems, remark } =
     parsedChecklist ?? parseSessionChecklist(rawNote);
@@ -422,7 +431,7 @@ function SessionChecklistBlock({
                 >
                   <CheckCircleRounded color="success" sx={{ fontSize: 15, mt: '2px', flexShrink: 0 }} />
                   <Typography variant="caption" sx={{ fontWeight: 500, color: 'text.primary', lineHeight: 1.4 }}>
-                    {formatChecklistLabel(item, t)}
+                    {formatChecklistLabel(item, t, locale)}
                   </Typography>
                 </Box>
               ))}
@@ -440,7 +449,7 @@ function SessionChecklistBlock({
                 >
                   <WarningAmberRounded color="warning" sx={{ fontSize: 15, mt: '2px', flexShrink: 0 }} />
                   <Typography variant="caption" sx={{ fontWeight: 500, color: 'text.primary', lineHeight: 1.4 }}>
-                    {formatChecklistLabel(item, t)}
+                    {formatChecklistLabel(item, t, locale)}
                   </Typography>
                 </Box>
               ))}

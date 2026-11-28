@@ -877,4 +877,38 @@ describe('FieldSessionPage', () => {
     );
     expect(mocks.uploadFlightPermit.mock.calls[0]?.[1]).not.toHaveProperty('maxAltitudeM');
   });
+
+  it('keeps Post-flight checklist free of duplicated Inspected items and localizes standard inspection items', async () => {
+    useAuthStore.setState({ roles: ['INSPECTOR'] });
+    mocks.getById.mockResolvedValue({
+      ...INSPECTION,
+      status: 'FIELD_COMPLETED',
+      flightPermitVerificationStatus: 'APPROVED',
+      inspectionItems: [
+        'Mặt dựng kính & Tường bao ngoài tòa nhà (Exterior Facade & Curtain Wall)',
+        'Kết cấu sàn mái, Tường chắn mái & Hệ thống thoát nước mưa',
+      ],
+    });
+    mocks.list.mockResolvedValue([
+      {
+        ...SESSION,
+        status: 'FIELD_COMPLETED',
+        endedAt: '2026-10-20T03:00:00Z',
+        hasFlightReport: true,
+        telemetrySource: 'IMPORTED_LOG_SRT',
+        outcomeNotes:
+          '[✓] Aircraft landed cleanly & propulsion/power completely disarmed · [✓] Motors, ESCs & batteries checked for abnormal heat or swelling · [✓] All sortie photos, videos & flight logs verified & backed up · [✓] Safety cones removed, equipment packed & site restored · [✓] Inspected: Mặt dựng kính & Tường bao ngoài tòa nhà (Exterior Facade & Curtain Wall) · [✓] Inspected: Kết cấu sàn mái, Tường chắn mái & Hệ thống thoát nước mưa',
+      },
+    ]);
+
+    renderWithClient('post-flight');
+
+    expect(await screen.findByText('Post-flight & Inspection Items verified')).toBeTruthy();
+    expect(screen.getByText('Exterior Facade & Curtain Wall')).toBeTruthy();
+    expect(screen.getByText('Roof Slab Structure, Parapet Wall & Rainwater Drainage')).toBeTruthy();
+    expect(screen.queryByText(/Inspected:/)).toBeNull();
+    expect(screen.queryByText('PO-05')).toBeNull();
+    expect(screen.getByText('4/4')).toBeTruthy();
+    expect(screen.getByText('2/2')).toBeTruthy();
+  });
 });

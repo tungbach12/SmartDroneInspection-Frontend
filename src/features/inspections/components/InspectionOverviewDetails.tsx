@@ -21,6 +21,7 @@ import {
   type AirspaceClassification,
 } from '@/shared/airspace/airspaceZones';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import { localizeInspectionItemLabel } from '@/shared/i18n/inspectionItemsI18n';
 import type { InspectionDetail } from '../api/inspectionApi';
 import { CleanTileMapView } from './EvidenceGpsMapDialog';
 
@@ -287,7 +288,9 @@ export function InspectionOverviewDetails({
                 {t('Inspection items')}
               </Typography>
               <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                {inspection.inspectionItems.join(', ')}
+                {inspection.inspectionItems
+                  .map((item) => localizeInspectionItemLabel(item, t('Yes') === 'Có' ? 'vi' : 'en'))
+                  .join(', ')}
               </Typography>
             </Grid>
           )}

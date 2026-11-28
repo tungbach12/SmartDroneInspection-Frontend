@@ -70,6 +70,10 @@ import {
   type SmartDroneHubTelemetry,
 } from '../api/smartDroneHubApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import {
+  localizeChecklistText,
+  localizeInspectionItemLabel,
+} from '@/shared/i18n/inspectionItemsI18n';
 
 const FlightSimulationDemoDialog = lazy(() =>
   import('../components/FlightSimulationDemoDialog').then((m) => ({
@@ -242,6 +246,51 @@ function parseChecklistNote(raw: string | null | undefined): {
   return { checkedItems, skippedItems, remark };
 }
 
+const OUTCOME_BUILDING_ITEM_PREFIX = /^(?:Inspected|Đã kiểm tra|Skipped|Bỏ qua)\s*:\s*/i;
+
+function buildPostFlightOnlyNote(
+  rawOutcomeNotes: string | null | undefined,
+  snapshot?: readonly ChecklistItemSnapshot[] | null,
+): string {
+  const parsed = parseChecklistNote(rawOutcomeNotes);
+  if (snapshot && snapshot.length > 0) {
+    const items = snapshot.map((entry) => {
+      const mark = entry.checked ? '[✓]' : '[!]';
+      const label = entry.referenceThreshold
+        ? `${entry.label} (${entry.referenceThreshold})`
+        : entry.label;
+      return `${mark} ${label}`;
+    });
+    const joined = items.join(' · ');
+    return parsed.remark ? `${joined} — ${parsed.remark}` : joined;
+  }
+  const postChecked = parsed.checkedItems.filter((item) => !OUTCOME_BUILDING_ITEM_PREFIX.test(item));
+  const postSkipped = parsed.skippedItems.filter((item) => !OUTCOME_BUILDING_ITEM_PREFIX.test(item));
+  const parts = [
+    ...postChecked.map((item) => `[✓] ${item}`),
+    ...postSkipped.map((item) => `[!] ${item}`),
+  ];
+  if (parts.length > 0) {
+    const joined = parts.join(' · ');
+    return parsed.remark ? `${joined} — ${parsed.remark}` : joined;
+  }
+  return parsed.remark ?? '';
+}
+
+function buildBuildingItemsOnlyNote(rawOutcomeNotes: string | null | undefined): string {
+  const parsed = parseChecklistNote(rawOutcomeNotes);
+  const inspChecked = parsed.checkedItems
+    .filter((item) => OUTCOME_BUILDING_ITEM_PREFIX.test(item))
+    .map((item) => item.replace(OUTCOME_BUILDING_ITEM_PREFIX, '').trim());
+  const inspSkipped = parsed.skippedItems
+    .filter((item) => OUTCOME_BUILDING_ITEM_PREFIX.test(item))
+    .map((item) => item.replace(OUTCOME_BUILDING_ITEM_PREFIX, '').trim());
+  return [
+    ...inspChecked.map((item) => `[✓] ${item}`),
+    ...inspSkipped.map((item) => `[!] ${item}`),
+  ].join(' · ');
+}
+
 function CircleSign({ state }: { state: 'checked' | 'unchecked' | 'skipped' }) {
   const isChecked = state === 'checked';
   const isSkipped = state === 'skipped';
@@ -283,17 +332,19 @@ function ChecklistNoteDisplay({
   itemCodePrefix?: string;
   pendingUnchecked?: boolean;
 }) {
-  const { t } = useLocale();
+  const { locale } = useLocale();
   const parsed = parseChecklistNote(rawNote);
   const hasRecorded = parsed.checkedItems.length > 0 || parsed.skippedItems.length > 0;
-  const fallbackList = fallbackItems ? fallbackItems.map((item) => t(item)) : [];
+  const fallbackList = fallbackItems
+    ? fallbackItems.map((item) => localizeChecklistText(item, locale))
+    : [];
   const checkedItems = hasRecorded
-    ? parsed.checkedItems
+    ? parsed.checkedItems.map((item) => localizeChecklistText(item, locale))
     : pendingUnchecked
       ? []
       : fallbackList;
   const uncheckedItems = !hasRecorded && pendingUnchecked ? fallbackList : [];
-  const skippedItems = parsed.skippedItems;
+  const skippedItems = parsed.skippedItems.map((item) => localizeChecklistText(item, locale));
   const remark = parsed.remark;
   const totalCount = checkedItems.length + uncheckedItems.length + skippedItems.length;
 
@@ -2211,7 +2262,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                                     variant="body2"
                                     sx={{ fontSize: '0.9375rem', fontWeight: 500, lineHeight: 1.4, color: 'text.primary' }}
                                   >
-                                    {item}
+                                    {localizeInspectionItemLabel(item, locale)}
                                   </Typography>
                                 </Box>
                               </Box>
@@ -2400,7 +2451,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                     {assetInspectionItems.length > 0 && (
                       <ChecklistNoteDisplay
                         title={t('Target Building Inspection Items')}
-                        rawNote=""
+                        rawNote={buildBuildingItemsOnlyNote(latestSession?.outcomeNotes)}
                         fallbackItems={assetInspectionItems}
                         itemCodePrefix="ITEM"
                       />
@@ -2408,7 +2459,10 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
 
                     <ChecklistNoteDisplay
                       title={t('Post-flight completion checklist')}
-                      rawNote={latestSession?.outcomeNotes ?? ''}
+                      rawNote={buildPostFlightOnlyNote(
+                        latestSession?.outcomeNotes,
+                        latestSession?.postFlightChecklistSnapshot,
+                      )}
                       fallbackItems={postFlightItems}
                       itemCodePrefix="PO"
                     />
@@ -2956,7 +3010,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                                   color: 'text.primary',
                                 }}
                               >
-                                {item}
+                                {localizeInspectionItemLabel(item, locale)}
                               </Typography>
                             </Box>
                           ))}
@@ -3023,7 +3077,11 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                     latestSession.outcomeNotes.includes('[!]')) && (
                     <ChecklistNoteDisplay
                       title={t('Post-flight completion checklist')}
-                      rawNote={latestSession.outcomeNotes}
+                      rawNote={buildPostFlightOnlyNote(
+                        latestSession.outcomeNotes,
+                        latestSession.postFlightChecklistSnapshot,
+                      )}
+                      itemCodePrefix="PO"
                     />
                   )}
 
@@ -3419,7 +3477,11 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                                   onChange={() => toggleInspectedAssetItem(item)}
                                 />
                               }
-                              label={<Typography variant="body2">{item}</Typography>}
+                              label={
+                                <Typography variant="body2">
+                                  {localizeInspectionItemLabel(item, locale)}
+                                </Typography>
+                              }
                             />
                           );
                         })}
