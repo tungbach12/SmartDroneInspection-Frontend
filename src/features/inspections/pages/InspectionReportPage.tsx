@@ -637,12 +637,18 @@ export default function InspectionReportPage() {
               onSuccess: () => setConfirmSubmitOpen(false),
             });
           } else {
-            createDraft.mutate(draftPreviewVersion.summary, {
-              onSuccess: () => {
-                setConfirmSubmitOpen(false);
-                showToast(t('Report compiled successfully. Review the sections below.'));
+            createDraft.mutate(
+              inspectionData?.inspectionType === 'RE_INSPECTION' ||
+                (reinspectionVerifications?.data?.length ?? 0) > 0
+                ? draftPreviewVersion.summary
+                : undefined,
+              {
+                onSuccess: () => {
+                  setConfirmSubmitOpen(false);
+                  showToast(t('Report compiled successfully. Review the sections below.'));
+                },
               },
-            });
+            );
           }
         }}
       >

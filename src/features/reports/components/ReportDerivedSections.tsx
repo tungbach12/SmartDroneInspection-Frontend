@@ -734,6 +734,7 @@ export function ReportDerivedSections({
         <ReportAiSummaryCard
           inspectionId={inspectionId}
           versionId={version.id}
+          versionStatus={version.status}
           summary={reportSummaryText}
           findings={findings}
           evidenceList={evidenceList}

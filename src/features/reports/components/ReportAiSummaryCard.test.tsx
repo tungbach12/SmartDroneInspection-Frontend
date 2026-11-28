@@ -67,6 +67,7 @@ vi.mock('@/features/inspections/api/inspectionApi', async (importOriginal) => {
 
 beforeEach(() => {
   cleanup();
+  window.localStorage.clear();
   mocks.knowledgeLoading = false;
   vi.mocked(inspectionApi.getAiSummary).mockResolvedValue(mocks.remoteSummary as never);
 });
@@ -84,9 +85,10 @@ describe('ReportAiSummaryCard matched knowledge footer', () => {
       findings,
       persist: false,
     });
-    expect(summaryData.keyHighlights).toHaveLength(2);
-    expect(summaryData.keyHighlights.every((highlight) => highlight.includes('Unspecified defect')))
-      .toBe(true);
+    expect(summaryData.keyHighlights).toHaveLength(1);
+    expect(summaryData.keyHighlights[0]).toContain('Unspecified defect');
+    expect(summaryData.keyHighlights[0]).toContain('x2');
+    expect(summaryData.keyHighlights[0]).toContain('[HIGH]');
 
     render(
       <ReportAiSummaryCard
@@ -97,6 +99,65 @@ describe('ReportAiSummaryCard matched knowledge footer', () => {
       />,
     );
     expect(screen.getAllByText(/Unspecified defect/i).length).toBeGreaterThan(1);
+  });
+
+  it('calls remote AI summary on expand even with confirmed findings and supports Regenerate', async () => {
+    const regenerated = {
+      summary: 'Fresh regenerated AI executive summary.',
+      keyHighlights: ['abscission (x1 · F-1) [MEDIUM]: Localized spalling near parapet.'],
+      recommendedActions: 'abscission (F-1): Patch with structural repair mortar.',
+      overallRisk: 'MEDIUM' as const,
+      knowledgeReferences: [],
+    };
+    vi.mocked(inspectionApi.getAiSummary)
+      .mockResolvedValueOnce(mocks.remoteSummary as never)
+      .mockResolvedValueOnce(regenerated as never);
+
+    const findings = [
+      {
+        id: 'f1',
+        findingCode: 'F-1',
+        status: 'CONFIRMED',
+        defectLabel: 'abscission',
+        severity: 'MEDIUM',
+      },
+    ] as unknown as Finding[];
+
+    render(
+      <ReportAiSummaryCard
+        inspectionId="insp-regen"
+        versionId="preview-insp-regen"
+        findings={findings}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show details' }));
+    await screen.findByText('Visual inspection found one confirmed defect.');
+    expect(vi.mocked(inspectionApi.getAiSummary)).toHaveBeenCalledWith(
+      'insp-regen',
+      'preview-insp-regen',
+      undefined,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }));
+    await screen.findByText('Fresh regenerated AI executive summary.');
+    expect(vi.mocked(inspectionApi.getAiSummary)).toHaveBeenLastCalledWith(
+      'insp-regen',
+      'preview-insp-regen',
+      { regenerate: true },
+    );
+  });
+
+  it('hides Regenerate action for published immutable versions', () => {
+    render(
+      <ReportAiSummaryCard
+        inspectionId="insp-pub"
+        versionId="ver-pub"
+        versionStatus="PUBLISHED"
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Regenerate' })).toBeNull();
   });
 
   it('shows crisp pill chips and reveals case/standard rows only on demand', async () => {
