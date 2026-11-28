@@ -320,6 +320,7 @@ export interface ReportPaymentStatusDetails {
   commissionAmount?: number | null;
   inspectorGrossPayout?: number | null;
   tncnRate?: number | null;
+  tncnThresholdAmount?: number | null;
   tncnAmount?: number | null;
   inspectorNetPayout?: number | null;
   payoutStatus?: 'PENDING' | 'ELIGIBLE' | 'PAID' | string | null;

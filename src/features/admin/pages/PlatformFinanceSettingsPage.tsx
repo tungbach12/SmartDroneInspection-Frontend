@@ -67,6 +67,7 @@ export default function PlatformFinanceSettingsPage({
     commissionRate: string;
     vatRate: string;
     tncnRate: string;
+    tncnThresholdAmount: string;
   } | null>(null);
 
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -75,19 +76,29 @@ export default function PlatformFinanceSettingsPage({
     commissionRate: number;
     vatRate: number;
     tncnRate: number;
+    tncnThresholdAmount: number;
   } | null>(null);
 
   const savedCommission = settingsQuery.data?.commissionRate != null ? String(settingsQuery.data.commissionRate) : '';
   const savedVat = settingsQuery.data?.vatRate != null ? String(settingsQuery.data.vatRate) : '';
   const savedTncn = settingsQuery.data?.tncnRate != null ? String(settingsQuery.data.tncnRate) : '';
+  const savedThreshold =
+    settingsQuery.data?.tncnThresholdAmount != null
+      ? String(settingsQuery.data.tncnThresholdAmount)
+      : '2000000';
 
   const commissionRate = formValues !== null ? formValues.commissionRate : savedCommission;
   const vatRate = formValues !== null ? formValues.vatRate : savedVat;
   const tncnRate = formValues !== null ? formValues.tncnRate : savedTncn;
+  const tncnThresholdAmount =
+    formValues !== null ? formValues.tncnThresholdAmount : savedThreshold;
 
   const isDirty = Boolean(
     formValues !== null &&
-      (commissionRate !== savedCommission || vatRate !== savedVat || tncnRate !== savedTncn),
+      (commissionRate !== savedCommission ||
+        vatRate !== savedVat ||
+        tncnRate !== savedTncn ||
+        tncnThresholdAmount !== savedThreshold),
   );
 
   const isRateOutOfRange = (value: string) => {
@@ -95,13 +106,20 @@ export default function PlatformFinanceSettingsPage({
     const parsed = Number(value);
     return Number.isNaN(parsed) || parsed < 0 || parsed > 100;
   };
+  const isThresholdInvalid = (value: string) => {
+    if (value.trim() === '') return false;
+    const parsed = Number(value);
+    return Number.isNaN(parsed) || parsed < 0;
+  };
   const commInvalid = isRateOutOfRange(commissionRate);
   const vatInvalid = isRateOutOfRange(vatRate);
   const tncnInvalid = isRateOutOfRange(tncnRate);
+  const thresholdInvalid = isThresholdInvalid(tncnThresholdAmount);
 
   const commNum = Number(commissionRate) || 0;
   const vatNum = Number(vatRate) || 0;
   const tncnNum = Number(tncnRate) || 0;
+  const thresholdNum = Math.max(0, Number(tncnThresholdAmount) || 0);
 
   // Real calculation preview on a standard 10,000,000 VND base contract
   const sampleBase = 10_000_000;
@@ -109,13 +127,14 @@ export default function PlatformFinanceSettingsPage({
   const sampleCustomerTotal = sampleBase + sampleVat;
   const samplePlatformFee = Math.round((sampleBase * commNum) / 100);
   const sampleInspectorGross = Math.max(0, sampleBase - samplePlatformFee);
-  const sampleTncn = Math.round((sampleInspectorGross * tncnNum) / 100);
+  const sampleTncnExempt = thresholdNum > 0 && sampleInspectorGross < thresholdNum;
+  const sampleTncn = sampleTncnExempt ? 0 : Math.round((sampleInspectorGross * tncnNum) / 100);
   const sampleInspectorNet = Math.max(0, sampleInspectorGross - sampleTncn);
 
   const updateField = (field: keyof NonNullable<typeof formValues>, value: string) => {
     setValidationError(null);
     setSaveSuccess(false);
-    setFormValues({ commissionRate, vatRate, tncnRate, [field]: value });
+    setFormValues({ commissionRate, vatRate, tncnRate, tncnThresholdAmount, [field]: value });
   };
 
   const handleSaveRequest = (event: FormEvent) => {
@@ -125,6 +144,7 @@ export default function PlatformFinanceSettingsPage({
     const comm = Number(commissionRate);
     const vat = Number(vatRate);
     const tncn = Number(tncnRate);
+    const threshold = tncnThresholdAmount.trim() === '' ? 0 : Number(tncnThresholdAmount);
     if (
       commissionRate.trim() === '' ||
       vatRate.trim() === '' ||
@@ -142,8 +162,17 @@ export default function PlatformFinanceSettingsPage({
       setValidationError(t('Rates must be valid numbers between 0% and 100%.'));
       return;
     }
+    if (Number.isNaN(threshold) || threshold < 0) {
+      setValidationError(t('TNCN threshold must be 0 or greater.'));
+      return;
+    }
 
-    setPendingSubmit({ commissionRate: comm, vatRate: vat, tncnRate: tncn });
+    setPendingSubmit({
+      commissionRate: comm,
+      vatRate: vat,
+      tncnRate: tncn,
+      tncnThresholdAmount: threshold,
+    });
   };
 
   const handleConfirmSave = async () => {
@@ -153,6 +182,7 @@ export default function PlatformFinanceSettingsPage({
       commissionRate: String(pendingSubmit.commissionRate),
       vatRate: String(pendingSubmit.vatRate),
       tncnRate: String(pendingSubmit.tncnRate),
+      tncnThresholdAmount: String(pendingSubmit.tncnThresholdAmount),
     });
     setPendingSubmit(null);
     setSaveSuccess(true);
@@ -276,20 +306,37 @@ export default function PlatformFinanceSettingsPage({
 
             <SettingsRow
               title={t('Partner PIT withholding (TNCN)')}
-              description={t('Withheld from the partner inspector gross payout before settlement.')}
+              description={t('Withheld from the partner inspector gross payout when it reaches the configured threshold (set 0 ₫ to apply to all payouts).')}
             >
-              <TextField
-                label={t('TNCN Rate (%)')}
-                value={tncnRate}
-                error={tncnInvalid}
-                helperText={tncnInvalid ? t('Must be between 0% and 100%.') : t('Withheld from partner inspector payout')}
-                onChange={(event) => updateField('tncnRate', event.target.value)}
-                fullWidth
-                required
-                size="small"
-                type="number"
-                slotProps={{ htmlInput: { min: 0, max: 100, step: '0.01' } }}
-              />
+              <Stack spacing={1.5}>
+                <TextField
+                  label={t('TNCN Rate (%)')}
+                  value={tncnRate}
+                  error={tncnInvalid}
+                  helperText={tncnInvalid ? t('Must be between 0% and 100%.') : t('Withheld from partner inspector payout')}
+                  onChange={(event) => updateField('tncnRate', event.target.value)}
+                  fullWidth
+                  required
+                  size="small"
+                  type="number"
+                  slotProps={{ htmlInput: { min: 0, max: 100, step: '0.01' } }}
+                />
+                <TextField
+                  label={t('TNCN Withholding Threshold (VND)')}
+                  value={tncnThresholdAmount}
+                  error={thresholdInvalid}
+                  helperText={
+                    thresholdInvalid
+                      ? t('Must be 0 or greater.')
+                      : t('Only withhold TNCN when Inspector gross payout is at least this amount (default 2,000,000 ₫).')
+                  }
+                  onChange={(event) => updateField('tncnThresholdAmount', event.target.value)}
+                  fullWidth
+                  size="small"
+                  type="number"
+                  slotProps={{ htmlInput: { min: 0, step: '10000' } }}
+                />
+              </Stack>
             </SettingsRow>
 
             <Divider />
@@ -344,10 +391,12 @@ export default function PlatformFinanceSettingsPage({
                   </Stack>
                   <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
                     <Typography variant="body2" color="text.secondary">
-                      {t('PIT withholding (TNCN)')} ({tncnNum}%)
+                      {sampleTncnExempt
+                        ? `${t('PIT withholding (TNCN)')} (${t('Exempt below')} ${formatNumber(thresholdNum)} ₫)`
+                        : `${t('PIT withholding (TNCN)')} (${tncnNum}%)`}
                     </Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 600, color: 'error.main', fontVariantNumeric: 'tabular-nums' }}>
-                      - {formatNumber(sampleTncn)} ₫
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: sampleTncn === 0 ? 'text.secondary' : 'error.main', fontVariantNumeric: 'tabular-nums' }}>
+                      {sampleTncn === 0 ? '0 ₫' : `- ${formatNumber(sampleTncn)} ₫`}
                     </Typography>
                   </Stack>
                   <Divider />
@@ -407,7 +456,7 @@ export default function PlatformFinanceSettingsPage({
         title={t('Update platform finance rates?')}
         message={
           pendingSubmit
-            ? `${t('New rates')}: ${t('Commission')} ${pendingSubmit.commissionRate}%, ${t('VAT')} ${pendingSubmit.vatRate}%, ${t('TNCN')} ${pendingSubmit.tncnRate}%. ${t('These rates apply to newly issued quotations.')}`
+            ? `${t('New rates')}: ${t('Commission')} ${pendingSubmit.commissionRate}%, ${t('VAT')} ${pendingSubmit.vatRate}%, ${t('TNCN')} ${pendingSubmit.tncnRate}% (${t('Threshold')}: ${formatNumber(pendingSubmit.tncnThresholdAmount)} ₫). ${t('These rates apply to newly issued quotations.')}`
             : ''
         }
         confirmLabel={t('Confirm save')}
