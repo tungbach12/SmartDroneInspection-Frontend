@@ -48,9 +48,14 @@ import {
 import { extractImageText } from '../utils/imageOcr';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { AuthenticatedImage } from '@/shared/ui/AuthenticatedImage';
+import { PaginationFooter } from '@/shared/ui/PaginationFooter';
+import { paginateItems } from '@/shared/ui/pagination';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { MetricCard } from '@/shared/ui/MetricCard';
+
+const FLEET_PAGE_SIZE = 6;
+const APPLICATIONS_PAGE_SIZE = 6;
 
 interface DroneFormState {
   droneName: string;
@@ -212,6 +217,8 @@ export default function InspectorDroneRegistrationPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [openRegisterDialog, setOpenRegisterDialog] = useState(false);
   const [tabIndex, setTabIndex] = useState<'APPROVED' | 'APPLICATIONS'>('APPROVED');
+  const [fleetPage, setFleetPage] = useState(1);
+  const [applicationsPage, setApplicationsPage] = useState(1);
   const [autoFilledFields, setAutoFilledFields] = useState<Partial<Record<keyof DroneFormState, boolean>>>({});
   const [scanResult, setScanResult] = useState<DroneSpecExtractionResult | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
@@ -375,6 +382,12 @@ export default function InspectorDroneRegistrationPage() {
   const activeDronesCount = approvedDrones.filter((d) => d.serviceability === 'ACTIVE').length;
   const applicationList: DroneRegistrationApplication[] = applications.data ?? [];
   const pendingCount = applicationList.filter((a) => a.status === 'PENDING').length;
+  const paginatedFleet = paginateItems(approvedDrones, fleetPage, FLEET_PAGE_SIZE);
+  const paginatedApplications = paginateItems(
+    applicationList,
+    applicationsPage,
+    APPLICATIONS_PAGE_SIZE,
+  );
 
   const submit = useMutation({
     mutationFn: async (formData: DroneFormState) => {
@@ -915,7 +928,7 @@ export default function InspectorDroneRegistrationPage() {
                 </Paper>
               ) : (
                 <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 2.5 }}>
-                  {approvedDrones.map((drone) => (
+                  {paginatedFleet.items.map((drone) => (
                     <Card
                       key={drone.id}
                       variant="outlined"
@@ -1251,6 +1264,20 @@ export default function InspectorDroneRegistrationPage() {
                   ))}
                 </Box>
               )}
+              {!drones.isLoading && (
+                <Paper
+                  variant="outlined"
+                  sx={{ mt: 2.5, borderRadius: '10px', borderColor: 'divider', overflow: 'hidden' }}
+                >
+                  <PaginationFooter
+                    page={paginatedFleet.page}
+                    pageSize={paginatedFleet.pageSize}
+                    totalCount={paginatedFleet.totalCount}
+                    onPageChange={setFleetPage}
+                    ariaLabel={tr('Phân trang đội bay', 'Fleet pagination')}
+                  />
+                </Paper>
+              )}
             </Box>
           )}
 
@@ -1276,7 +1303,7 @@ export default function InspectorDroneRegistrationPage() {
                 </Paper>
               ) : (
                 <Stack spacing={2}>
-                  {applicationList.map((app) => (
+                  {paginatedApplications.items.map((app) => (
                     <Paper
                       key={app.id}
                       variant="outlined"
@@ -1488,6 +1515,20 @@ export default function InspectorDroneRegistrationPage() {
                     </Paper>
                   ))}
                 </Stack>
+              )}
+              {!applications.isLoading && (
+                <Paper
+                  variant="outlined"
+                  sx={{ mt: 2.5, borderRadius: '10px', borderColor: 'divider', overflow: 'hidden' }}
+                >
+                  <PaginationFooter
+                    page={paginatedApplications.page}
+                    pageSize={paginatedApplications.pageSize}
+                    totalCount={paginatedApplications.totalCount}
+                    onPageChange={setApplicationsPage}
+                    ariaLabel={tr('Phân trang hồ sơ đăng ký', 'Applications pagination')}
+                  />
+                </Paper>
               )}
             </Box>
           )}

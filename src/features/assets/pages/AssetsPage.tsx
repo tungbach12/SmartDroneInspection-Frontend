@@ -575,17 +575,17 @@ export function AssetsPage() {
           {newAssetButton}
         </Stack>
 
-        {filteredItems.length === 0 ? (
-          <Paper
-            variant="outlined"
-            sx={{ p: 4, borderRadius: '10px', textAlign: 'center', borderColor: 'divider' }}
-          >
-            <Typography variant="body2" color="text.secondary">
-              {t('No matching assets found.')}
-            </Typography>
-          </Paper>
-        ) : (
-          <Stack spacing={2.5}>
+        <Stack spacing={2.5}>
+          {filteredItems.length === 0 ? (
+            <Paper
+              variant="outlined"
+              sx={{ p: 4, borderRadius: '10px', textAlign: 'center', borderColor: 'divider' }}
+            >
+              <Typography variant="body2" color="text.secondary">
+                {t('No matching assets found.')}
+              </Typography>
+            </Paper>
+          ) : (
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 2.5 }}>
               {pagedItems.map((asset) => (
                 <AssetCard
@@ -597,57 +597,59 @@ export function AssetsPage() {
                 />
               ))}
             </Box>
+          )}
 
-            <Paper
-              variant="outlined"
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                px: { xs: 2, sm: 2.5 },
-                py: 1.5,
-                borderRadius: '10px',
-                borderColor: 'divider',
-                flexWrap: 'wrap',
-                gap: 1.5,
-              }}
+          <Paper
+            variant="outlined"
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              px: { xs: 2, sm: 2.5 },
+              py: 1.5,
+              borderRadius: '10px',
+              borderColor: 'divider',
+              flexWrap: 'wrap',
+              gap: 1.5,
+            }}
+          >
+            <Typography
+              variant="body2"
+              sx={{ color: 'text.secondary', fontSize: '0.875rem', fontVariantNumeric: 'tabular-nums' }}
             >
-              <Typography
-                variant="body2"
-                sx={{ color: 'text.secondary', fontSize: '0.875rem', fontVariantNumeric: 'tabular-nums' }}
-              >
-                {`${t('Showing')} ${(safePage - 1) * ASSETS_PER_PAGE + 1}–${Math.min(safePage * ASSETS_PER_PAGE, totalMatchingCount)} ${t('of')} ${totalMatchingCount}`}
-              </Typography>
-              <Pagination
-                count={totalFilteredPages}
-                page={safePage}
-                onChange={(_event, nextPage) => setPage(nextPage)}
-                shape="rounded"
-                size="small"
-                siblingCount={1}
-                boundaryCount={1}
-                aria-label={t('Assets pagination')}
-                sx={{
-                  '& .MuiPaginationItem-root': {
-                    borderRadius: '8px',
-                    fontWeight: 600,
-                    fontSize: '0.8125rem',
-                    color: 'text.primary',
-                  },
-                  '& .MuiPaginationItem-page.Mui-selected': {
-                    bgcolor: 'primary.main',
-                    color: '#FFFFFF',
-                    '&:hover': { bgcolor: 'primary.dark' },
-                  },
-                  '& .MuiPaginationItem-previousNext': {
-                    border: '1px solid',
-                    borderColor: 'divider',
-                  },
-                }}
-              />
-            </Paper>
-          </Stack>
-        )}
+              {totalMatchingCount > 0
+                ? `${t('Showing')} ${(safePage - 1) * ASSETS_PER_PAGE + 1}–${Math.min(safePage * ASSETS_PER_PAGE, totalMatchingCount)} ${t('of')} ${totalMatchingCount}`
+                : `${t('Showing')} 0 ${t('of')} 0`}
+            </Typography>
+            <Pagination
+              count={totalFilteredPages}
+              page={safePage}
+              onChange={(_event, nextPage) => setPage(nextPage)}
+              shape="rounded"
+              size="small"
+              siblingCount={1}
+              boundaryCount={1}
+              aria-label={t('Assets pagination')}
+              sx={{
+                '& .MuiPaginationItem-root': {
+                  borderRadius: '8px',
+                  fontWeight: 600,
+                  fontSize: '0.8125rem',
+                  color: 'text.primary',
+                },
+                '& .MuiPaginationItem-page.Mui-selected': {
+                  bgcolor: 'primary.main',
+                  color: '#FFFFFF',
+                  '&:hover': { bgcolor: 'primary.dark' },
+                },
+                '& .MuiPaginationItem-previousNext': {
+                  border: '1px solid',
+                  borderColor: 'divider',
+                },
+              }}
+            />
+          </Paper>
+        </Stack>
       </QueryState>
 
       <CreateAssetDialog

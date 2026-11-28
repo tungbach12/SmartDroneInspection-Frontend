@@ -167,4 +167,32 @@ describe('InspectorDroneRegistrationPage Capabilities & Safety Checklist', () =>
     });
     await screen.findByRole('button', { name: /^Retire$/i });
   });
+
+  it('shows fleet and applications pagination by default and paginates beyond 6 items', async () => {
+    const fleet = Array.from({ length: 8 }, (_, idx) => ({
+      id: `drone-${idx + 1}`,
+      serialNumber: `SER-${idx + 1}`,
+      model: `Drone Model ${idx + 1}`,
+      manufacturer: 'DJI',
+      serviceability: 'ACTIVE',
+      registrationNumber: `VN-DRN-${idx + 1}`,
+      registrationExpiresAt: '2029-12-31T00:00:00Z',
+    }));
+    const { mf1DroneApi } = await import('../api/mf1DroneApi');
+    vi.mocked(mf1DroneApi.drones).mockResolvedValue(fleet);
+    vi.mocked(mf1DroneApi.mine).mockResolvedValue([]);
+
+    renderPage();
+
+    expect(await screen.findByText('Showing 1–6 of 8')).toBeTruthy();
+    expect(screen.getByText('Drone Model 1')).toBeTruthy();
+    expect(screen.queryByText('Drone Model 7')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Go to page 2' }));
+    expect(screen.getByText('Showing 7–8 of 8')).toBeTruthy();
+    expect(screen.getByText('Drone Model 7')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('tab', { name: /Submitted Applications/i }));
+    expect(await screen.findByText('Showing 0 of 0')).toBeTruthy();
+  });
 });
