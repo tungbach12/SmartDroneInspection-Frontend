@@ -21,6 +21,9 @@ const MAX_TIMEOUT_HOURS = 720;
 const MIN_LEAD_DAYS = 0;
 const MAX_LEAD_DAYS = 365;
 const DEFAULT_LEAD_DAYS = 20;
+const MIN_API_TIMEOUT_SECONDS = 10;
+const MAX_API_TIMEOUT_SECONDS = 600;
+const DEFAULT_API_TIMEOUT_SECONDS = 120;
 
 interface PlatformOperationsSettingsPageProps {
   /** Rendered inside the Platform settings hub, which owns the page header. */
@@ -49,6 +52,7 @@ export default function PlatformOperationsSettingsPage({
 
   const [hoursInput, setHoursInput] = useState<string | null>(null);
   const [leadDaysInput, setLeadDaysInput] = useState<string | null>(null);
+  const [apiTimeoutInput, setApiTimeoutInput] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -66,6 +70,13 @@ export default function PlatformOperationsSettingsPage({
         ? String(settingsQuery.data.serviceRequestLeadDays)
         : String(DEFAULT_LEAD_DAYS);
 
+  const effectiveApiTimeoutValue =
+    apiTimeoutInput !== null
+      ? apiTimeoutInput
+      : settingsQuery.data?.apiRequestTimeoutSeconds != null
+        ? String(settingsQuery.data.apiRequestTimeoutSeconds)
+        : String(DEFAULT_API_TIMEOUT_SECONDS);
+
   const parsedHours = Number(effectiveValue);
   const isHoursInvalid =
     effectiveValue.trim() !== '' &&
@@ -80,7 +91,14 @@ export default function PlatformOperationsSettingsPage({
       parsedLeadDays < MIN_LEAD_DAYS ||
       parsedLeadDays > MAX_LEAD_DAYS);
 
-  const isInvalid = isHoursInvalid || isLeadDaysInvalid;
+  const parsedApiTimeout = Number(effectiveApiTimeoutValue);
+  const isApiTimeoutInvalid =
+    effectiveApiTimeoutValue.trim() !== '' &&
+    (!Number.isInteger(parsedApiTimeout) ||
+      parsedApiTimeout < MIN_API_TIMEOUT_SECONDS ||
+      parsedApiTimeout > MAX_API_TIMEOUT_SECONDS);
+
+  const isInvalid = isHoursInvalid || isLeadDaysInvalid || isApiTimeoutInvalid;
 
   const handleSave = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -115,12 +133,28 @@ export default function PlatformOperationsSettingsPage({
       return;
     }
 
+    if (
+      effectiveApiTimeoutValue.trim() === '' ||
+      !Number.isInteger(parsedApiTimeout) ||
+      parsedApiTimeout < MIN_API_TIMEOUT_SECONDS ||
+      parsedApiTimeout > MAX_API_TIMEOUT_SECONDS
+    ) {
+      setValidationError(
+        locale === 'vi'
+          ? `Thời gian chờ phản hồi API phải là số nguyên từ ${MIN_API_TIMEOUT_SECONDS} đến ${MAX_API_TIMEOUT_SECONDS} giây.`
+          : `API request timeout must be a whole number between ${MIN_API_TIMEOUT_SECONDS} and ${MAX_API_TIMEOUT_SECONDS} seconds.`,
+      );
+      return;
+    }
+
     await updateMutation.mutateAsync({
       assignmentAcceptanceTimeoutHours: parsedHours,
       serviceRequestLeadDays: parsedLeadDays,
+      apiRequestTimeoutSeconds: parsedApiTimeout,
     });
     setHoursInput(String(parsedHours));
     setLeadDaysInput(String(parsedLeadDays));
+    setApiTimeoutInput(String(parsedApiTimeout));
     setSaveSuccess(true);
   };
 
@@ -235,6 +269,46 @@ export default function PlatformOperationsSettingsPage({
                   htmlInput: {
                     min: MIN_LEAD_DAYS,
                     max: MAX_LEAD_DAYS,
+                    step: 1,
+                  },
+                }}
+                sx={{ maxWidth: 360 }}
+              />
+
+              <Divider />
+
+              <Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                  {locale === 'vi'
+                    ? 'Thời gian chờ phản hồi API'
+                    : 'API request timeout'}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                  {locale === 'vi'
+                    ? 'Thời gian tối đa trình duyệt chờ phản hồi API (bao gồm phân tích ảnh và soạn nháp AI) trước khi báo quá thời gian.'
+                    : 'Maximum time the web client waits for API responses (including AI analysis and drafting requests) before timing out.'}
+                </Typography>
+              </Box>
+
+              <TextField
+                label={
+                  locale === 'vi'
+                    ? 'Thời gian chờ API (giây)'
+                    : 'API request timeout (seconds)'
+                }
+                type="number"
+                value={effectiveApiTimeoutValue}
+                onChange={(e) => setApiTimeoutInput(e.target.value)}
+                error={isApiTimeoutInvalid}
+                helperText={
+                  locale === 'vi'
+                    ? `Giá trị hợp lệ: ${MIN_API_TIMEOUT_SECONDS}–${MAX_API_TIMEOUT_SECONDS} giây (mặc định ${DEFAULT_API_TIMEOUT_SECONDS} giây).`
+                    : `Allowed range: ${MIN_API_TIMEOUT_SECONDS}–${MAX_API_TIMEOUT_SECONDS} seconds (default ${DEFAULT_API_TIMEOUT_SECONDS} seconds).`
+                }
+                slotProps={{
+                  htmlInput: {
+                    min: MIN_API_TIMEOUT_SECONDS,
+                    max: MAX_API_TIMEOUT_SECONDS,
                     step: 1,
                   },
                 }}
