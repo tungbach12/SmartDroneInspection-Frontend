@@ -3333,4 +3333,13 @@
   "Motors, ESCs & batteries checked for abnormal heat or swelling": "Kiểm tra nhiệt độ bất thường / phồng pin, motor & ESC",
   "All sortie photos, videos & flight logs verified & backed up": "Kiểm tra đầy đủ ảnh, video & nhật ký bay các chuyến trước khi rời hiện trường",
   "Safety cones removed, equipment packed & site restored": "Thu dọn thiết bị, tháo cọc cảnh báo & bàn giao mặt bằng sạch sẽ",
+  "This scheduled flight has been cancelled.": "Chuyến bay theo lịch này đã bị hủy.",
+  "Adjust schedule": "Điều chỉnh lịch bay",
+  "Flight date": "Ngày bay",
+  "Adjusted": "Đã điều chỉnh",
+  "Re-check required": "Cần kiểm tra lại",
+  "Must stay within contracted hours": "Phải nằm trong khung giờ hợp đồng",
+  "Contract window": "Khung giờ hợp đồng",
+  "Coordinate changes in Messages": "Trao đổi đổi giờ qua Messages",
+  "Schedule changed — click Find eligible partners to re-verify.": "Thời gian bay đã thay đổi — bấm Find eligible partners để kiểm tra lại.",
 };
