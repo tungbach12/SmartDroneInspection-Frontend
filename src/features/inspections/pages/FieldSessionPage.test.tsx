@@ -849,10 +849,17 @@ describe('FieldSessionPage', () => {
     fireEvent.change(screen.getByLabelText(/Issuing authority/), {
       target: { value: 'Cuc Tac Chien' },
     });
-    fireEvent.change(screen.getByLabelText(/Valid from/), {
+    const validFromInput = screen.getByLabelText(/Valid from/) as HTMLInputElement;
+    const validToInput = screen.getByLabelText(/Valid to/) as HTMLInputElement;
+    const diffDays =
+      (new Date(validToInput.value).getTime() - new Date(validFromInput.value).getTime()) /
+      86_400_000;
+    expect(diffDays).toBeGreaterThanOrEqual(29.9);
+
+    fireEvent.change(validFromInput, {
       target: { value: '2026-12-01T08:00' },
     });
-    fireEvent.change(screen.getByLabelText(/Valid to/), {
+    fireEvent.change(validToInput, {
       target: { value: '2026-12-02T17:00' },
     });
 

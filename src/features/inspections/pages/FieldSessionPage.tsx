@@ -819,12 +819,24 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
 
   const permitNumber = permitNumberDraft ?? inspection?.flightPermitNumber ?? '';
   const issuingAuthority = issuingAuthorityDraft ?? inspection?.flightPermitAuthority ?? '';
+  const plannedStartMs = inspection?.plannedStartAt
+    ? new Date(inspection.plannedStartAt).getTime()
+    : Number.NaN;
+  const defaultPermitValidFromIso = new Date(
+    Number.isFinite(plannedStartMs) ? Math.min(nowMs, plannedStartMs) : nowMs,
+  ).toISOString();
+  const thirtyDaysFromNowMs = nowMs + 30 * 86_400_000;
+  const defaultPermitValidToIso = new Date(
+    Number.isFinite(windowEndMs)
+      ? Math.max(thirtyDaysFromNowMs, windowEndMs)
+      : thirtyDaysFromNowMs,
+  ).toISOString();
   const permitValidFrom =
     permitValidFromDraft ??
-    toDateTimeLocalValue(inspection?.flightPermitValidFrom ?? inspection?.plannedStartAt);
+    toDateTimeLocalValue(inspection?.flightPermitValidFrom ?? defaultPermitValidFromIso);
   const permitValidTo =
     permitValidToDraft ??
-    toDateTimeLocalValue(inspection?.flightPermitValidTo ?? inspection?.plannedEndAt);
+    toDateTimeLocalValue(inspection?.flightPermitValidTo ?? defaultPermitValidToIso);
   const canContinueToEvidence =
     !openSession &&
     (inspection?.status === 'FIELD_COMPLETED' ||
