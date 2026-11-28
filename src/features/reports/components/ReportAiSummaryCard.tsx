@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import { alpha, type Theme } from '@mui/material/styles';
 import {
+  Alert,
   Box,
   Button,
   ButtonBase,
@@ -8,6 +10,8 @@ import {
   Chip,
   CircularProgress,
   Collapse,
+  Divider,
+  LinearProgress,
   Stack,
   Typography,
 } from '@mui/material';
@@ -15,7 +19,7 @@ import CheckCircleOutlineRounded from '@mui/icons-material/CheckCircleOutlineRou
 import ErrorOutlineRounded from '@mui/icons-material/ErrorOutlineRounded';
 import ExpandLessRounded from '@mui/icons-material/ExpandLessRounded';
 import ExpandMoreRounded from '@mui/icons-material/ExpandMoreRounded';
-import TaskAltRounded from '@mui/icons-material/TaskAltRounded';
+import RefreshRounded from '@mui/icons-material/RefreshRounded';
 import WarningAmberRounded from '@mui/icons-material/WarningAmberRounded';
 import {
   inspectionApi,
@@ -23,6 +27,7 @@ import {
   type Finding,
   type ReportAiSummary,
 } from '@/features/inspections/api/inspectionApi';
+import { useAuthStore } from '@/features/auth/store/authStore';
 import { KnowledgeRecommendationPanel } from '@/features/inspections/components/KnowledgeRecommendationPanel';
 import { useInspectionKnowledgeRecommendations } from '@/features/inspections/hooks/useInspections';
 import { useLocale, type Locale } from '@/shared/i18n/LocaleProvider';
@@ -30,12 +35,14 @@ import { useLocale, type Locale } from '@/shared/i18n/LocaleProvider';
 export interface ReportAiSummaryCardProps {
   inspectionId: string;
   versionId: string;
+  versionStatus?: string | undefined;
   summary?: string | null | undefined;
   findings?: Finding[] | undefined;
   evidenceList?: EvidenceItem[] | undefined;
   assetName?: string | null | undefined;
   evidenceCount?: number | undefined;
   defaultExpanded?: boolean | undefined;
+  canRegenerate?: boolean | undefined;
 }
 
 export interface PersistedAiSummaryOptions {
@@ -56,6 +63,7 @@ export interface PersistedAiSummaryResult {
 
 interface StoredAiSummaryRecord {
   signature: string;
+  source?: 'local' | 'remote';
   summaryData: ReportAiSummary;
   generatedAt: string;
 }
@@ -75,8 +83,8 @@ const DEFECT_DESCRIPTORS: DefectDescriptor[] = [
     key: 'abscission',
     enCategory: 'surface spalling / delamination',
     viCategory: 'bong tróc / vỡ bề mặt bê tông',
-    enObservation: 'Localized surface cover delamination / spalling observed',
-    viObservation: 'Ghi nhận bong tróc lớp phủ / sứt vỡ bề mặt cục bộ',
+    enObservation: 'Localized surface cover delamination or spalling confirmed on inspected surfaces',
+    viObservation: 'Ghi nhận tình trạng bong tróc lớp phủ / sứt vỡ bề mặt bê tông cục bộ',
     enAction:
       'Remove loose deteriorated concrete, treat exposed substrate, and patch with structural repair mortar',
     viAction:
@@ -86,7 +94,7 @@ const DEFECT_DESCRIPTORS: DefectDescriptor[] = [
     key: 'spalling',
     enCategory: 'surface spalling / delamination',
     viCategory: 'bong tróc / vỡ bề mặt bê tông',
-    enObservation: 'Concrete spalling and surface loss detected',
+    enObservation: 'Concrete spalling and protective cover loss confirmed',
     viObservation: 'Phát hiện sứt vỡ và mất lớp bảo vệ bề mặt',
     enAction:
       'Chip back unstable concrete, clean exposed areas, and restore protective cover with non-shrink repair mortar',
@@ -97,8 +105,8 @@ const DEFECT_DESCRIPTORS: DefectDescriptor[] = [
     key: 'leakage',
     enCategory: 'moisture seepage / leakage',
     viCategory: 'thấm dột / rò rỉ nước',
-    enObservation: 'Active moisture seepage or water staining along the surface',
-    viObservation: 'Ghi nhận vết thấm ẩm / rò rỉ nước trên bề mặt kết cấu',
+    enObservation: 'Active moisture seepage or water staining confirmed along structural joints',
+    viObservation: 'Ghi nhận dấu hiệu thấm ẩm / rò rỉ nước dọc bề mặt hoặc khe nối kết cấu',
     enAction:
       'Trace upstream moisture ingress, clear drainage paths, and reseal joints with waterproof membrane',
     viAction:
@@ -108,8 +116,8 @@ const DEFECT_DESCRIPTORS: DefectDescriptor[] = [
     key: 'crack',
     enCategory: 'surface cracking',
     viCategory: 'nứt bề mặt kết cấu',
-    enObservation: 'Linear fracture detected requiring width and depth verification',
-    viObservation: 'Phát hiện vết nứt cần kiểm tra bề rộng và chiều sâu phát triển',
+    enObservation: 'Linear surface cracking confirmed requiring on-site width and progression check',
+    viObservation: 'Phát hiện vết nứt bề mặt cần kiểm tra bề rộng và mức độ lan rộng ngoài hiện trường',
     enAction:
       'Measure crack width/length on-site and seal via low-pressure epoxy or polyurethane injection',
     viAction:
@@ -119,8 +127,8 @@ const DEFECT_DESCRIPTORS: DefectDescriptor[] = [
     key: 'corrosion',
     enCategory: 'corrosion / oxidation',
     viCategory: 'ăn mòn / gỉ sét',
-    enObservation: 'Surface oxidation or metallic corrosion observed',
-    viObservation: 'Ghi nhận dấu hiệu oxy hóa hoặc ăn mòn kim loại',
+    enObservation: 'Surface oxidation or metallic corrosion observed on structural components',
+    viObservation: 'Ghi nhận dấu hiệu oxy hóa hoặc ăn mòn kim loại trên cấu kiện',
     enAction:
       'Clean oxidized scale, apply rust inhibitor primer, and recoat with anti-corrosion protective system',
     viAction:
@@ -130,8 +138,15 @@ const DEFECT_DESCRIPTORS: DefectDescriptor[] = [
 
 const MEMORY_CACHE = new Map<string, StoredAiSummaryRecord>();
 
+const SEVERITY_RANK: Record<string, number> = {
+  CRITICAL: 4,
+  HIGH: 3,
+  MEDIUM: 2,
+  LOW: 1,
+};
+
 function storageKey(inspectionId: string, locale: string): string {
-  return `sdi:ai-summary:v2:${inspectionId}:${locale}`;
+  return `sdi:ai-summary:v3:${inspectionId}:${locale}`;
 }
 
 function readStoredSummary(key: string): StoredAiSummaryRecord | null {
@@ -189,45 +204,27 @@ function displayDefectLabel(label: string | null | undefined, isVi: boolean): st
   return label?.trim() || (isVi ? 'Khiếm khuyết chưa phân loại' : 'Unspecified defect');
 }
 
-function isRedundantNote(note: string | null | undefined, defectLabel: string): boolean {
-  const cleanNote = note?.trim().toLowerCase() ?? '';
-  if (!cleanNote || cleanNote === 'none' || cleanNote === 'không có') return true;
-  const cleanLabel = defectLabel.trim().toLowerCase();
-  return cleanNote === cleanLabel;
+/** Strips noisy legacy fallback strings stored in older finding technicalNotes records. */
+function sanitizeTechnicalNote(rawNote: string | null | undefined): string {
+  if (!rawNote) return '';
+  let cleaned = rawNote.trim();
+  cleaned = cleaned.replace(/Inspector's current note:\s*[^.]*\.?/gi, '');
+  cleaned = cleaned.replace(/;?\s*a comparable case recorded published\.?/gi, '');
+  cleaned = cleaned.replace(/Reference\s+[^.;]+?\s+advises[^.;]*[.;]?/gi, '');
+  cleaned = cleaned.replace(/\s{2,}/g, ' ').trim();
+  return cleaned;
 }
 
-function getFindingObservationText(
-  finding: Finding,
-  evidenceById: Map<string, EvidenceItem>,
-  isVi: boolean,
-): string {
-  const label = finding.defectLabel?.trim() ?? '';
-  const descriptor = matchDescriptor(label);
-  const baseObservation = !isRedundantNote(finding.technicalNotes, label)
-    ? finding.technicalNotes!.trim()
-    : descriptor
-      ? isVi
-        ? descriptor.viObservation
-        : descriptor.enObservation
-      : label
-        ? isVi
-          ? `Khiếm khuyết ${label} đã được xác nhận trên ảnh hiện trường`
-          : `Confirmed ${label} defect documented on field capture`
-        : isVi
-          ? 'Khiếm khuyết chưa phân loại đã được xác nhận trên ảnh hiện trường'
-          : 'Unspecified defect confirmed on field capture';
-
-  const metaParts: string[] = [];
-  const conf = normalizeConfidencePercent(finding.confidence);
-  if (conf != null) {
-    metaParts.push(isVi ? `${conf}% độ tin cậy AI` : `${conf}% AI confidence`);
-  }
-  const ev = finding.evidenceId ? evidenceById.get(finding.evidenceId) : undefined;
-  const location = ev?.locationDescription?.trim();
-  if (location && !location.startsWith('Trích xuất') && !location.startsWith('Extracted from')) {
-    metaParts.push(location);
-  }
-  return metaParts.length > 0 ? `${baseObservation} (${metaParts.join(' · ')})` : baseObservation;
+function isRedundantNote(note: string | null | undefined, defectLabel: string): boolean {
+  const cleanNote = sanitizeTechnicalNote(note).toLowerCase();
+  if (!cleanNote || cleanNote === 'none' || cleanNote === 'không có') return true;
+  const cleanLabel = defectLabel.trim().toLowerCase();
+  return (
+    cleanNote === cleanLabel ||
+    /^the (low|medium|high|critical)-severity .+ is observed within the marked region\.?$/i.test(
+      cleanNote,
+    )
+  );
 }
 
 function isLegacyTemplateSummary(text: string): boolean {
@@ -236,14 +233,38 @@ function isLegacyTemplateSummary(text: string): boolean {
     trimmed.startsWith('AI synthesis across ') ||
     trimmed.startsWith('Inspection report for ') ||
     trimmed.startsWith('Phân tích AI tổng hợp từ ') ||
-    trimmed.startsWith('Báo cáo kiểm định cho ')
+    trimmed.startsWith('Báo cáo kiểm định cho ') ||
+    trimmed.includes('Severity breakdown:') ||
+    trimmed.includes('Phân bố mức độ:')
   );
+}
+
+function highestSeverity(list: Finding[]): string {
+  let best = 'LOW';
+  let bestRank = 0;
+  for (const f of list) {
+    const sev = (f.severity ?? 'LOW').toUpperCase();
+    const rank = SEVERITY_RANK[sev] ?? 1;
+    if (rank > bestRank) {
+      bestRank = rank;
+      best = sev;
+    }
+  }
+  return best;
 }
 
 function groupDefectTypes(confirmed: Finding[], isVi: boolean) {
   const groups = new Map<
     string,
-    { label: string; categoryText: string; count: number; codes: string[] }
+    {
+      label: string;
+      categoryText: string;
+      count: number;
+      codes: string[];
+      findings: Finding[];
+      topSeverity: string;
+      confidences: number[];
+    }
   >();
 
   for (const f of confirmed) {
@@ -252,24 +273,34 @@ function groupDefectTypes(confirmed: Finding[], isVi: boolean) {
     const descriptor = matchDescriptor(label);
     const existing = groups.get(rawKey);
     const code = f.findingCode?.trim() || '';
+    const conf = normalizeConfidencePercent(f.confidence);
 
     if (existing) {
       existing.count += 1;
+      existing.findings.push(f);
+      existing.topSeverity = highestSeverity(existing.findings);
       if (code) existing.codes.push(code);
+      if (conf != null) existing.confidences.push(conf);
     } else {
       groups.set(rawKey, {
         label,
         categoryText: descriptor
           ? isVi
-            ? `${descriptor.viCategory}`
-            : `${descriptor.enCategory}`
+            ? descriptor.viCategory
+            : descriptor.enCategory
           : label,
         count: 1,
         codes: code ? [code] : [],
+        findings: [f],
+        topSeverity: (f.severity ?? 'LOW').toUpperCase(),
+        confidences: conf != null ? [conf] : [],
       });
     }
   }
-  return Array.from(groups.values());
+
+  return Array.from(groups.values()).sort(
+    (a, b) => (SEVERITY_RANK[b.topSeverity] ?? 0) - (SEVERITY_RANK[a.topSeverity] ?? 0),
+  );
 }
 
 function buildSynthesizedAiSummary({
@@ -299,82 +330,41 @@ function buildSynthesizedAiSummary({
   if (confirmed.length === 0) {
     return {
       summary: isVi
-        ? `Khảo sát kiểm định trực quan bằng drone tại ${resolvedAsset}${totalEvidence != null ? ` (${totalEvidence} bằng chứng hiện trường)` : ''} đã hoàn tất. Không phát hiện khiếm khuyết kết cấu nào cần xử lý trong phạm vi khảo sát.`
-        : `Visual drone inspection of ${resolvedAsset}${totalEvidence != null ? ` across ${totalEvidence} captured evidence items` : ''} is complete. No confirmed structural defects were identified within the surveyed scope.`,
+        ? `Khảo sát kiểm định trực quan bằng drone tại ${resolvedAsset}${totalEvidence != null ? ` (${totalEvidence} bằng chứng hiện trường)` : ''} đã hoàn tất. Không ghi nhận khiếm khuyết kết cấu cần xử lý trong phạm vi khảo sát.`
+        : `Visual drone inspection of ${resolvedAsset}${totalEvidence != null ? ` across ${totalEvidence} captured evidence item(s)` : ''} is complete. No confirmed structural defects were identified within the surveyed scope.`,
       keyHighlights: [
         isVi
-          ? 'Toàn bộ phạm vi khảo sát không ghi nhận khiếm khuyết kết cấu bất thường'
-          : 'No structural anomalies confirmed across inspected surfaces',
+          ? 'Không ghi nhận khiếm khuyết kết cấu bất thường trong phạm vi khảo sát.'
+          : 'No structural anomalies confirmed across inspected surfaces.',
       ],
       recommendedActions: isVi
-        ? 'Tiếp tục duy trì chu kỳ kiểm định định kỳ bằng drone theo kế hoạch vận hành tài sản.'
-        : 'Maintain the scheduled periodic visual inspection cycle under routine asset monitoring.',
+        ? 'Bảo trì định kỳ: Tiếp tục duy trì chu kỳ kiểm định bằng drone theo kế hoạch vận hành.'
+        : 'Routine monitoring: Maintain the scheduled periodic visual inspection cycle.',
       overallRisk: 'LOW',
     };
   }
 
-  const evidenceById = new Map<string, EvidenceItem>();
-  for (const item of evidenceList) {
-    evidenceById.set(item.id, item);
-  }
-
-  const countsBySeverity = {
-    CRITICAL: confirmed.filter((f) => f.severity === 'CRITICAL').length,
-    HIGH: confirmed.filter((f) => f.severity === 'HIGH').length,
-    MEDIUM: confirmed.filter((f) => f.severity === 'MEDIUM').length,
-    LOW: confirmed.filter((f) => f.severity === 'LOW').length,
-  };
-
-  const severitySummaryParts: string[] = [];
-  if (countsBySeverity.CRITICAL > 0) {
-    severitySummaryParts.push(`${countsBySeverity.CRITICAL} CRITICAL`);
-  }
-  if (countsBySeverity.HIGH > 0) {
-    severitySummaryParts.push(`${countsBySeverity.HIGH} HIGH`);
-  }
-  if (countsBySeverity.MEDIUM > 0) {
-    severitySummaryParts.push(`${countsBySeverity.MEDIUM} MEDIUM`);
-  }
-  if (countsBySeverity.LOW > 0) {
-    severitySummaryParts.push(`${countsBySeverity.LOW} LOW`);
-  }
-
   const groups = groupDefectTypes(confirmed, isVi);
-  const groupedPhrase = groups
-    .map((g) => `${g.categoryText} (${g.count})`)
-    .join(isVi ? ', ' : '; ');
-
-  const confidences = confirmed
-    .map((f) => normalizeConfidencePercent(f.confidence))
-    .filter((v): v is number => v !== null);
-  const confidencePhrase =
-    confidences.length > 0
-      ? (() => {
-          const minC = Math.min(...confidences);
-          const maxC = Math.max(...confidences);
-          const rangeText = minC === maxC ? `${minC}%` : `${minC}%–${maxC}%`;
-          return isVi ? ` với độ tin cậy AI ${rangeText}` : ` (AI detection confidence ${rangeText})`;
-        })()
-      : '';
-
+  const categoryList = groups.map((g) => g.categoryText).join(', ');
   const riskImplication =
     overallRisk === 'CRITICAL'
       ? isVi
-        ? 'Cần phong tỏa khu vực ảnh hưởng và xử lý kỹ thuật khẩn cấp.'
+        ? 'Cần phong tỏa khu vực ảnh hưởng và can thiệp kỹ thuật khẩn cấp.'
         : 'Immediate structural engineering intervention and safety isolation are advised.'
       : overallRisk === 'HIGH'
         ? isVi
-          ? 'Cần lập kế hoạch sửa chữa ưu tiên cao để ngăn lan rộng hư hỏng.'
+          ? 'Cần lập phương án sửa chữa ưu tiên cao để ngăn hư hỏng lan rộng.'
           : 'Priority corrective remediation is advised to arrest progressive deterioration.'
         : overallRisk === 'MEDIUM'
           ? isVi
-            ? 'Tình trạng xuống cấp bề mặt ở mức trung bình, cần đưa vào kế hoạch bảo trì khắc phục có kiểm soát.'
+            ? 'Tình trạng xuống cấp bề mặt ở mức trung bình; cần đưa vào kế hoạch bảo trì khắc phục.'
             : 'Moderate surface deterioration is indicated; scheduled corrective maintenance is recommended.'
           : isVi
-            ? 'Khiếm khuyết mức nhẹ, tiếp tục theo dõi trong chu kỳ bảo trì định kỳ.'
-            : 'Minor localized observations; continue monitoring within routine maintenance.';
+            ? 'Khiếm khuyết cục bộ mức nhẹ; tiếp tục theo dõi theo chu kỳ bảo trì định kỳ.'
+            : 'Minor localized conditions observed; monitor under routine maintenance cycles.';
 
-  const countWordEn = confirmed.length === 1 ? '1 confirmed defect' : `${confirmed.length} confirmed defects`;
+  const countWordEn =
+    confirmed.length === 1 ? '1 confirmed defect' : `${confirmed.length} confirmed defects`;
   const captureClauseEn =
     totalEvidence != null
       ? totalEvidence === 1
@@ -383,23 +373,35 @@ function buildSynthesizedAiSummary({
       : '';
 
   const summary = isVi
-    ? `Kiểm định trực quan tại ${resolvedAsset} ghi nhận ${confirmed.length} khiếm khuyết đã xác nhận${totalEvidence != null ? ` trên ${totalEvidence} bằng chứng hiện trường` : ''}${confidencePhrase}, gồm: ${groupedPhrase}. Phân bố mức độ: ${severitySummaryParts.join(', ')}. ${riskImplication}`
-    : `Visual inspection of ${resolvedAsset} identified ${countWordEn}${captureClauseEn}${confidencePhrase}, spanning ${groupedPhrase}. Severity breakdown: ${severitySummaryParts.join(', ')}. ${riskImplication}`;
+    ? `Kiểm định trực quan tại ${resolvedAsset} ghi nhận ${confirmed.length} khiếm khuyết đã xác nhận${totalEvidence != null ? ` trên ${totalEvidence} bằng chứng hiện trường` : ''}, tập trung ở ${categoryList}. ${riskImplication}`
+    : `Visual inspection of ${resolvedAsset} identified ${countWordEn}${captureClauseEn}, primarily involving ${categoryList}. ${riskImplication}`;
 
-  const keyHighlights = confirmed.slice(0, 6).map((f) => {
-    const codePrefix = f.findingCode ? `${f.findingCode} · ` : '';
-    const detail = getFindingObservationText(f, evidenceById, isVi);
-    return `${codePrefix}${displayDefectLabel(f.defectLabel, isVi)} [${f.severity}] — ${detail}`;
-  });
-  if (confirmed.length > 6) {
-    keyHighlights.push(
-      isVi
-        ? `Và ${confirmed.length - 6} phát hiện đã xác nhận khác trong danh sách chi tiết bên dưới.`
-        : `Plus ${confirmed.length - 6} additional confirmed finding(s) documented in the evidence register below.`,
+  const keyHighlights = groups.slice(0, 5).map((group) => {
+    const countTag = `x${group.count}`;
+    const codeTag = group.codes.length > 0 ? `${countTag} · ${group.codes.join(', ')}` : countTag;
+    const descriptor = matchDescriptor(group.label);
+    const cleanedUniqueNotes = Array.from(
+      new Set(
+        group.findings
+          .map((f) => sanitizeTechnicalNote(f.technicalNotes))
+          .filter((n) => n && !isRedundantNote(n, group.label)),
+      ),
     );
-  }
+    const singleNote = cleanedUniqueNotes.length === 1 ? cleanedUniqueNotes[0] : undefined;
+    const observation =
+      singleNote && singleNote.length <= 150
+        ? singleNote
+        : descriptor
+          ? isVi
+            ? descriptor.viObservation
+            : descriptor.enObservation
+          : isVi
+            ? `Ghi nhận tại ${group.count} vị trí xác nhận trên hiện trường`
+            : `Confirmed across ${group.count} field capture location(s)`;
 
-  // Build defect-specific actionable remediation bullets.
+    return `${group.label} (${codeTag}) [${group.topSeverity}]: ${observation}`;
+  });
+
   const actionLines: string[] = [];
   for (const group of groups) {
     const codeTag = group.codes.length > 0 ? ` (${group.codes.join(', ')})` : '';
@@ -411,8 +413,8 @@ function buildSynthesizedAiSummary({
     } else {
       actionLines.push(
         isVi
-          ? `${group.label}${codeTag}: Kiểm tra chi tiết ngoài hiện trường và lập phiếu công việc sửa chữa phù hợp.`
-          : `${group.label}${codeTag}: Inspect defect extent on-site and execute targeted surface repair work order.`,
+          ? `${group.label}${codeTag}: Kiểm tra chi tiết ngoài hiện trường và lập phương án khắc phục phù hợp.`
+          : `${group.label}${codeTag}: Inspect defect extent on-site and execute targeted remediation.`,
       );
     }
   }
@@ -471,6 +473,7 @@ export function getOrGeneratePersistedAiSummary({
   if (persist && inspectionId) {
     writeStoredSummary(key, {
       signature,
+      source: 'local',
       summaryData,
       generatedAt: new Date().toISOString(),
     });
@@ -482,37 +485,85 @@ export function getOrGeneratePersistedAiSummary({
   };
 }
 
-function getSoftRiskChipSx(risk: ReportAiSummary['overallRisk']) {
-  const tone =
+function getRiskChipSx(risk: ReportAiSummary['overallRisk']) {
+  const key =
     risk === 'CRITICAL' || risk === 'HIGH'
-      ? 'error.main'
+      ? 'error'
       : risk === 'MEDIUM'
-        ? 'warning.main'
-        : 'success.main';
-  return {
-    fontWeight: 600,
-    fontSize: '0.75rem',
-    bgcolor: 'action.hover',
-    color: tone,
-    borderColor: tone,
-    '& .MuiChip-icon': { color: tone },
+        ? 'warning'
+        : 'success';
+  return (theme: Theme) => {
+    const color =
+      theme.palette.mode === 'dark' ? theme.palette[key].light : theme.palette[key].dark;
+    return {
+      height: 24,
+      fontWeight: 600,
+      fontSize: '0.75rem',
+      border: 'none',
+      bgcolor: alpha(theme.palette[key].main, theme.palette.mode === 'dark' ? 0.16 : 0.1),
+      color,
+      '& .MuiChip-icon': { color, ml: 0.75 },
+    };
   };
 }
 
-function getSoftSeverityBadgeSx(severity: string) {
+function getSeverityTextColor(severity: string): string {
   const upper = severity.toUpperCase();
-  const tone =
-    upper === 'CRITICAL' || upper === 'HIGH'
-      ? 'error.main'
-      : upper === 'MEDIUM'
-        ? 'warning.main'
-        : 'success.main';
+  if (upper === 'CRITICAL' || upper === 'HIGH') return 'error.dark';
+  if (upper === 'MEDIUM') return 'warning.dark';
+  return 'success.dark';
+}
+
+interface ParsedHighlight {
+  title: string;
+  meta: string | null;
+  severity: string | null;
+  body: string;
+}
+
+function parseHighlight(raw: string): ParsedHighlight {
+  const trimmed = raw.trim();
+  const match = trimmed.match(
+    /^([^([]+?)(?:\s*\(([^)]+)\))?(?:\s*\[(CRITICAL|HIGH|MEDIUM|LOW|RESOLVED|UNRESOLVED|INCONCLUSIVE)\])?\s*[:—-]\s*(.+)$/i,
+  );
+  const rawTitle = match?.[1]?.trim() ?? '';
+  const rawBody = match?.[4]?.trim() ?? '';
+  if (!rawTitle || !rawBody) {
+    return { title: '', meta: null, severity: null, body: trimmed };
+  }
   return {
-    bgcolor: 'action.hover',
-    color: tone,
-    border: '1px solid',
-    borderColor: tone,
+    title: rawTitle,
+    meta: match?.[2]?.trim() || null,
+    severity: match?.[3]?.toUpperCase() || null,
+    body: rawBody,
   };
+}
+
+function splitActionLine(line: string): { lead: string | null; body: string } {
+  const clean = line.replace(/^(?:[-*•]+|\d+[.)])\s+/, '').trim();
+  const colonIdx = clean.indexOf(':');
+  if (colonIdx > 0 && colonIdx <= 64) {
+    return {
+      lead: clean.slice(0, colonIdx).trim(),
+      body: clean.slice(colonIdx + 1).trim(),
+    };
+  }
+  return { lead: null, body: clean };
+}
+
+export function readStoredRemoteAiSummary(
+  inspectionId: string,
+  findings: Finding[] = [],
+  locale: Locale | string = 'en',
+): ReportAiSummary | null {
+  if (!inspectionId) return null;
+  const confirmed = findings.filter((f) => f.status === 'CONFIRMED' && !f.isDeleted);
+  const signature = computeConfirmedSignature(confirmed);
+  const stored = readStoredSummary(storageKey(inspectionId, locale));
+  if (stored && stored.source === 'remote' && stored.signature === signature) {
+    return stored.summaryData;
+  }
+  return null;
 }
 
 /** Mounted only on user expand, so a missing QueryClient in incidental tests is never touched. */
@@ -524,89 +575,180 @@ function MatchedKnowledgeBody({ inspectionId }: { inspectionId: string }) {
 export function ReportAiSummaryCard({
   inspectionId,
   versionId,
+  versionStatus,
   summary: persistedSummary,
   findings = [],
   evidenceList = [],
   assetName,
   evidenceCount,
   defaultExpanded = false,
+  canRegenerate,
 }: ReportAiSummaryCardProps) {
   const { t, locale } = useLocale();
+  const roles = useAuthStore((state) => state.roles);
   const isVi = locale.toLowerCase().startsWith('vi');
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [knowledgeOpen, setKnowledgeOpen] = useState(false);
+  const [regenerateNonce, setRegenerateNonce] = useState(0);
+  const [regenerateError, setRegenerateError] = useState(false);
   const [remoteState, setRemoteState] = useState<{
     targetKey: string;
+    nonce: number;
     data: ReportAiSummary | null;
   } | null>(null);
 
-  const hasPersistedSummary = Boolean(persistedSummary && persistedSummary.trim().length > 0);
   const isPreviewVersion = !versionId || versionId.startsWith('preview-');
+  const normalizedStatus = (versionStatus ?? '').toUpperCase();
+  const isPublished = normalizedStatus === 'PUBLISHED';
+  const isInspectorRole = roles.includes('INSPECTOR');
+  const effectiveCanRegenerate =
+    (canRegenerate ?? isInspectorRole) &&
+    !isPublished &&
+    normalizedStatus !== 'SUBMITTED' &&
+    normalizedStatus !== 'APPROVED';
+  const canFetchRemoteAi =
+    Boolean(inspectionId) && typeof inspectionApi?.getAiSummary === 'function';
   const canQueryKnowledge =
     Boolean(inspectionId) &&
     !isPreviewVersion &&
     typeof inspectionApi?.getInspectionKnowledgeRecommendations === 'function';
 
-  const localResult = useMemo(
-    () =>
-      getOrGeneratePersistedAiSummary({
-        inspectionId,
-        assetName,
-        findings,
-        evidenceList,
-        evidenceCount,
-        persistedSummary,
-        locale,
-        persist: Boolean(inspectionId) && (findings.length > 0 || isPreviewVersion),
-      }),
-    [inspectionId, assetName, findings, evidenceList, evidenceCount, persistedSummary, locale, isPreviewVersion],
+  const confirmedFindings = useMemo(
+    () => findings.filter((f) => f.status === 'CONFIRMED' && !f.isDeleted),
+    [findings],
+  );
+  const findingsSignature = useMemo(
+    () => computeConfirmedSignature(confirmedFindings),
+    [confirmedFindings],
   );
 
+  const cleanPersistedSummary = useMemo(() => {
+    const trimmed = persistedSummary?.trim() || '';
+    return trimmed && !isLegacyTemplateSummary(trimmed) ? trimmed : '';
+  }, [persistedSummary]);
+
+  const localResult = useMemo(() => {
+    if (!cleanPersistedSummary) {
+      return null;
+    }
+    return getOrGeneratePersistedAiSummary({
+      inspectionId,
+      assetName,
+      findings,
+      evidenceList,
+      evidenceCount,
+      persistedSummary: cleanPersistedSummary,
+      locale,
+      persist: false,
+    });
+  }, [
+    cleanPersistedSummary,
+    inspectionId,
+    assetName,
+    findings,
+    evidenceList,
+    evidenceCount,
+    locale,
+  ]);
+
+  const remoteTargetKey = `${inspectionId}:${versionId}:${locale}:${findingsSignature}`;
+  const storedRemote = useMemo(
+    () => readStoredRemoteAiSummary(inspectionId, findings, locale),
+    [inspectionId, findings, locale],
+  );
+
+  const shouldAutoGenerate = effectiveCanRegenerate;
+  const shouldReadPersistedRemote = !isPreviewVersion && Boolean(cleanPersistedSummary);
   const shouldFetchRemote =
-    !hasPersistedSummary &&
-    !isPreviewVersion &&
-    findings.length === 0 &&
-    Boolean(inspectionId && versionId);
-  const remoteTargetKey = `${inspectionId}:${versionId}`;
+    canFetchRemoteAi &&
+    ((regenerateNonce > 0 && effectiveCanRegenerate) ||
+      (shouldAutoGenerate && !storedRemote && remoteState?.targetKey !== remoteTargetKey) ||
+      (expanded && shouldReadPersistedRemote && !storedRemote && remoteState?.targetKey !== remoteTargetKey));
 
   useEffect(() => {
     if (!shouldFetchRemote || typeof inspectionApi?.getAiSummary !== 'function') {
       return;
     }
     let cancelled = false;
+    const isRegen = regenerateNonce > 0;
     inspectionApi
-      .getAiSummary(inspectionId, versionId)
+      .getAiSummary(
+        inspectionId,
+        versionId,
+        isRegen ? { regenerate: true } : undefined,
+      )
       .then((res) => {
-        if (!cancelled) {
-          setRemoteState({ targetKey: remoteTargetKey, data: res ?? null });
+        if (cancelled) return;
+        setRegenerateError(false);
+        setRemoteState({
+          targetKey: remoteTargetKey,
+          nonce: regenerateNonce,
+          data: res ?? null,
+        });
+        if (res && inspectionId) {
+          writeStoredSummary(storageKey(inspectionId, locale), {
+            signature: findingsSignature,
+            source: 'remote',
+            summaryData: res,
+            generatedAt: new Date().toISOString(),
+          });
         }
       })
       .catch(() => {
-        if (!cancelled) {
-          setRemoteState({ targetKey: remoteTargetKey, data: null });
+        if (cancelled) return;
+        if (isRegen) {
+          setRegenerateError(true);
         }
+        setRemoteState((prev) => ({
+          targetKey: remoteTargetKey,
+          nonce: regenerateNonce,
+          data: prev?.targetKey === remoteTargetKey ? prev.data : null,
+        }));
       });
     return () => {
       cancelled = true;
     };
-  }, [shouldFetchRemote, inspectionId, versionId, remoteTargetKey]);
+  }, [
+    shouldFetchRemote,
+    inspectionId,
+    versionId,
+    locale,
+    findingsSignature,
+    remoteTargetKey,
+    regenerateNonce,
+  ]);
 
-  const remoteLoading = shouldFetchRemote && remoteState?.targetKey !== remoteTargetKey;
-  const remoteSummary =
-    shouldFetchRemote && remoteState?.targetKey === remoteTargetKey ? remoteState.data : null;
+  const isFetching =
+    shouldFetchRemote &&
+    (remoteState?.targetKey !== remoteTargetKey ||
+      remoteState?.nonce !== regenerateNonce);
+  const isRegenerating = isFetching && regenerateNonce > 0;
 
-  const aiSummary: ReportAiSummary = remoteSummary ?? localResult.summaryData;
-  const knowledgeRefs = aiSummary.knowledgeReferences ?? [];
+  const activeRemote =
+    remoteState?.targetKey === remoteTargetKey && remoteState.data
+      ? remoteState.data
+      : storedRemote;
 
-  const confirmedFindings = useMemo(
-    () => findings.filter((f) => f.status === 'CONFIRMED' && !f.isDeleted),
-    [findings],
-  );
-  const evidenceById = useMemo(() => {
-    const map = new Map<string, EvidenceItem>();
-    for (const item of evidenceList) map.set(item.id, item);
-    return map;
-  }, [evidenceList]);
+  const aiSummary: ReportAiSummary | null = useMemo(() => {
+    if (activeRemote) {
+      return {
+        ...activeRemote,
+        keyHighlights:
+          activeRemote.keyHighlights && activeRemote.keyHighlights.length > 0
+            ? activeRemote.keyHighlights
+            : localResult?.summaryData.keyHighlights ?? [],
+        recommendedActions:
+          activeRemote.recommendedActions?.trim() ||
+          localResult?.summaryData.recommendedActions ||
+          '',
+        overallRisk:
+          activeRemote.overallRisk || localResult?.summaryData.overallRisk || 'LOW',
+      };
+    }
+    return localResult?.summaryData ?? null;
+  }, [activeRemote, localResult]);
+
+  const knowledgeRefs = aiSummary?.knowledgeReferences ?? [];
 
   const categoryBadges = useMemo(() => {
     const counts = new Map<string, number>();
@@ -617,30 +759,77 @@ export function ReportAiSummaryCard({
     return Array.from(counts.entries());
   }, [confirmedFindings, isVi]);
 
-  const actionItems = useMemo(
+  const highlightItems = useMemo(
     () =>
-      (aiSummary.recommendedActions ?? '')
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter(Boolean),
-    [aiSummary.recommendedActions],
+      (aiSummary?.keyHighlights ?? [])
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .map(parseHighlight),
+    [aiSummary],
   );
 
-  if (remoteLoading && !aiSummary.summary) {
+  const actionItems = useMemo(
+    () =>
+      (aiSummary?.recommendedActions ?? '')
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map(splitActionLine),
+    [aiSummary],
+  );
+
+  const handleRegenerate = () => {
+    if (!effectiveCanRegenerate) return;
+    setRegenerateError(false);
+    if (!expanded) {
+      setExpanded(true);
+    }
+    setRegenerateNonce((prev) => prev + 1);
+  };
+
+  if (isFetching && !isRegenerating && !aiSummary?.summary) {
     return (
       <Card
         variant="outlined"
         sx={{
-          borderRadius: '12px',
+          borderRadius: '10px',
           borderColor: 'divider',
           bgcolor: 'background.paper',
+          boxShadow: 'none',
           p: 2,
         }}
       >
         <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-          <CircularProgress size={20} color="primary" />
+          <CircularProgress size={18} color="primary" />
           <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>
-            {t('Generating AI executive summary…')}
+            {effectiveCanRegenerate
+              ? t('Generating AI executive summary…')
+              : t('Loading AI executive summary…')}
+          </Typography>
+        </Stack>
+      </Card>
+    );
+  }
+
+  if (!aiSummary || !aiSummary.summary?.trim()) {
+    return (
+      <Card
+        variant="outlined"
+        data-testid="ai-executive-summary-card"
+        sx={{
+          borderRadius: '10px',
+          borderColor: 'divider',
+          bgcolor: 'background.paper',
+          boxShadow: 'none',
+          p: 2,
+        }}
+      >
+        <Stack spacing={0.75}>
+          <Typography component="h2" variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+            {t('AI Executive Summary')}
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            {t('No AI executive summary generated yet.')}
           </Typography>
         </Stack>
       </Card>
@@ -649,11 +838,11 @@ export function ReportAiSummaryCard({
 
   const riskIcon =
     aiSummary.overallRisk === 'CRITICAL' || aiSummary.overallRisk === 'HIGH' ? (
-      <ErrorOutlineRounded fontSize="small" />
+      <ErrorOutlineRounded sx={{ fontSize: 15 }} />
     ) : aiSummary.overallRisk === 'MEDIUM' ? (
-      <WarningAmberRounded fontSize="small" />
+      <WarningAmberRounded sx={{ fontSize: 15 }} />
     ) : (
-      <CheckCircleOutlineRounded fontSize="small" />
+      <CheckCircleOutlineRounded sx={{ fontSize: 15 }} />
     );
 
   return (
@@ -661,16 +850,24 @@ export function ReportAiSummaryCard({
       variant="outlined"
       data-testid="ai-executive-summary-card"
       sx={{
-        borderRadius: '12px',
-        borderColor: '#bae6fd',
-        bgcolor: (theme) =>
-          theme.palette.mode === 'dark' ? 'rgba(14, 165, 233, 0.08)' : 'rgba(240, 249, 255, 0.85)',
+        borderRadius: '10px',
+        borderColor: 'divider',
+        bgcolor: 'background.paper',
         boxShadow: 'none',
         overflow: 'hidden',
       }}
     >
-      <CardContent sx={{ p: { xs: 1.5, sm: 2 }, '&:last-child': { pb: { xs: 1.5, sm: 2 } } }}>
-        {/* Always-visible compact summary header; click to show/hide full AI digest */}
+      {isFetching && (
+        <LinearProgress
+          sx={{
+            height: 2,
+            bgcolor: 'transparent',
+          }}
+        />
+      )}
+
+      <CardContent sx={{ p: { xs: 1.75, sm: 2.25 }, '&:last-child': { pb: { xs: 1.75, sm: 2.25 } } }}>
+        {/* Header: Title + single semantic Risk pill + clean Regenerate & Collapse actions */}
         <Box
           sx={{
             display: 'flex',
@@ -684,23 +881,57 @@ export function ReportAiSummaryCard({
             <Typography component="h2" variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
               {t('AI Executive Summary')}
             </Typography>
+            <Chip
+              size="small"
+              icon={riskIcon}
+              label={`${t('Overall Risk')}: ${t(aiSummary.overallRisk)}`}
+              sx={getRiskChipSx(aiSummary.overallRisk)}
+            />
           </Stack>
 
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
+          <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+            {canFetchRemoteAi && effectiveCanRegenerate && (
+              <Button
+                size="small"
+                variant="text"
+                disabled={isFetching}
+                startIcon={
+                  isRegenerating ? (
+                    <CircularProgress size={14} color="inherit" />
+                  ) : (
+                    <RefreshRounded sx={{ fontSize: 16 }} />
+                  )
+                }
+                onClick={handleRegenerate}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontSize: '0.8rem',
+                  color: 'text.secondary',
+                  minHeight: 30,
+                  px: 1,
+                  borderRadius: '8px',
+                  '&:hover': {
+                    color: 'text.primary',
+                    bgcolor: 'action.hover',
+                  },
+                }}
+              >
+                {isRegenerating ? t('Regenerating…') : t('Regenerate')}
+              </Button>
+            )}
+
             <Button
               size="small"
               variant="text"
               aria-expanded={expanded}
               endIcon={expanded ? <ExpandLessRounded /> : <ExpandMoreRounded />}
-              onClick={(event) => {
-                event.stopPropagation();
-                setExpanded((prev) => !prev);
-              }}
+              onClick={() => setExpanded((prev) => !prev)}
               sx={{
                 textTransform: 'none',
                 fontWeight: 600,
                 fontSize: '0.8rem',
-                minHeight: 28,
+                minHeight: 30,
                 px: 1,
                 borderRadius: '8px',
               }}
@@ -710,73 +941,82 @@ export function ReportAiSummaryCard({
           </Stack>
         </Box>
 
-        {/* Detailed narrative, structured highlights, and actionable recommendations — hidden until clicked */}
+        {/* Detailed narrative, grouped highlights & prioritized actions */}
         <Collapse in={expanded} timeout="auto" unmountOnExit>
           <Stack
-            spacing={1.75}
+            spacing={2}
             sx={{
               mt: 1.5,
-              pt: 1.5,
+              pt: 1.75,
               borderTop: '1px solid',
-              borderColor: 'rgba(14, 165, 233, 0.22)',
+              borderColor: 'divider',
+              opacity: isRegenerating ? 0.65 : 1,
+              transition: 'opacity 150ms ease',
             }}
           >
-            {/* Narrative + Risk & Defect Breakdown Chips */}
+            {regenerateError && (
+              <Alert severity="warning" sx={{ py: 0.25, borderRadius: '8px' }}>
+                {t('Could not refresh AI summary. Showing current version.')}
+              </Alert>
+            )}
+
+            {/* Overview prose + subtle neutral defect counts */}
             <Box>
               <Typography
                 variant="body2"
-                sx={{ color: 'text.primary', lineHeight: 1.65, fontWeight: 500 }}
+                sx={{
+                  color: 'text.primary',
+                  lineHeight: 1.65,
+                  maxWidth: '78ch',
+                }}
               >
                 {aiSummary.summary}
               </Typography>
 
-              <Stack direction="row" spacing={0.75} sx={{ mt: 1, flexWrap: 'wrap', gap: 0.75 }}>
-                <Chip
-                  size="small"
-                  variant="outlined"
-                  icon={riskIcon}
-                  label={`${t('Overall Risk')}: ${t(aiSummary.overallRisk)}`}
-                  sx={getSoftRiskChipSx(aiSummary.overallRisk)}
-                />
-                {categoryBadges.map(([label, count]) => (
-                  <Chip
-                    key={label}
-                    size="small"
-                    variant="outlined"
-                    label={`${label} ×${count}`}
-                    sx={{
-                      height: 22,
-                      fontSize: '0.72rem',
-                      fontWeight: 600,
-                      bgcolor: 'background.paper',
-                      borderColor: 'divider',
-                      color: 'text.primary',
-                    }}
-                  />
-                ))}
-              </Stack>
+              {categoryBadges.length > 0 && (
+                <Stack
+                  direction="row"
+                  spacing={0.75}
+                  sx={{ mt: 1.25, alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}
+                >
+                  <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
+                    {t('Defect breakdown')}:
+                  </Typography>
+                  {categoryBadges.map(([label, count]) => (
+                    <Box
+                      key={label}
+                      component="span"
+                      sx={{
+                        px: 1,
+                        py: 0.25,
+                        borderRadius: '6px',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        bgcolor: 'action.hover',
+                        color: 'text.primary',
+                      }}
+                    >
+                      {label} ×{count}
+                    </Box>
+                  ))}
+                </Stack>
+              )}
             </Box>
 
-            {/* Two-column structured digest: Highlights & Recommended Actions */}
+            <Divider />
+
+            {/* Two-column flat digest: no nested boxes or sub-cards */}
             <Box
               sx={{
                 display: 'grid',
                 gridTemplateColumns: { xs: '1fr', md: '1.15fr 0.85fr' },
-                gap: 1.5,
-                alignItems: 'stretch',
+                gap: { xs: 2, md: 3 },
+                alignItems: 'start',
               }}
             >
               {/* Key Highlights */}
-              {(confirmedFindings.length > 0 || (aiSummary.keyHighlights?.length ?? 0) > 0) && (
-                <Box
-                  sx={{
-                    p: 1.5,
-                    borderRadius: '10px',
-                    bgcolor: 'background.paper',
-                    border: '1px solid',
-                    borderColor: 'divider',
-                  }}
-                >
+              {highlightItems.length > 0 && (
+                <Box>
                   <Typography
                     variant="caption"
                     sx={{
@@ -791,94 +1031,75 @@ export function ReportAiSummaryCard({
                     {t('Key Highlights')}
                   </Typography>
 
-                  {confirmedFindings.length > 0 ? (
-                    <Stack spacing={1}>
-                      {confirmedFindings.slice(0, 6).map((f) => (
-                        <Box
-                          key={f.id}
-                          sx={{
-                            p: 1,
-                            borderRadius: '8px',
-                            bgcolor: (theme) =>
-                              theme.palette.mode === 'dark'
-                                ? 'rgba(255,255,255,0.03)'
-                                : '#f8fafc',
-                            border: '1px solid',
-                            borderColor: 'divider',
-                          }}
-                        >
-                          <Stack
-                            direction="row"
-                            spacing={0.75}
-                            sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.5, mb: 0.25 }}
-                          >
-                            {f.findingCode && (
-                              <Box
-                                component="span"
-                                sx={{
-                                  px: 0.75,
-                                  py: 0.1,
-                                  borderRadius: '6px',
-                                  fontSize: '0.75rem',
-                                  fontWeight: 700,
-                                  bgcolor: 'action.selected',
-                                  color: 'text.primary',
-                                }}
-                              >
-                                {f.findingCode}
-                              </Box>
-                            )}
-                            <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.8125rem' }}>
-                              {displayDefectLabel(f.defectLabel, isVi)}
-                            </Typography>
-                            <Box
-                              component="span"
-                              sx={{
-                                px: 0.75,
-                                py: 0.1,
-                                borderRadius: '999px',
-                                fontSize: '0.75rem',
-                                fontWeight: 600,
-                                ...getSoftSeverityBadgeSx(f.severity),
-                              }}
+                  <Stack divider={<Divider flexItem />} spacing={1.1}>
+                    {highlightItems.map((item, index) => (
+                      <Box key={index} sx={{ pt: index === 0 ? 0 : 0.1 }}>
+                        {item.title ? (
+                          <>
+                            <Stack
+                              direction="row"
+                              spacing={0.75}
+                              sx={{ alignItems: 'baseline', flexWrap: 'wrap', gap: 0.5, mb: 0.25 }}
                             >
-                              {f.severity}
-                            </Box>
+                              <Typography
+                                variant="body2"
+                                sx={{ fontWeight: 700, fontSize: '0.8125rem', color: 'text.primary' }}
+                              >
+                                {item.title}
+                              </Typography>
+                              {item.meta && (
+                                <Typography
+                                  component="span"
+                                  variant="caption"
+                                  sx={{ color: 'text.secondary', fontWeight: 500 }}
+                                >
+                                  ({item.meta})
+                                </Typography>
+                              )}
+                              {item.severity && (
+                                <Typography
+                                  component="span"
+                                  variant="caption"
+                                  sx={{
+                                    fontWeight: 700,
+                                    letterSpacing: 0.25,
+                                    color: getSeverityTextColor(item.severity),
+                                  }}
+                                >
+                                  · {item.severity}
+                                </Typography>
+                              )}
+                            </Stack>
+                            <Typography
+                              variant="body2"
+                              sx={{ color: 'text.secondary', fontSize: '0.8125rem', lineHeight: 1.5 }}
+                            >
+                              {item.body}
+                            </Typography>
+                          </>
+                        ) : (
+                          <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
+                            <Box
+                              sx={{
+                                width: 5,
+                                height: 5,
+                                borderRadius: '50%',
+                                bgcolor: 'text.secondary',
+                                mt: '8px',
+                                flexShrink: 0,
+                              }}
+                            />
+                            <Typography
+                              variant="body2"
+                              sx={{ color: 'text.secondary', fontSize: '0.8125rem', lineHeight: 1.55 }}
+                            >
+                              {item.body}
+                            </Typography>
                           </Stack>
-                          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', lineHeight: 1.45 }}>
-                            {getFindingObservationText(f, evidenceById, isVi)}
-                          </Typography>
-                        </Box>
-                      ))}
-                      {confirmedFindings.length > 6 && (
-                        <Typography variant="caption" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
-                          {isVi
-                            ? `+ ${confirmedFindings.length - 6} phát hiện khác trong phần bằng chứng bên dưới.`
-                            : `+ ${confirmedFindings.length - 6} additional finding(s) listed in the evidence register below.`}
-                        </Typography>
-                      )}
-                    </Stack>
-                  ) : (
-                    <Stack spacing={0.75}>
-                      {(aiSummary.keyHighlights ?? []).map((highlight, index) => (
-                        <Stack key={index} direction="row" spacing={0.75} sx={{ alignItems: 'flex-start' }}>
-                          <Box
-                            sx={{
-                              width: 6,
-                              height: 6,
-                              borderRadius: '50%',
-                              bgcolor: 'primary.main',
-                              mt: 0.85,
-                              flexShrink: 0,
-                            }}
-                          />
-                          <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>
-                            {highlight}
-                          </Typography>
-                        </Stack>
-                      ))}
-                    </Stack>
-                  )}
+                        )}
+                      </Box>
+                    ))}
+                  </Stack>
                 </Box>
               )}
 
@@ -886,11 +1107,11 @@ export function ReportAiSummaryCard({
               {actionItems.length > 0 && (
                 <Box
                   sx={{
-                    p: 1.5,
-                    borderRadius: '10px',
-                    bgcolor: 'background.paper',
-                    border: '1px solid',
-                    borderColor: 'divider',
+                    pl: { md: 3 },
+                    borderLeft: { md: '1px solid' },
+                    borderTop: { xs: '1px solid', md: 'none' },
+                    pt: { xs: 2, md: 0 },
+                    borderColor: { xs: 'divider', md: 'divider' },
                   }}
                 >
                   <Typography
@@ -906,7 +1127,8 @@ export function ReportAiSummaryCard({
                   >
                     {t('Recommended Actions')}
                   </Typography>
-                  <Stack spacing={1}>
+
+                  <Stack spacing={1.1}>
                     {actionItems.map((action, index) => (
                       <Stack
                         key={index}
@@ -914,14 +1136,40 @@ export function ReportAiSummaryCard({
                         spacing={1}
                         sx={{ alignItems: 'flex-start' }}
                       >
-                        <TaskAltRounded
-                          sx={{ fontSize: 16, color: 'primary.main', mt: '2px', flexShrink: 0 }}
-                        />
+                        <Typography
+                          component="span"
+                          variant="caption"
+                          sx={{
+                            minWidth: 20,
+                            height: 20,
+                            borderRadius: '50%',
+                            bgcolor: 'action.hover',
+                            color: 'text.secondary',
+                            fontWeight: 700,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontVariantNumeric: 'tabular-nums',
+                            mt: '1px',
+                            flexShrink: 0,
+                          }}
+                        >
+                          {index + 1}
+                        </Typography>
                         <Typography
                           variant="body2"
-                          sx={{ color: 'text.primary', fontSize: '0.8125rem', lineHeight: 1.5 }}
+                          sx={{ color: 'text.secondary', fontSize: '0.8125rem', lineHeight: 1.5 }}
                         >
-                          {action}
+                          {action.lead ? (
+                            <>
+                              <Box component="span" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                                {action.lead}:
+                              </Box>{' '}
+                              {action.body}
+                            </>
+                          ) : (
+                            action.body
+                          )}
                         </Typography>
                       </Stack>
                     ))}

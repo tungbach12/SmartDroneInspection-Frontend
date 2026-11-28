@@ -137,6 +137,7 @@ export function ReportAuthoringPanel({
         inspectionId={inspectionId}
         droneSummary={droneSummary}
         flightPermitFileName={flightPermitFileName}
+        canRegenerateSummary={canEdit}
       />
     </Paper>
   );

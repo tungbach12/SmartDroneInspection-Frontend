@@ -64,6 +64,7 @@ import { useInspections } from '@/features/inspections/hooks/useInspections';
 import { InspectionWorkDetailDialog } from '@/features/inspections/components/InspectionWorkDetailDialog';
 import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import { localizeInspectionItemLabel } from '@/shared/i18n/inspectionItemsI18n';
 import { formatLocationLabel } from '@/shared/ui/formatLocation';
 import {
   AssetLocationPickerModal,
@@ -1201,7 +1202,7 @@ function CreateAssetDialog(props: CreateAssetDialogProps) {
 }
 
 function InspectionItemsSection({ items }: { items: string[] }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
 
   return (
     <Box
@@ -1220,7 +1221,12 @@ function InspectionItemsSection({ items }: { items: string[] }) {
       {items.length > 0 ? (
         <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75 }}>
           {items.map((item, idx) => (
-            <Chip key={idx} label={item} size="small" variant="outlined" />
+            <Chip
+              key={idx}
+              label={localizeInspectionItemLabel(item, locale)}
+              size="small"
+              variant="outlined"
+            />
           ))}
         </Stack>
       ) : (

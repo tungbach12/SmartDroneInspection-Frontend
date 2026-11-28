@@ -371,6 +371,22 @@ export function createAppTheme(presetId: ThemePresetId = 'default') {
           },
         },
       },
+      MuiRating: {
+        styleOverrides: {
+          root: {
+            color: '#F59E0B',
+          },
+          iconFilled: {
+            color: '#F59E0B',
+          },
+          iconHover: {
+            color: '#D97706',
+          },
+          iconEmpty: {
+            color: 'rgba(113, 113, 122, 0.36)',
+          },
+        },
+      },
     },
   });
 }

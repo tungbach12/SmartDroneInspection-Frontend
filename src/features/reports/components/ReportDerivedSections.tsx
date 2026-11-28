@@ -37,6 +37,7 @@ import { FlightPermitPreviewDialog } from '@/features/inspections/components/Fli
 import { parseBoundingBox } from '@/features/inspections/utils/boundingBox';
 import { formatLocation } from '@/shared/airspace/airspaceZones';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import { localizeChecklistText } from '@/shared/i18n/inspectionItemsI18n';
 import { ReportAiSummaryCard } from './ReportAiSummaryCard';
 import { ReportFindingsMapPanel } from './ReportFindingsMapPanel';
 
@@ -121,6 +122,7 @@ export interface ReportDerivedSectionsProps {
   inspectionId: string;
   droneSummary?: string | null | undefined;
   flightPermitFileName?: string | null | undefined;
+  canRegenerateSummary?: boolean | undefined;
 }
 
 function formatEvidenceLocationDescription(
@@ -145,7 +147,15 @@ function formatEvidenceLocationDescription(
   return trimmed;
 }
 
-function formatChecklistLabel(rawItem: string, t: (key: string) => string): string {
+function formatChecklistLabel(
+  rawItem: string,
+  t: (key: string) => string,
+  locale: string,
+): string {
+  const localized = localizeChecklistText(rawItem, locale);
+  if (localized !== rawItem.trim()) {
+    return localized;
+  }
   const trimmed = rawItem.trim();
   if (trimmed.startsWith('Inspected:')) {
     return `${t('Inspected')}: ${trimmed.slice('Inspected:'.length).trim()}`;
@@ -320,7 +330,7 @@ function SessionChecklistBlock({
   parsedChecklist?: ParsedChecklist | undefined;
   defaultExpanded?: boolean | undefined;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const [expanded, setExpanded] = useState(defaultExpanded);
   const { checkedItems, skippedItems, remark } =
     parsedChecklist ?? parseSessionChecklist(rawNote);
@@ -422,7 +432,7 @@ function SessionChecklistBlock({
                 >
                   <CheckCircleRounded color="success" sx={{ fontSize: 15, mt: '2px', flexShrink: 0 }} />
                   <Typography variant="caption" sx={{ fontWeight: 500, color: 'text.primary', lineHeight: 1.4 }}>
-                    {formatChecklistLabel(item, t)}
+                    {formatChecklistLabel(item, t, locale)}
                   </Typography>
                 </Box>
               ))}
@@ -440,7 +450,7 @@ function SessionChecklistBlock({
                 >
                   <WarningAmberRounded color="warning" sx={{ fontSize: 15, mt: '2px', flexShrink: 0 }} />
                   <Typography variant="caption" sx={{ fontWeight: 500, color: 'text.primary', lineHeight: 1.4 }}>
-                    {formatChecklistLabel(item, t)}
+                    {formatChecklistLabel(item, t, locale)}
                   </Typography>
                 </Box>
               ))}
@@ -634,6 +644,7 @@ export function ReportDerivedSections({
   inspectionId,
   droneSummary: externalDroneSummary,
   flightPermitFileName: externalPermitFileName,
+  canRegenerateSummary,
 }: ReportDerivedSectionsProps) {
   const { t, formatDateTime: formatDateTimeValue } = useLocale();
   const [selectedMapEvidenceId, setSelectedMapEvidenceId] = useState<string | null>(null);
@@ -734,11 +745,13 @@ export function ReportDerivedSections({
         <ReportAiSummaryCard
           inspectionId={inspectionId}
           versionId={version.id}
+          versionStatus={version.status}
           summary={reportSummaryText}
           findings={findings}
           evidenceList={evidenceList}
           assetName={context?.assetName}
           evidenceCount={evidenceList.length}
+          canRegenerate={canRegenerateSummary}
         />
       </Box>
 

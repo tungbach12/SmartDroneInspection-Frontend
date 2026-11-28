@@ -4,6 +4,7 @@ export interface InspectionFinanceSettings {
   commissionRate: number | null;
   vatRate: number | null;
   tncnRate: number | null;
+  tncnThresholdAmount: number | null;
   configured: boolean;
   updatedByUserId: string | null;
   updatedAt: string | null;
@@ -14,6 +15,7 @@ export interface UpdateInspectionFinanceSettingsPayload {
   commissionRate: number;
   vatRate: number;
   tncnRate: number;
+  tncnThresholdAmount: number;
 }
 
 export interface ServiceInvoiceSummary {

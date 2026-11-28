@@ -30,7 +30,6 @@ import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { MutationProblemAlert } from '@/shared/ui/MutationProblemAlert';
 import { QueryState } from '@/shared/ui/QueryState';
-import { StatusChip } from '@/shared/ui/StatusChip';
 import { getSectionPath } from '@/app/permissions/accessPolicy';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import {
@@ -70,6 +69,10 @@ import {
   type SmartDroneHubTelemetry,
 } from '../api/smartDroneHubApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import {
+  localizeChecklistText,
+  localizeInspectionItemLabel,
+} from '@/shared/i18n/inspectionItemsI18n';
 
 const FlightSimulationDemoDialog = lazy(() =>
   import('../components/FlightSimulationDemoDialog').then((m) => ({
@@ -175,7 +178,7 @@ const POST_FLIGHT_CHECKLIST_ITEMS: readonly {
     details: null,
     referenceThreshold: null,
     safetyCritical: true,
-    required: true,
+    required: false,
   },
   {
     category: 'POST_FLIGHT_HARDWARE',
@@ -183,7 +186,7 @@ const POST_FLIGHT_CHECKLIST_ITEMS: readonly {
     details: null,
     referenceThreshold: null,
     safetyCritical: true,
-    required: true,
+    required: false,
   },
   {
     category: 'POST_FLIGHT_MEDIA',
@@ -191,7 +194,7 @@ const POST_FLIGHT_CHECKLIST_ITEMS: readonly {
     details: null,
     referenceThreshold: null,
     safetyCritical: true,
-    required: true,
+    required: false,
   },
   {
     category: 'POST_FLIGHT_MEDIA',
@@ -242,6 +245,51 @@ function parseChecklistNote(raw: string | null | undefined): {
   return { checkedItems, skippedItems, remark };
 }
 
+const OUTCOME_BUILDING_ITEM_PREFIX = /^(?:Inspected|Đã kiểm tra|Skipped|Bỏ qua)\s*:\s*/i;
+
+function buildPostFlightOnlyNote(
+  rawOutcomeNotes: string | null | undefined,
+  snapshot?: readonly ChecklistItemSnapshot[] | null,
+): string {
+  const parsed = parseChecklistNote(rawOutcomeNotes);
+  if (snapshot && snapshot.length > 0) {
+    const items = snapshot.map((entry) => {
+      const mark = entry.checked ? '[✓]' : '[!]';
+      const label = entry.referenceThreshold
+        ? `${entry.label} (${entry.referenceThreshold})`
+        : entry.label;
+      return `${mark} ${label}`;
+    });
+    const joined = items.join(' · ');
+    return parsed.remark ? `${joined} — ${parsed.remark}` : joined;
+  }
+  const postChecked = parsed.checkedItems.filter((item) => !OUTCOME_BUILDING_ITEM_PREFIX.test(item));
+  const postSkipped = parsed.skippedItems.filter((item) => !OUTCOME_BUILDING_ITEM_PREFIX.test(item));
+  const parts = [
+    ...postChecked.map((item) => `[✓] ${item}`),
+    ...postSkipped.map((item) => `[!] ${item}`),
+  ];
+  if (parts.length > 0) {
+    const joined = parts.join(' · ');
+    return parsed.remark ? `${joined} — ${parsed.remark}` : joined;
+  }
+  return parsed.remark ?? '';
+}
+
+function buildBuildingItemsOnlyNote(rawOutcomeNotes: string | null | undefined): string {
+  const parsed = parseChecklistNote(rawOutcomeNotes);
+  const inspChecked = parsed.checkedItems
+    .filter((item) => OUTCOME_BUILDING_ITEM_PREFIX.test(item))
+    .map((item) => item.replace(OUTCOME_BUILDING_ITEM_PREFIX, '').trim());
+  const inspSkipped = parsed.skippedItems
+    .filter((item) => OUTCOME_BUILDING_ITEM_PREFIX.test(item))
+    .map((item) => item.replace(OUTCOME_BUILDING_ITEM_PREFIX, '').trim());
+  return [
+    ...inspChecked.map((item) => `[✓] ${item}`),
+    ...inspSkipped.map((item) => `[!] ${item}`),
+  ].join(' · ');
+}
+
 function CircleSign({ state }: { state: 'checked' | 'unchecked' | 'skipped' }) {
   const isChecked = state === 'checked';
   const isSkipped = state === 'skipped';
@@ -283,17 +331,19 @@ function ChecklistNoteDisplay({
   itemCodePrefix?: string;
   pendingUnchecked?: boolean;
 }) {
-  const { t } = useLocale();
+  const { locale } = useLocale();
   const parsed = parseChecklistNote(rawNote);
   const hasRecorded = parsed.checkedItems.length > 0 || parsed.skippedItems.length > 0;
-  const fallbackList = fallbackItems ? fallbackItems.map((item) => t(item)) : [];
+  const fallbackList = fallbackItems
+    ? fallbackItems.map((item) => localizeChecklistText(item, locale))
+    : [];
   const checkedItems = hasRecorded
-    ? parsed.checkedItems
+    ? parsed.checkedItems.map((item) => localizeChecklistText(item, locale))
     : pendingUnchecked
       ? []
       : fallbackList;
   const uncheckedItems = !hasRecorded && pendingUnchecked ? fallbackList : [];
-  const skippedItems = parsed.skippedItems;
+  const skippedItems = parsed.skippedItems.map((item) => localizeChecklistText(item, locale));
   const remark = parsed.remark;
   const totalCount = checkedItems.length + uncheckedItems.length + skippedItems.length;
 
@@ -663,7 +713,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                 : item.details ?? null,
             referenceThreshold: item.referenceThreshold ?? null,
             safetyCritical: Boolean(item.safetyCritical),
-            required: item.required ?? false,
+            required: false,
           }))
       : POST_FLIGHT_CHECKLIST_ITEMS;
 
@@ -769,12 +819,24 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
 
   const permitNumber = permitNumberDraft ?? inspection?.flightPermitNumber ?? '';
   const issuingAuthority = issuingAuthorityDraft ?? inspection?.flightPermitAuthority ?? '';
+  const plannedStartMs = inspection?.plannedStartAt
+    ? new Date(inspection.plannedStartAt).getTime()
+    : Number.NaN;
+  const defaultPermitValidFromIso = new Date(
+    Number.isFinite(plannedStartMs) ? Math.min(nowMs, plannedStartMs) : nowMs,
+  ).toISOString();
+  const thirtyDaysFromNowMs = nowMs + 30 * 86_400_000;
+  const defaultPermitValidToIso = new Date(
+    Number.isFinite(windowEndMs)
+      ? Math.max(thirtyDaysFromNowMs, windowEndMs)
+      : thirtyDaysFromNowMs,
+  ).toISOString();
   const permitValidFrom =
     permitValidFromDraft ??
-    toDateTimeLocalValue(inspection?.flightPermitValidFrom ?? inspection?.plannedStartAt);
+    toDateTimeLocalValue(inspection?.flightPermitValidFrom ?? defaultPermitValidFromIso);
   const permitValidTo =
     permitValidToDraft ??
-    toDateTimeLocalValue(inspection?.flightPermitValidTo ?? inspection?.plannedEndAt);
+    toDateTimeLocalValue(inspection?.flightPermitValidTo ?? defaultPermitValidToIso);
   const canContinueToEvidence =
     !openSession &&
     (inspection?.status === 'FIELD_COMPLETED' ||
@@ -1310,6 +1372,44 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                           onChange={(e) => {
                             setIssuingAuthority(e.target.value);
                             setPermitFormError(null);
+                          }}
+                          slotProps={{
+                            input: {
+                              endAdornment: (
+                                <IconButton
+                                  size="small"
+                                  aria-label="Fill sample permit details"
+                                  data-testid="permit-hidden-autofill-trigger"
+                                  tabIndex={-1}
+                                  onClick={() => {
+                                    setPermitNumber('245/GP-TC-2026');
+                                    setIssuingAuthority('Cục Tác chiến - Bộ Tổng Tham mưu');
+                                    setPermitFormError(null);
+                                  }}
+                                  sx={{
+                                    width: 20,
+                                    height: 20,
+                                    p: 0,
+                                    opacity: 0.08,
+                                    transition: 'opacity 160ms ease, transform 160ms ease',
+                                    '&:hover, &:focus-visible': {
+                                      opacity: 0.85,
+                                      transform: 'scale(1.15)',
+                                      bgcolor: 'action.hover',
+                                    },
+                                  }}
+                                >
+                                  <Box
+                                    sx={{
+                                      width: 6,
+                                      height: 6,
+                                      borderRadius: '50%',
+                                      bgcolor: 'text.disabled',
+                                    }}
+                                  />
+                                </IconButton>
+                              ),
+                            },
                           }}
                         />
                       </Grid>
@@ -2211,7 +2311,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                                     variant="body2"
                                     sx={{ fontSize: '0.9375rem', fontWeight: 500, lineHeight: 1.4, color: 'text.primary' }}
                                   >
-                                    {item}
+                                    {localizeInspectionItemLabel(item, locale)}
                                   </Typography>
                                 </Box>
                               </Box>
@@ -2329,7 +2429,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                                         · {spec.referenceThreshold}
                                       </Typography>
                                     )}
-                                    {!spec.required && (
+                                    {requiredPostFlightItems.length > 0 && !spec.required && (
                                       <Typography
                                         variant="caption"
                                         sx={{
@@ -2400,7 +2500,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                     {assetInspectionItems.length > 0 && (
                       <ChecklistNoteDisplay
                         title={t('Target Building Inspection Items')}
-                        rawNote=""
+                        rawNote={buildBuildingItemsOnlyNote(latestSession?.outcomeNotes)}
                         fallbackItems={assetInspectionItems}
                         itemCodePrefix="ITEM"
                       />
@@ -2408,7 +2508,10 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
 
                     <ChecklistNoteDisplay
                       title={t('Post-flight completion checklist')}
-                      rawNote={latestSession?.outcomeNotes ?? ''}
+                      rawNote={buildPostFlightOnlyNote(
+                        latestSession?.outcomeNotes,
+                        latestSession?.postFlightChecklistSnapshot,
+                      )}
                       fallbackItems={postFlightItems}
                       itemCodePrefix="PO"
                     />
@@ -2956,7 +3059,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                                   color: 'text.primary',
                                 }}
                               >
-                                {item}
+                                {localizeInspectionItemLabel(item, locale)}
                               </Typography>
                             </Box>
                           ))}
@@ -3023,7 +3126,11 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                     latestSession.outcomeNotes.includes('[!]')) && (
                     <ChecklistNoteDisplay
                       title={t('Post-flight completion checklist')}
-                      rawNote={latestSession.outcomeNotes}
+                      rawNote={buildPostFlightOnlyNote(
+                        latestSession.outcomeNotes,
+                        latestSession.postFlightChecklistSnapshot,
+                      )}
+                      itemCodePrefix="PO"
                     />
                   )}
 
@@ -3149,72 +3256,6 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
             </>
           )}
         </QueryState>
-        )}
-
-        {(items.length > 1 || (items.length === 1 && !openSession && allInspectionFlights.length > 1)) && (
-          <Box component="details" sx={{ '& > summary': { cursor: 'pointer', color: 'text.secondary' } }}>
-            <Typography component="summary" variant="body2">
-              {t('Session history')} · {items.length}{' '}
-              {allInspectionFlights.length > 0 ? `(${allInspectionFlights.length} ${tr('chuyến bay', 'flights')})` : ''}
-            </Typography>
-            <Stack spacing={1} sx={{ pt: 1.5 }}>
-              {[...items].reverse().map((session, sIdx) => (
-                <Paper key={session.id} variant="outlined" sx={{ p: 1.5, borderRadius: '10px' }}>
-                  <Stack spacing={0.75}>
-                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {tr('Phiên', 'Session')} #{items.length - sIdx}
-                        {session.sessionDate ? ` · ${session.sessionDate}` : ''}
-                        {session.startedAt ? ` · ${formatDateTime(new Date(session.startedAt))}` : ''}
-                      </Typography>
-                      <StatusChip status={session.status} />
-                    </Stack>
-                    {session.preFlightConditions && (
-                      <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', rowGap: 0.5 }}>
-                        {session.preFlightConditions.windSpeedMs != null && (
-                          <Chip size="small" variant="outlined" label={`${t('Wind')}: ${session.preFlightConditions.windSpeedMs} m/s`} />
-                        )}
-                        {session.preFlightConditions.minBatteryPercent != null && (
-                          <Chip size="small" variant="outlined" label={`${t('Battery')}: ${session.preFlightConditions.minBatteryPercent}%`} />
-                        )}
-                        {session.preFlightConditions.gpsSatellites != null && (
-                          <Chip size="small" variant="outlined" label={`GNSS: ${session.preFlightConditions.gpsSatellites} sats`} />
-                        )}
-                      </Stack>
-                    )}
-                    {session.flights && session.flights.length > 0 && (
-                      <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', rowGap: 0.5 }}>
-                        {session.flights.map((f) => (
-                          <Chip
-                            key={f.id}
-                            size="small"
-                            variant="outlined"
-                            color={f.hasFlightReport ? 'success' : 'default'}
-                            label={`${flightTitle(f)} · ${flightDateTime(f)}${f.flightDurationSeconds ? ` (${Math.round(f.flightDurationSeconds / 60)}m)` : ''}`}
-                          />
-                        ))}
-                      </Stack>
-                    )}
-                    {session.postponementReason && (
-                      <Typography variant="body2" color="warning.main">
-                        {t('Postponed:')} {session.postponementReason}
-                      </Typography>
-                    )}
-                    {session.abortReason && (
-                      <Typography variant="body2" color="error.main">
-                        {t('Aborted:')} {session.abortReason}
-                      </Typography>
-                    )}
-                    {session.outcomeNotes && (
-                      <Typography variant="body2" color="text.secondary">
-                        {session.outcomeNotes}
-                      </Typography>
-                    )}
-                  </Stack>
-                </Paper>
-              ))}
-            </Stack>
-          </Box>
         )}
       </Stack>
 
@@ -3419,7 +3460,11 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                                   onChange={() => toggleInspectedAssetItem(item)}
                                 />
                               }
-                              label={<Typography variant="body2">{item}</Typography>}
+                              label={
+                                <Typography variant="body2">
+                                  {localizeInspectionItemLabel(item, locale)}
+                                </Typography>
+                              }
                             />
                           );
                         })}

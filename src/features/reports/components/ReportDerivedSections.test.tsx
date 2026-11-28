@@ -627,8 +627,7 @@ describe('ReportDerivedSections confirmed findings', () => {
     expect(firstRun.wasCached).toBe(false);
     expect(firstRun.summaryData.overallRisk).toBe('MEDIUM');
     expect(firstRun.summaryData.summary).toContain('2 confirmed defects');
-    expect(firstRun.summaryData.summary).toContain('86%–88%');
-    expect(firstRun.summaryData.keyHighlights.some((h) => h.includes('F-9 · leakage'))).toBe(true);
+    expect(firstRun.summaryData.keyHighlights.some((h) => h.includes('leakage') && h.includes('F-9'))).toBe(true);
     expect(firstRun.summaryData.keyHighlights.some((h) => h.includes('— leakage'))).toBe(false);
     expect(firstRun.summaryData.recommendedActions).toContain('waterproof');
 

@@ -9,6 +9,7 @@ export interface InspectorOrderFinanceBreakdown {
   commissionAmount: number;
   afterCommissionAmount: number;
   tncnRate: number;
+  tncnThresholdAmount: number;
   tncnAmount: number;
   netPayoutAmount: number;
   payoutStatus: string;
@@ -115,6 +116,7 @@ export function resolveInspectorFinanceBreakdown(
     paymentDetails?.commissionRate ?? listRow?.commissionRate ?? 15,
   );
   const tncnRate = Number(paymentDetails?.tncnRate ?? 10);
+  const tncnThresholdAmount = Number(paymentDetails?.tncnThresholdAmount ?? 0);
 
   const serviceBaseAmount =
     paymentDetails?.serviceBaseAmount != null
@@ -137,10 +139,14 @@ export function resolveInspectorFinanceBreakdown(
       ? Number(paymentDetails.inspectorGrossPayout)
       : serviceBaseAmount - commissionAmount;
 
+  const isExemptBelowThreshold =
+    tncnThresholdAmount > 0 && afterCommissionAmount < tncnThresholdAmount;
   const tncnAmount =
     paymentDetails?.tncnAmount != null
       ? Number(paymentDetails.tncnAmount)
-      : Math.round(afterCommissionAmount * (tncnRate / 100));
+      : isExemptBelowThreshold
+        ? 0
+        : Math.round(afterCommissionAmount * (tncnRate / 100));
 
   const netPayoutAmount =
     paymentDetails?.inspectorNetPayout != null
@@ -172,6 +178,7 @@ export function resolveInspectorFinanceBreakdown(
     commissionAmount,
     afterCommissionAmount,
     tncnRate,
+    tncnThresholdAmount,
     tncnAmount,
     netPayoutAmount,
     payoutStatus,

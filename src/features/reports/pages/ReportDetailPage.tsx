@@ -211,7 +211,7 @@ export default function ReportDetailPage() {
         empty={
           <EmptyState
             title={t('No report versions found')}
-            description={t('The assigned Inspector creates a report draft once field evidence is accepted.')}
+            description={t('The assigned Inspector compiles and submits the inspection report once findings are confirmed.')}
           />
         }
       >

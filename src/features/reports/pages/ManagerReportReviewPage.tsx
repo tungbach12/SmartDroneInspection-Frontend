@@ -378,7 +378,7 @@ export default function ManagerReportReviewPage({
             description={
               inspectionQuery.data?.inspectorName
                 ? `${t('Waiting for')} ${inspectionQuery.data.inspectorName} ${t('to finalize findings and submit the technical report.')}`
-                : t('The assigned Inspector creates a report draft once field evidence is accepted.')
+                : t('The assigned Inspector compiles and submits the inspection report once findings are confirmed.')
             }
           />
         }
@@ -557,10 +557,17 @@ export default function ManagerReportReviewPage({
                           </Stack>
                           <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', gap: 3, py: 0.85 }}>
                             <Typography variant="body2" color="text.secondary">
-                              {`${t('TNCN tax')} (${financeBreakdown.tncnRate}%)`}
+                              {financeBreakdown.tncnAmount === 0 &&
+                              financeBreakdown.tncnRate > 0 &&
+                              financeBreakdown.tncnThresholdAmount > 0 &&
+                              financeBreakdown.afterCommissionAmount < financeBreakdown.tncnThresholdAmount
+                                ? `${t('TNCN tax')} (${t('Exempt below')} ${formatNumber(Math.round(financeBreakdown.tncnThresholdAmount))} ₫)`
+                                : `${t('TNCN tax')} (${financeBreakdown.tncnRate}%)`}
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
-                              −{formatNumber(Math.round(financeBreakdown.tncnAmount))} ₫
+                              {financeBreakdown.tncnAmount === 0
+                                ? '0 ₫'
+                                : `−${formatNumber(Math.round(financeBreakdown.tncnAmount))} ₫`}
                             </Typography>
                           </Stack>
                           <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'baseline', gap: 3, pt: 1.25 }}>

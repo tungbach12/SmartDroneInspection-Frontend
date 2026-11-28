@@ -320,6 +320,7 @@ export interface ReportPaymentStatusDetails {
   commissionAmount?: number | null;
   inspectorGrossPayout?: number | null;
   tncnRate?: number | null;
+  tncnThresholdAmount?: number | null;
   tncnAmount?: number | null;
   inspectorNetPayout?: number | null;
   payoutStatus?: 'PENDING' | 'ELIGIBLE' | 'PAID' | string | null;
@@ -1121,12 +1122,21 @@ export const inspectionApi = {
       )
       .then((response) => response.data),
 
-  getAiSummary: (inspectionId: string, versionId: string) =>
-    api
-      .get<ReportAiSummary>(
-        `/inspections/${inspectionId}/report/versions/${versionId}/ai-summary`,
-      )
-      .then((response) => response.data),
+  getAiSummary: (
+    inspectionId: string,
+    versionId?: string | null,
+    options?: { regenerate?: boolean },
+  ) => {
+    const isPreview = !versionId || versionId.startsWith('preview-');
+    const path = isPreview
+      ? `/inspections/${inspectionId}/report/ai-summary`
+      : `/inspections/${inspectionId}/report/versions/${versionId}/ai-summary`;
+    return api
+      .get<ReportAiSummary>(path, {
+        params: options?.regenerate ? { regenerate: true } : undefined,
+      })
+      .then((response) => response.data);
+  },
 
   /** Historical cases and guidelines matched to one finding (DroneKnowledgeAI). */
   getFindingRecommendations: (inspectionId: string, findingId: string, limit = 3) =>

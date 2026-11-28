@@ -44,7 +44,7 @@ export function InspectorRatingSummaryBadge({
   if (variant === 'inline') {
     return (
       <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-        <StarRoundedIcon sx={{ fontSize: 17, color: '#f59e0b' }} />
+        <StarRoundedIcon data-rating-star="true" sx={{ fontSize: 17, color: '#f59e0b' }} />
         <Typography variant="body2" sx={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
           {scoreText}
         </Typography>
@@ -59,7 +59,7 @@ export function InspectorRatingSummaryBadge({
     <Chip
       size="small"
       variant="outlined"
-      icon={<StarRoundedIcon sx={{ fontSize: '15px !important', color: '#f59e0b' }} />}
+      icon={<StarRoundedIcon data-rating-star="true" sx={{ fontSize: '15px !important', color: '#f59e0b' }} />}
       label={`${scoreText} (${count})`}
       sx={{
         height: 22,

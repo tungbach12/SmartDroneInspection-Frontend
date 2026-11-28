@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useAuthStore } from '@/features/auth/store/authStore';
 import { inspectionApi, type Finding } from '@/features/inspections/api/inspectionApi';
 import { getOrGeneratePersistedAiSummary, ReportAiSummaryCard } from './ReportAiSummaryCard';
 
@@ -67,14 +68,108 @@ vi.mock('@/features/inspections/api/inspectionApi', async (importOriginal) => {
 
 beforeEach(() => {
   cleanup();
+  window.localStorage.clear();
+  useAuthStore.setState({ roles: ['INSPECTOR'] });
   mocks.knowledgeLoading = false;
   vi.mocked(inspectionApi.getAiSummary).mockResolvedValue(mocks.remoteSummary as never);
 });
 
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  useAuthStore.getState().clearSession();
+});
 
 describe('ReportAiSummaryCard matched knowledge footer', () => {
-  it('labels confirmed findings with missing or blank labels in the summary and details', () => {
+  it('stays empty by default for read-only viewers when no summary has been generated yet', () => {
+    useAuthStore.setState({ roles: ['MANAGER'] });
+
+    render(
+      <ReportAiSummaryCard
+        inspectionId="empty-default"
+        versionId="preview-empty-default"
+        findings={[]}
+        canRegenerate={false}
+        defaultExpanded
+      />,
+    );
+
+    expect(screen.getByText('No AI executive summary generated yet.')).toBeTruthy();
+    expect(vi.mocked(inspectionApi.getAiSummary)).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Regenerate' })).toBeNull();
+  });
+
+  it('auto-generates summary for Inspector on the report tab and supports Regenerate', async () => {
+    const regenerated = {
+      summary: 'Fresh regenerated AI executive summary.',
+      keyHighlights: ['abscission (x1 · F-1) [MEDIUM]: Localized spalling near parapet.'],
+      recommendedActions: 'abscission (F-1): Patch with structural repair mortar.',
+      overallRisk: 'MEDIUM' as const,
+      knowledgeReferences: [],
+    };
+    vi.mocked(inspectionApi.getAiSummary)
+      .mockResolvedValueOnce(mocks.remoteSummary as never)
+      .mockResolvedValueOnce(regenerated as never);
+
+    const findings = [
+      {
+        id: 'f1',
+        findingCode: 'F-1',
+        status: 'CONFIRMED',
+        defectLabel: 'abscission',
+        severity: 'MEDIUM',
+      },
+    ] as unknown as Finding[];
+
+    render(
+      <ReportAiSummaryCard
+        inspectionId="insp-regen"
+        versionId="preview-insp-regen"
+        findings={findings}
+        canRegenerate
+        defaultExpanded
+      />,
+    );
+
+    await screen.findByText('Visual inspection found one confirmed defect.');
+    expect(vi.mocked(inspectionApi.getAiSummary)).toHaveBeenCalledWith(
+      'insp-regen',
+      'preview-insp-regen',
+      undefined,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }));
+    await screen.findByText('Fresh regenerated AI executive summary.');
+    expect(vi.mocked(inspectionApi.getAiSummary)).toHaveBeenLastCalledWith(
+      'insp-regen',
+      'preview-insp-regen',
+      { regenerate: true },
+    );
+  });
+
+  it('is strictly read-only without Regenerate action for Manager and Customer on saved reports', async () => {
+    useAuthStore.setState({ roles: ['CUSTOMER'] });
+
+    render(
+      <ReportAiSummaryCard
+        inspectionId="insp-cust"
+        versionId="ver-cust"
+        versionStatus="PUBLISHED"
+        summary="Submitted summary from inspector"
+        canRegenerate={false}
+        defaultExpanded
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Regenerate' })).toBeNull();
+    await screen.findByText('Visual inspection found one confirmed defect.');
+    expect(vi.mocked(inspectionApi.getAiSummary)).toHaveBeenCalledWith(
+      'insp-cust',
+      'ver-cust',
+      undefined,
+    );
+  });
+
+  it('keeps helper getOrGeneratePersistedAiSummary working for missing or blank labels', () => {
     const findings = [
       { id: 'f1', status: 'CONFIRMED', defectLabel: null, severity: 'HIGH' },
       { id: 'f2', status: 'CONFIRMED', defectLabel: '  ', severity: 'MEDIUM' },
@@ -84,25 +179,29 @@ describe('ReportAiSummaryCard matched knowledge footer', () => {
       findings,
       persist: false,
     });
-    expect(summaryData.keyHighlights).toHaveLength(2);
-    expect(summaryData.keyHighlights.every((highlight) => highlight.includes('Unspecified defect')))
-      .toBe(true);
+    expect(summaryData.keyHighlights).toHaveLength(1);
+    expect(summaryData.keyHighlights[0]).toContain('Unspecified defect');
+    expect(summaryData.keyHighlights[0]).toContain('x2');
+    expect(summaryData.keyHighlights[0]).toContain('[HIGH]');
+  });
 
+  it('hides Regenerate action for published immutable versions', () => {
     render(
       <ReportAiSummaryCard
-        inspectionId="missing-labels"
-        versionId="preview-missing-labels"
-        findings={findings}
-        defaultExpanded
+        inspectionId="insp-pub"
+        versionId="ver-pub"
+        versionStatus="PUBLISHED"
+        summary="Published summary"
       />,
     );
-    expect(screen.getAllByText(/Unspecified defect/i).length).toBeGreaterThan(1);
+
+    expect(screen.queryByRole('button', { name: 'Regenerate' })).toBeNull();
   });
 
   it('shows crisp pill chips and reveals case/standard rows only on demand', async () => {
     render(<ReportAiSummaryCard inspectionId="i1" versionId="v1" />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Show details' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Show details' }));
     await screen.findByText('Visual inspection found one confirmed defect.');
 
     const bar = await screen.findByTestId('matched-knowledge-bar');
@@ -121,7 +220,7 @@ describe('ReportAiSummaryCard matched knowledge footer', () => {
   it('renders the summary header and knowledge footer without sparkle icons', async () => {
     render(<ReportAiSummaryCard inspectionId="i1" versionId="v1" />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Show details' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Show details' }));
     await screen.findByText('Visual inspection found one confirmed defect.');
 
     const sparkle = ['Auto', 'Awesome'].join('');
@@ -132,7 +231,7 @@ describe('ReportAiSummaryCard matched knowledge footer', () => {
   it('hides the footer cleanly for a preview version with no persisted source', async () => {
     render(<ReportAiSummaryCard inspectionId="i1" versionId="preview-1" />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Show details' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Show details' }));
 
     expect(screen.queryByTestId('matched-knowledge-bar')).toBeNull();
   });
@@ -144,7 +243,7 @@ describe('ReportAiSummaryCard matched knowledge footer', () => {
     try {
       render(<ReportAiSummaryCard inspectionId="i1" versionId="v1" />);
 
-      fireEvent.click(screen.getByRole('button', { name: 'Show details' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Show details' }));
       await screen.findByText('Visual inspection found one confirmed defect.');
 
       expect(screen.queryByTestId('matched-knowledge-bar')).toBeNull();

@@ -27,6 +27,7 @@ describe('PlatformFinanceSettingsPage', () => {
         commissionRate: 25.0,
         vatRate: 10.0,
         tncnRate: 10.0,
+        tncnThresholdAmount: 2000000,
         configured: true,
         updatedByUserId: 'admin-1',
         updatedAt: '2026-10-30T10:00:00Z',
@@ -49,12 +50,15 @@ describe('PlatformFinanceSettingsPage', () => {
     const commInput = screen.getByLabelText(/Commission Rate/i) as HTMLInputElement;
     const vatInput = screen.getByLabelText(/VAT Rate/i) as HTMLInputElement;
     const tncnInput = screen.getByLabelText(/TNCN Rate/i) as HTMLInputElement;
+    const thresholdInput = screen.getByLabelText(/TNCN Withholding Threshold/i) as HTMLInputElement;
 
     expect(commInput.value).toBe('25');
     expect(vatInput.value).toBe('10');
     expect(tncnInput.value).toBe('10');
+    expect(thresholdInput.value).toBe('2000000');
 
     fireEvent.change(commInput, { target: { value: '20' } });
+    fireEvent.change(thresholdInput, { target: { value: '0' } });
     fireEvent.click(screen.getByRole('button', { name: /Save Rates/i }));
     fireEvent.click(await screen.findByRole('button', { name: /Confirm save/i }));
 
@@ -63,6 +67,7 @@ describe('PlatformFinanceSettingsPage', () => {
         commissionRate: 20,
         vatRate: 10,
         tncnRate: 10,
+        tncnThresholdAmount: 0,
       });
     });
   });
