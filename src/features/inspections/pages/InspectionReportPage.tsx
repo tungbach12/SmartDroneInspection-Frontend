@@ -46,7 +46,6 @@ import { useLocale } from '@/shared/i18n/LocaleProvider';
 const NEXT_STEP: Record<string, string> = {
   SUBMITTED: 'Submitted for Manager review. Report sections and sources are locked while awaiting review.',
   RETURNED: 'Returned for revision. Re-evaluate findings and submit again.',
-  APPROVED: 'Approved by the Manager and awaiting immutable PDF publication.',
   PUBLISHED: 'Published. This report version and its PDF are immutable.',
   SUPERSEDED: 'Superseded by a newer published version.',
 };
@@ -317,7 +316,7 @@ export default function InspectionReportPage() {
                     ' was created. A new report version will be compiled to include your latest changes.',
                 )}
               </Alert>
-            ) : (
+            ) : openVersion.status !== 'APPROVED' && (
               <Alert
                 severity={openVersion.status === 'RETURNED' ? 'warning' : 'info'}
                 sx={{ borderRadius: '10px' }}
