@@ -210,6 +210,57 @@ describe('FieldSessionPage', () => {
     });
   });
 
+  it('shows the recorded report only while its flight is selected', async () => {
+    const firstFlight = {
+      id: 'flight-1',
+      fieldSessionId: SESSION.id,
+      flightNumber: 1,
+      flightDate: '2026-10-20',
+      flightLabel: 'Flight #1',
+      hasFlightReport: true,
+      telemetrySource: 'IMPORTED_LOG_CSV',
+    };
+    const secondFlight = {
+      ...firstFlight,
+      id: 'flight-2',
+      flightNumber: 2,
+      flightLabel: 'Flight #2',
+      hasFlightReport: false,
+      telemetrySource: null,
+    };
+    mocks.list.mockResolvedValue([{ ...SESSION, hasFlightReport: true, flights: [firstFlight, secondFlight] }]);
+    mocks.flightReport.mockResolvedValue({
+      inspectionId: 'inspection-1',
+      fieldSessionId: SESSION.id,
+      telemetrySource: 'IMPORTED_LOG_CSV',
+      durationSeconds: 180,
+      flightTrace: [],
+    });
+
+    renderWithClient('flight');
+
+    const unfinishedFlight = await screen.findByRole('button', { name: /^Flight 2/, pressed: true });
+    expect(screen.queryByRole('button', { name: /Show flight report/ })).toBeNull();
+    expect(mocks.flightReport).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: /^Flight 1/ }));
+    const showReport = screen.getByRole('button', { name: /Show flight report/ });
+    expect(screen.queryByText('Imported flight log summary')).toBeNull();
+    fireEvent.click(showReport);
+    expect(await screen.findByText('Imported flight log summary')).toBeTruthy();
+    expect(mocks.flightReport).toHaveBeenCalledWith('inspection-1', SESSION.id, 'flight-1');
+
+    fireEvent.click(unfinishedFlight);
+    expect(screen.queryByText('Imported flight log summary')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Show flight report/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Hide flight report/ })).toBeNull();
+    expect(mocks.flightReport).not.toHaveBeenCalledWith('inspection-1', SESSION.id, 'flight-2');
+
+    fireEvent.click(screen.getByRole('button', { name: /^Flight 1/ }));
+    expect(screen.getAllByText('SmartDroneHub telemetry')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: /Show flight report/ }).getAttribute('aria-expanded')).toBe('false');
+  });
+
   it('deletes a flight only after confirmation and selects the remaining flight', async () => {
     useAuthStore.setState({ roles: ['INSPECTOR'] });
     const firstFlight = {

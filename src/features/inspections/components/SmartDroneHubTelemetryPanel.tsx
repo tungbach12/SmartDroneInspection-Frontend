@@ -51,22 +51,6 @@ function isFallbackSource(source: string | null | undefined): boolean {
   return Boolean(source?.startsWith('IMPORTED_LOG_') || source === 'MANUAL_DECLARATION');
 }
 
-function formatDuration(seconds: number | null | undefined): string {
-  if (seconds == null || !Number.isFinite(seconds)) return '—';
-  const totalSeconds = Math.max(0, Math.floor(seconds));
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const remainingSeconds = totalSeconds % 60;
-  return hours > 0
-    ? `${hours}:${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`
-    : `${minutes}:${String(remainingSeconds).padStart(2, '0')}`;
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 function flightLogSourceLabel(source: string | null | undefined, t: (value: string) => string): string {
   if (source === 'MANUAL_DECLARATION') return t('Manual declaration');
   const formatName = source?.startsWith('IMPORTED_LOG_') ? source.slice('IMPORTED_LOG_'.length) : null;
@@ -77,60 +61,30 @@ function flightLogSourceLabel(source: string | null | undefined, t: (value: stri
 }
 
 function FlightReportSummary({
-  report,
   sourceLabel,
   isManual,
   selectedFile,
 }: {
-  report: SmartDroneHubFlightReport | null;
   sourceLabel: string;
   isManual: boolean;
   selectedFile?: File | null;
 }) {
-  const { formatDateTime, t } = useLocale();
-  const duration = report?.durationSeconds;
-  const distance = report?.distanceFlownMeters;
-  const startedAt = report?.startedAt;
-  const endedAt = report?.endedAt;
-  const finalState = report?.finalState;
-  const traceCount = report?.flightTrace?.length;
+  const { t } = useLocale();
+  const detail = isManual ? t('Inspector estimates') : selectedFile?.name ?? sourceLabel;
 
   return (
-    <Alert severity="success" icon={false}>
-      <Stack spacing={1}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-          {isManual ? t('Manual flight declaration recorded') : t('Flight log report recorded')}
-        </Typography>
-        {selectedFile && (
-          <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
-            {selectedFile.name} · {selectedFile.name.split('.').at(-1)?.toUpperCase() ?? t('Unknown format')} · {formatFileSize(selectedFile.size)}
-          </Typography>
-        )}
-        <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 1.5 }}>
-          <Typography variant="body2">{t('Source')}: {sourceLabel}</Typography>
-          <Typography variant="body2">{t('Trace points')}: {traceCount ?? '—'}</Typography>
-          <Typography variant="body2">{t('Duration')}: {formatDuration(duration)}</Typography>
-          <Typography variant="body2">{t('Distance')}: {distance == null ? '—' : `${format(distance)} m`}</Typography>
-          <Typography variant="body2">{t('Started')}: {startedAt ? formatDateTime(startedAt) : '—'}</Typography>
-          <Typography variant="body2">{t('Ended')}: {endedAt ? formatDateTime(endedAt) : '—'}</Typography>
-          <Typography variant="body2">
-            {t('Recorded flight state')}: {finalState == null || (finalState === 'LANDED' && (sourceLabel === t('Manual declaration') || sourceLabel.includes(t('Imported log')))) ? '—' : finalState}
-          </Typography>
-        </Stack>
-        {isManual ? (
-          <Typography variant="caption" color="text.secondary">
-            {t('Inspector declaration only; values are estimates, not telemetry or independent verification.')}
-          </Typography>
-        ) : sourceLabel === t('SRT subtitle log') ? (
-          <Typography variant="caption" color="text.secondary">
-            {t('SRT subtitles can contain a partial trace. This record does not establish a complete flight or confirm landing.')}
-          </Typography>
-        ) : (
-          <Typography variant="caption" color="text.secondary">
-            {t('This is a recorded file, not a live telemetry connection or independent verification of legal clearance or landing.')}
-          </Typography>
-        )}
-      </Stack>
+    <Alert
+      severity="success"
+      variant="outlined"
+      role="status"
+      sx={{ borderColor: 'divider', color: 'text.primary', py: 0.25, alignItems: 'center' }}
+    >
+      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+        {isManual ? t('Manual declaration saved') : t('Flight log saved')}
+      </Typography>
+      <Typography variant="caption" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
+        {detail}
+      </Typography>
     </Alert>
   );
 }
@@ -367,7 +321,7 @@ export function SmartDroneHubTelemetryPanel({
         </Stack>
 
         {!sessionActive && !canImportFallbackLog && hasFallbackReport ? (
-          <FlightReportSummary report={effectiveReport} sourceLabel={sourceLabel} isManual={isManualReport} />
+          <FlightReportSummary sourceLabel={sourceLabel} isManual={isManualReport} />
         ) : null}
 
         {!sessionActive ? (
@@ -498,7 +452,7 @@ export function SmartDroneHubTelemetryPanel({
             <Stack spacing={1.5}>
               <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{t('No MAVLink? Import a flight log')}</Typography>
               <Typography variant="body2" color="text.secondary">{t('Import a GPS track from SRT, CSV, KML or GPX.')}</Typography>
-              {hasFallbackReport && <FlightReportSummary report={effectiveReport} sourceLabel={sourceLabel} isManual={isManualReport} selectedFile={selectedFile} />}
+              {hasFallbackReport && <FlightReportSummary sourceLabel={sourceLabel} isManual={isManualReport} selectedFile={selectedFile} />}
               <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ gap: 1.5, alignItems: { sm: 'center' } }}>
                 <Button component="label" variant="outlined" disabled={isSaving} sx={{ alignSelf: 'flex-start', borderRadius: '8px', textTransform: 'none' }}>
                   {importFlightLog.isPending ? t('Parsing flight log…') : hasFallbackReport ? t('Upload another log') : t('Choose log')}

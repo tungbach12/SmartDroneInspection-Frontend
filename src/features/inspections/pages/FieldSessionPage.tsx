@@ -587,7 +587,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
     return [];
   });
   const [liveTelemetry, setLiveTelemetry] = useState<SmartDroneHubTelemetry | null>(null);
-  const [flightCompletedOnStep, setFlightCompletedOnStep] = useState(false);
+  const [completedFlight, setCompletedFlight] = useState<{ sessionId: string; flightId: string | null } | null>(null);
   const [abortCategory, setAbortCategory] = useState<string | null>(null);
   const [outcomeReason, setOutcomeReason] = useState('');
   const [simDemoOpen, setSimDemoOpen] = useState(false);
@@ -727,7 +727,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
         flights?.filter((item) => item.id !== flight.id),
       );
       setSelectedFlightId((id) => id === flight.id ? null : id);
-      setFlightCompletedOnStep(false);
+      setCompletedFlight((completed) => completed?.flightId === flight.id ? null : completed);
       await refreshFlights();
       setFlightToDelete(null);
     },
@@ -863,15 +863,21 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
       window.dispatchEvent(new Event('sdi-flight-session-updated'));
     }
   }, [liveHasFlown, openSession?.id]);
-  const hasFlightReport = Boolean(
+  const sessionHasFlightReport = Boolean(
     openSession?.hasFlightReport || openSessionFlights.some((f) => f.hasFlightReport),
+  );
+  const completedInSession = completedFlight !== null && completedFlight.sessionId === openSession?.id;
+  const activeFlightId = activeSessionFlight?.id ?? null;
+  const selectedFlightHasReport = Boolean(
+    (activeSessionFlight ? activeSessionFlight.hasFlightReport : openSession?.hasFlightReport) ||
+    (completedInSession && completedFlight.flightId === activeFlightId),
   );
   const hasFlown = liveHasFlown || Boolean(
     openSession?.id &&
       typeof sessionStorage !== 'undefined' &&
       sessionStorage.getItem(`sdi_has_flown_${openSession.id}`) === 'true',
   );
-  const hasFlightRecord = hasFlown || hasFlightReport || flightCompletedOnStep;
+  const hasFlightRecord = hasFlown || sessionHasFlightReport || completedInSession;
   const canProceedToPostFlight = hasFlightRecord;
 
   const buildChecklistSnapshot = (
@@ -2839,22 +2845,24 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                     </Paper>
 
                     <SmartDroneHubTelemetryPanel
+                      key={`telemetry:${activeFlightId ?? openSession.id}`}
                       inspectionId={inspectionId}
                       fieldSessionId={openSession.id}
-                      flightId={activeSessionFlight?.id ?? null}
-                      flightMeta={activeSessionFlight ?? null}
+                      flightId={activeFlightId}
+                      flightMeta={activeSessionFlight}
                       sessionActive
-                      hasFlightReport={hasFlightReport || flightCompletedOnStep}
+                      hasFlightReport={selectedFlightHasReport}
                       telemetrySource={openSession.telemetrySource}
                       onTelemetryChange={setLiveTelemetry}
-                      onFlightCompleted={() => setFlightCompletedOnStep(true)}
+                      onFlightCompleted={() => setCompletedFlight({ sessionId: openSession.id, flightId: activeFlightId })}
                     />
-                    {(hasFlightReport || flightCompletedOnStep) && (
+                    {selectedFlightHasReport && (
                       <FlightOperationsReportView
+                        key={`report:${activeFlightId ?? openSession.id}`}
                         inspectionId={inspectionId}
                         fieldSessionId={openSession.id}
-                        flightId={activeSessionFlight?.id ?? null}
-                        flights={allInspectionFlights}
+                        flightId={activeFlightId}
+                        flights={openSessionFlights}
                         sessions={items}
                         evidenceList={evidenceQuery?.data ?? []}
                         assetName={inspection.assetName}
@@ -2865,7 +2873,6 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                         }
                         flightPermitFileName={inspection.flightPermitFileName}
                         collapsible
-                        defaultExpanded
                       />
                     )}
                     {assetInspectionItems.length > 0 && (
